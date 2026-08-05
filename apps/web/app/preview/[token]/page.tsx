@@ -1,21 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PublicInvitation } from "../../../components/public-invitation";
-import { apiRequest, ApiError } from "../../../lib/api";
+import { ErrorState, PageSkeleton } from "../../../components/ui";
+import { apiRequest, toUiError, type UiError } from "../../../lib/api";
 import type { PublicInvitationData } from "../../../lib/invitations";
 
 export default function SecurePreviewPage() {
   const { token } = useParams<{ token: string }>();
   const [wedding, setWedding] = useState<PublicInvitationData | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    void apiRequest<PublicInvitationData>(`/invitations/preview/${encodeURIComponent(token)}`)
-      .then(setWedding)
-      .catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể mở bản xem trước"));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<UiError | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setWedding(await apiRequest<PublicInvitationData>(`/invitations/preview/${encodeURIComponent(token)}`));
+    } catch (reason) {
+      setError(toUiError(reason, "Không thể mở bản xem trước."));
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
-  if (error) return <main className="inv4-state"><div><div className="inv4-state-mark">!</div><h1>Liên kết xem trước không còn hiệu lực</h1><p>{error}</p><a className="btn btn-primary" href="/dashboard">Về dashboard</a></div></main>;
-  if (!wedding) return <main className="inv4-state"><div><div className="spinner" /><p>Đang chuẩn bị bản xem trước...</p></div></main>;
+
+  useEffect(() => { void load(); }, [load]);
+  if (loading) return <main className="friendly-error"><PageSkeleton cards={2} /></main>;
+  if (error || !wedding) return <main className="friendly-error"><ErrorState title="Liên kết xem trước không còn hiệu lực" description={error?.message ?? "Bản xem trước không còn khả dụng."} requestId={error?.requestId} onRetry={() => void load()} homeHref="/dashboard" /></main>;
   return <PublicInvitation data={wedding} preview />;
 }

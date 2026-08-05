@@ -7,8 +7,8 @@ import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { PublicInvitation } from "../../../../components/public-invitation";
 import { useAuth } from "../../../../components/auth-provider";
-import { useConfirm } from "../../../../components/ui";
-import { ApiError } from "../../../../lib/api";
+import { Alert, DetailPageSkeleton, ErrorState, useConfirm } from "../../../../components/ui";
+import { ApiError, toUiError, type UiError } from "../../../../lib/api";
 import { compressWeddingImage } from "../../../../lib/image";
 import { resolveMediaUrl } from "../../../../lib/invitations";
 import type {
@@ -78,6 +78,7 @@ function InvitationEditorContent() {
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
@@ -97,9 +98,9 @@ function InvitationEditorContent() {
       setTemplates(templateList);
       lastSavedRef.current = JSON.stringify(editor.invitationDesign);
       setSaveStatus("saved");
-      setError("");
+      setLoadError(null);
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : reason instanceof Error ? reason.message : "Không thể tải trình tạo thiệp");
+      setLoadError(toUiError(reason, "Không thể tải trình tạo thiệp."));
     } finally {
       setLoading(false);
     }
@@ -312,8 +313,8 @@ function InvitationEditorContent() {
     finally { setHistoryBusy(false); }
   }
 
-  if (loading) return <AppShell active="invitation" weddingId={weddingId}><div className="editor-loading"><div className="spinner" /><p>Đang mở studio thiết kế...</p></div></AppShell>;
-  if (!data || !design || error && !data) return <AppShell active="invitation" weddingId={weddingId}><div className="empty-panel"><div className="empty-icon">!</div><h3>Không thể mở trình tạo thiệp</h3><p>{error}</p><a className="btn btn-secondary" href="/dashboard">Về dashboard</a></div></AppShell>;
+  if (loading && (!data || !design)) return <AppShell active="invitation" weddingId={weddingId}><DetailPageSkeleton /></AppShell>;
+  if (!data || !design) return <AppShell active="invitation" weddingId={weddingId}><ErrorState title="Không thể mở trình tạo thiệp" description={loadError?.message ?? "Thiết kế chưa sẵn sàng hoặc bạn không còn quyền truy cập."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref={`/weddings/${weddingId}`} homeLabel="Về wedding workspace" /></AppShell>;
 
   return (
     <AppShell active="invitation" weddingId={weddingId}>
@@ -330,9 +331,10 @@ function InvitationEditorContent() {
           </div>
         </header>
 
-        {data.access === "VIEW" && <div className="alert alert-warning">Bạn đang ở chế độ chỉ xem. Chủ sở hữu có thể nâng quyền chỉnh sửa trong phần Cộng tác.</div>}
-        {error && <div className="alert alert-error editor-alert"><span>{error}</span><button type="button" onClick={() => setError("")}>×</button></div>}
-        {message && <div className="alert alert-success editor-alert"><span>{message}</span><button type="button" onClick={() => setMessage("")}>×</button></div>}
+        {data.access === "VIEW" && <Alert tone="warning">Bạn đang ở chế độ chỉ xem. Chủ sở hữu có thể nâng quyền chỉnh sửa trong phần Cộng tác.</Alert>}
+        {loadError && <Alert tone="error" title="Dữ liệu chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert>}
+        {error && <Alert tone="error">{error}</Alert>}
+        {message && <Alert tone="success">{message}</Alert>}
 
         <div className="editor-shell">
           <nav className="editor-nav" aria-label="Công cụ thiết kế">

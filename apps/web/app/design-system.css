@@ -444,3 +444,54 @@ body { color: var(--color-ink); background: var(--color-canvas); font-size: var(
   .ui-file-dropzone { transition: none; }
   .ui-form-save-state.saving > span { animation-duration: 1.4s; }
 }
+
+/* Sprint 15.4 — loading, empty, permission and recoverable error states */
+.ui-empty-state.compact, .ui-error-state.compact { width: 100%; padding: 30px 22px; border-radius: var(--radius-lg); }
+.ui-empty-state.compact h2, .ui-error-state.compact h1 { font-size: clamp(21px, 3vw, 27px); }
+.ui-empty-state.compact .ui-empty-icon, .ui-error-state.compact .ui-error-state-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 21px; }
+.ui-request-id.compact { margin-top: 7px; }
+.ui-request-id.compact code { font-size: 11px; }
+.ui-inline-error { width: 100%; padding: 14px 15px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px; border: 1px solid #efc7c3; border-radius: var(--radius-md); color: var(--color-danger); background: var(--color-danger-soft); }
+.ui-inline-error > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: white; background: var(--color-danger); font-weight: 900; }
+.ui-inline-error > div { min-width: 0; }
+.ui-inline-error strong { display: block; color: var(--color-ink); }
+.ui-inline-error p { margin: 2px 0 0; color: var(--color-danger); font-size: 13px; line-height: 1.5; }
+
+.ui-metric-skeleton { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ui-metric-skeleton > div { min-height: 96px; padding: 18px; display: grid; align-content: center; gap: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); }
+.ui-list-skeleton { display: grid; gap: 10px; }
+.ui-list-skeleton > div { min-height: 72px; padding: 13px 15px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); }
+.ui-list-skeleton > div > span { min-width: 0; display: grid; gap: 8px; }
+.ui-list-skeleton-avatar { width: 42px; height: 42px; border-radius: 13px; }
+.ui-table-skeleton { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); }
+.ui-table-skeleton > div { min-height: 58px; padding: 14px 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: 16px; border-bottom: 1px solid var(--color-border); }
+.ui-table-skeleton > div:last-child { border-bottom: 0; }
+.ui-detail-skeleton { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 60px; display: grid; gap: 24px; }
+.ui-detail-skeleton-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 22px; align-items: stretch; }
+.ui-detail-skeleton-head > span { display: grid; align-content: center; gap: 13px; }
+.ui-detail-skeleton-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr); gap: 22px; }
+
+.page-state-panel { min-height: 360px; display: grid; place-items: center; padding: 24px; }
+.page-state-panel.compact { min-height: 240px; }
+.state-section { display: grid; gap: 18px; }
+
+@media (max-width: 900px) {
+  .ui-metric-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ui-detail-skeleton-head, .ui-detail-skeleton-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .ui-metric-skeleton { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ui-metric-skeleton > div { min-height: 82px; padding: 14px; }
+  .ui-list-skeleton > div { grid-template-columns: auto minmax(0, 1fr); }
+  .ui-list-skeleton > div > .ui-skeleton:last-child { display: none; }
+  .ui-table-skeleton > div { grid-template-columns: 1.3fr .8fr; }
+  .ui-table-skeleton > div > :nth-child(n+3) { display: none; }
+  .ui-inline-error { grid-template-columns: 32px minmax(0, 1fr); }
+  .ui-inline-error > .ui-button { grid-column: 1 / -1; width: 100%; }
+  .ui-detail-skeleton { width: min(100% - 24px, 1180px); padding-top: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; background: #eee8e2; }
+}

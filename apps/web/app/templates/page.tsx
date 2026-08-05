@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { HomeMotion } from "../../components/home-motion";
-import { API_URL } from "../../lib/api";
+import { CardSkeleton, EmptyState, InlineErrorState } from "../../components/ui";
+import { apiRequest, toUiError, type UiError } from "../../lib/api";
 import type { InvitationTemplate } from "../../lib/invitations";
 
 const categoryLabels: Record<string, string> = {
@@ -43,13 +44,25 @@ function TemplatePreview({ template }: { template: InvitationTemplate }) {
 export default function TemplateCatalogPage() {
   const [templates, setTemplates] = useState<InvitationTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<UiError | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
   const [plan, setPlan] = useState("ALL");
   const [onlyNew, setOnlyNew] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setTemplates(await apiRequest<InvitationTemplate[]>("/templates"));
+    } catch (reason) {
+      setError(toUiError(reason, "Không thể tải thư viện template."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -58,15 +71,8 @@ export default function TemplateCatalogPage() {
     } catch {
       setFavorites([]);
     }
-    fetch(`${API_URL}/templates`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Không thể tải thư viện template");
-        return response.json() as Promise<InvitationTemplate[]>;
-      })
-      .then((data) => { setTemplates(data); setError(""); })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Không thể tải thư viện template"))
-      .finally(() => setLoading(false));
-  }, []);
+    void load();
+  }, [load]);
 
   const categories = useMemo(() => ["ALL", ...Array.from(new Set(templates.map((item) => item.category)))], [templates]);
   const filtered = useMemo(() => {
@@ -127,7 +133,8 @@ export default function TemplateCatalogPage() {
 
         <div className="catalog-result-head"><div><strong>{filtered.length}</strong><span>template phù hợp</span></div><p>Free 3 · Cơ bản 8 · Tiêu chuẩn 16 · Cao cấp 24</p></div>
 
-        {loading ? <div className="loading-panel"><div className="spinner" /><h2>Đang chuẩn bị thư viện mẫu</h2></div> : error ? <div className="empty-panel"><div className="empty-icon">!</div><h3>Chưa tải được template</h3><p>{error}. Hãy kiểm tra API đang chạy tại cổng 4000.</p></div> : filtered.length === 0 ? <div className="empty-panel"><div className="empty-icon">⌕</div><h3>Không tìm thấy mẫu phù hợp</h3><p>Thử xóa bớt bộ lọc hoặc dùng một từ khóa rộng hơn.</p></div> : <div className="catalog-template-grid">
+        {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
+        {loading ? <div className="catalog-template-grid" aria-label="Đang tải thư viện template" aria-busy="true"><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /></div> : !error && filtered.length === 0 ? <EmptyState icon="⌕" title="Không tìm thấy mẫu phù hợp" description="Thử xóa bớt bộ lọc hoặc dùng một từ khóa rộng hơn." primaryAction={{ label: "Xóa bộ lọc", onClick: () => { setQuery(""); setCategory("ALL"); setPlan("ALL"); setOnlyNew(false); setOnlyFavorites(false); } }} secondaryAction={{ label: "Tạo thiệp", href: "/register" }} /> : !error ? <div className="catalog-template-grid">
           {filtered.map((template) => {
             const favorite = favorites.includes(template.key);
             return <article className="catalog-template-card" key={template.key}>
@@ -142,7 +149,7 @@ export default function TemplateCatalogPage() {
               {(template.isNew || template.badge) && <b className="catalog-card-badge">{template.isNew ? "Mới" : template.badge}</b>}
             </article>;
           })}
-        </div>}
+        </div> : null}
       </section>
 
       <section className="catalog-final-cta"><div className="container home-final-card reveal-scale" data-reveal><div><span className="eyebrow">Không bị giới hạn bởi template</span><h2>Chọn mẫu làm điểm bắt đầu, rồi biến thành thiệp của riêng bạn.</h2><p>Invitation Studio cho phép thay bảng màu, font, ảnh, nội dung và thứ tự từng phần. Mọi thay đổi được tự động lưu.</p></div><div className="home-final-actions"><a className="btn btn-primary" href="/register">Tạo thiệp miễn phí</a><a className="btn btn-secondary" href="/pricing">So sánh các gói</a></div></div></section>

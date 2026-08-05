@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.3 — Sprint 15.4 Loading, Empty, Error & Retry States
+
+- Added centralized user-safe API error normalization that hides internal stack, SQL and framework details.
+- Expanded shared skeleton, empty, permission, inline-error and full-page error components.
+- Added retry actions and copyable support request IDs to high-impact authenticated, admin, partner and public flows.
+- Added route-level loading boundaries for dashboard, account, billing, pricing, onboarding, support, growth, templates, orders, partner, admin and wedding workspaces.
+- Migrated core wedding workspace, Invitation Studio, guests, event operations and memories away from indefinite spinners and dead-end error panels.
+- Added guided empty states across dashboard, billing, guests, partner, support, growth, templates and administration.
+- Fixed a Growth Hub reload loop and Pricing catalog re-fetch loop while auditing asynchronous page states.
+- No database schema, migration or dependency changes.
+
 ## 0.15.2 — Sprint 15.3 Form System & Unsaved Changes Protection
 
 - Added shared form error summaries with focus management and field links.

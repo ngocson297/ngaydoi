@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
-import { useConfirm } from "../../../../components/ui";
-import { API_URL, ApiError } from "../../../../lib/api";
+import { Alert, DetailPageSkeleton, ErrorState, useConfirm } from "../../../../components/ui";
+import { API_URL, ApiError, toUiError, type UiError } from "../../../../lib/api";
 import type { EventOpsOverview, GuestOperation, SeatingTable } from "../../../../lib/event-operations";
 import { occupiedSeats } from "../../../../lib/event-operations";
 
@@ -24,6 +24,7 @@ function EventOperationsContent() {
   const [eventId, setEventId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [query, setQuery] = useState("");
@@ -33,8 +34,8 @@ function EventOperationsContent() {
   const load = useCallback(async () => {
     try {
       const result = await authRequest<EventOpsOverview>(`/weddings/${weddingId}/event-operations${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ""}`);
-      setData(result); setError("");
-    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tải vận hành sự kiện"); }
+      setData(result); setLoadError(null);
+    } catch (reason) { setLoadError(toUiError(reason, "Không thể tải vận hành sự kiện.")); }
     finally { setLoading(false); }
   }, [authRequest, eventId, weddingId]);
 
@@ -97,8 +98,8 @@ function EventOperationsContent() {
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xuất CSV"); }
   }
 
-  if (loading) return <AppShell active="eventOps" weddingId={weddingId}><div className="empty-panel"><div className="spinner" /><p>Đang chuẩn bị khu vực vận hành...</p></div></AppShell>;
-  if (!data) return <AppShell active="eventOps" weddingId={weddingId}><div className="alert alert-error">{error || "Không tải được dữ liệu"}</div></AppShell>;
+  if (loading && !data) return <AppShell active="eventOps" weddingId={weddingId}><DetailPageSkeleton /></AppShell>;
+  if (!data) return <AppShell active="eventOps" weddingId={weddingId}><ErrorState title="Không thể mở khu vực vận hành" description={loadError?.message ?? "Dữ liệu vận hành chưa sẵn sàng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref={`/weddings/${weddingId}`} homeLabel="Về wedding workspace" /></AppShell>;
 
   return <AppShell active="eventOps" weddingId={weddingId}>
     <a className="back-link" href={`/weddings/${weddingId}`}>← Về wedding workspace</a>
@@ -107,7 +108,8 @@ function EventOperationsContent() {
       <div className="ops-hero-actions"><button className="btn btn-secondary" onClick={() => void exportCsv()}>Xuất CSV</button><a className="btn btn-primary" href="#stations" onClick={() => setTab("checkin")}>Mở check-in</a></div>
     </div>
     <div className="ops-scope panel"><label>Phạm vi vận hành<select value={eventId} onChange={(e) => { setEventId(e.target.value); setLoading(true); }}><option value="">Toàn bộ đám cưới</option>{data.events.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.venueName}</option>)}</select></label><div><span>Đang quản lý</span><strong>{eventLabel(data, eventId)}</strong></div></div>
-    {error && <div className="alert alert-error">{error}</div>}{success && <div className="alert alert-success">{success}</div>}
+    {loadError && <Alert tone="error" title="Dữ liệu chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert>}
+    {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}
     <div className="metric-grid ops-metrics"><article className="metric"><span>Số bàn</span><strong>{data.metrics.tables}</strong></article><article className="metric"><span>Ghế đã phân</span><strong>{data.metrics.assignedSeats}<small>/{data.metrics.capacity}</small></strong></article><article className="metric"><span>Chưa có bàn</span><strong>{data.metrics.unassignedGuests}</strong></article><article className="metric"><span>Đã đến</span><strong>{data.metrics.checkedInPeople}<small> người</small></strong></article></div>
     <nav className="workspace-tabs ops-tabs">{(["tables", "guests", "checkin", "print"] as Tab[]).map((key) => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{{ tables: "Sơ đồ bàn", guests: "Phân khách", checkin: "Trạm check-in", print: "Thẻ QR" }[key]}</button>)}</nav>
 

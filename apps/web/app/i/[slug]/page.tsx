@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { PublicInvitation } from "../../../components/public-invitation";
-import { apiRequest, ApiError } from "../../../lib/api";
+import { ErrorState, PageSkeleton } from "../../../components/ui";
+import { apiRequest, toUiError, type UiError } from "../../../lib/api";
 import type { PublicInvitationData } from "../../../lib/invitations";
 
 export default function InvitationPage() {
   const { slug } = useParams<{ slug: string }>();
   const [wedding, setWedding] = useState<PublicInvitationData | null>(null);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<UiError | null>(null);
 
-  useEffect(() => {
-    void apiRequest<PublicInvitationData>(`/weddings/public/${encodeURIComponent(slug)}`)
-      .then(setWedding)
-      .catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải thiệp cưới"));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setWedding(await apiRequest<PublicInvitationData>(`/weddings/public/${encodeURIComponent(slug)}`));
+    } catch (reason) {
+      setError(toUiError(reason, "Không thể tải thiệp cưới."));
+    } finally {
+      setLoading(false);
+    }
   }, [slug]);
 
-  if (error) return <main className="inv4-state"><div><div className="inv4-state-mark">ND</div><span>Ngày Đôi</span><h1>Thiệp chưa sẵn sàng</h1><p>Thiệp có thể đang được chỉnh sửa, tạm khóa hoặc đã hết hạn.</p><a className="btn btn-primary" href="/">Về trang chủ</a></div></main>;
-  if (!wedding) return <main className="inv4-state"><div><div className="spinner" /><p>Đang mở thiệp cưới...</p></div></main>;
+  useEffect(() => { void load(); }, [load]);
+  if (loading) return <main className="friendly-error"><PageSkeleton cards={2} /></main>;
+  if (error || !wedding) return <main className="friendly-error"><ErrorState title="Thiệp chưa sẵn sàng" description="Thiệp có thể đang được chỉnh sửa, tạm khóa hoặc đã hết hạn. Bạn có thể thử lại hoặc quay về trang chủ." requestId={error?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" /></main>;
   return <PublicInvitation data={wedding} />;
 }

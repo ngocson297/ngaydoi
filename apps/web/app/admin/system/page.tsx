@@ -4,7 +4,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
-import { ApiError } from "../../../lib/api";
+import { Alert, InlineErrorState, PageSkeleton, PermissionState } from "../../../components/ui";
+import { toUiError, type UiError } from "../../../lib/api";
 
 interface EnvironmentCheck { key: string; status: "ok" | "warning" | "error"; message: string }
 interface MailItem { id: string; recipient: string; subject: string; status: string; provider: string; attemptCount: number; lastError: string | null; createdAt: string; sentAt: string | null }
@@ -29,7 +30,7 @@ function SystemContent() {
   const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<UiError | null>(null);
   const [message, setMessage] = useState("");
   const [createdSecret, setCreatedSecret] = useState("");
   const [form, setForm] = useState({ name: "", url: "", events: "rsvp.updated,payment.confirmed" });
@@ -43,32 +44,33 @@ function SystemContent() {
     setOverview(health); setEndpoints(webhookRows); setDeliveries(deliveryRows);
   }, [authRequest]);
 
-  useEffect(() => { if (user && ["ADMIN", "STAFF"].includes(user.role)) void load().catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải trạng thái hệ thống")); }, [load, user]);
+  useEffect(() => { if (user && ["ADMIN", "STAFF"].includes(user.role)) void load().catch((reason: unknown) => setError(toUiError(reason, "Không thể tải trạng thái hệ thống."))); }, [load, user]);
 
   async function run(path: string, success: string): Promise<void> {
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setError(null); setMessage("");
     try { await authRequest(path, { method: "POST" }); setMessage(success); await load(); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Thao tác không thành công"); }
+    catch (reason) { setError(toUiError(reason, "Thao tác không thành công.")); }
     finally { setBusy(false); }
   }
 
   async function createWebhook(event: FormEvent): Promise<void> {
-    event.preventDefault(); setBusy(true); setError(""); setCreatedSecret("");
+    event.preventDefault(); setBusy(true); setError(null); setCreatedSecret("");
     try {
       const result = await authRequest<WebhookEndpoint & { signingSecret: string }>("/admin/system/webhooks", { method: "POST", body: JSON.stringify({ name: form.name, url: form.url, events: form.events.split(",").map((item) => item.trim()).filter(Boolean) }) });
       setCreatedSecret(result.signingSecret); setForm({ name: "", url: "", events: "rsvp.updated,payment.confirmed" }); setMessage("Webhook đã được tạo. Hãy lưu signing secret ngay."); await load();
-    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tạo webhook"); }
+    } catch (reason) { setError(toUiError(reason, "Không thể tạo webhook.")); }
     finally { setBusy(false); }
   }
 
-  if (!user || !["ADMIN", "STAFF"].includes(user.role)) return <AppShell active="system"><div className="panel empty-state"><h2>Không có quyền truy cập</h2><p>Khu vực này dành cho Admin và Staff.</p></div></AppShell>;
+  if (!user || !["ADMIN", "STAFF"].includes(user.role)) return <AppShell active="system"><div className="page-state-panel"><PermissionState description="Trung tâm vận hành hệ thống chỉ dành cho Admin và Staff." /></div></AppShell>;
+  if (!overview && !error) return <AppShell active="system"><PageSkeleton cards={3} /></AppShell>;
 
   const seconds = overview?.live.uptimeSeconds ?? 0;
   const uptime = `${Math.floor(seconds / 86400)} ngày ${Math.floor((seconds % 86400) / 3600)} giờ`;
   return <AppShell active="system">
     <div className="page-heading system-heading"><div><p className="eyebrow">PRODUCTION READINESS</p><h1>Trung tâm vận hành hệ thống</h1><p>Theo dõi database, storage, email, webhook và cấu hình triển khai trong một màn hình.</p></div><a className="btn btn-secondary" href="/status" target="_blank">Mở status page ↗</a></div>
     <nav className="studio-tabs system-tabs">{(["overview", "email", "webhooks"] as Tab[]).map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item === "overview" ? "Tổng quan" : item === "email" ? "Email Outbox" : "Webhooks"}</button>)}</nav>
-    {error ? <div className="form-alert error">{error}</div> : null}{message ? <div className="form-alert success">{message}</div> : null}
+    {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}{message ? <Alert tone="success" title="Đã cập nhật">{message}</Alert> : null}
 
     {tab === "overview" && <>
       <div className="system-kpis"><article><span>Readiness</span><strong className={overview?.readiness.status === "ready" ? "good" : "bad"}>{overview?.readiness.status === "ready" ? "READY" : "NOT READY"}</strong><small>Deployment gate</small></article><article><span>Database</span><strong>{overview?.readiness.checks.database.latencyMs ?? "—"} ms</strong><small>{overview?.database.sizeLabel ?? "—"}</small></article><article><span>Storage</span><strong>{overview?.readiness.checks.storage.provider ?? "—"}</strong><small>{overview?.readiness.checks.storage.ok ? "Kết nối tốt" : "Cần xử lý"}</small></article><article><span>Uptime</span><strong>{uptime}</strong><small>Version {overview?.live.version ?? "—"}</small></article></div>

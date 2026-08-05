@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, FileUploadField, FormActions, FormField, useUnsavedChangesGuard } from "../../../components/ui";
+import { Alert, Button, ErrorState, FileUploadField, FormActions, FormField, PageSkeleton, useUnsavedChangesGuard } from "../../../components/ui";
 import { useParams } from "next/navigation";
-import { API_URL, ApiError, apiRequest } from "../../../lib/api";
+import { API_URL, apiRequest, toUiError, type UiError } from "../../../lib/api";
 import type { PublicMemoryAlbum } from "../../../lib/memories";
 import { memoryMediaUrl } from "../../../lib/memories";
 
@@ -18,12 +18,17 @@ export default function PublicMemoriesPage() {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
   async function load(): Promise<void> {
-    try { setAlbum(await apiRequest<PublicMemoryAlbum>(`/public/memories/${encodeURIComponent(token)}`)); setError(""); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể mở album kỷ niệm"); }
+    setLoading(true);
+    setLoadError(null);
+    try { setAlbum(await apiRequest<PublicMemoryAlbum>(`/public/memories/${encodeURIComponent(token)}`)); }
+    catch (reason) { setLoadError(toUiError(reason, "Không thể mở album kỷ niệm.")); }
+    finally { setLoading(false); }
   }
   useEffect(() => {
     setInvitationToken(new URLSearchParams(window.location.search).get("guest") ?? "");
@@ -84,8 +89,8 @@ export default function PublicMemoriesPage() {
     }
   }
 
-  if (error && !album) return <main className="memory-public-state"><div><div className="memory-public-mark">ND</div><h1>Album chưa sẵn sàng</h1><p>{error}</p><a className="btn btn-primary" href="/">Về trang chủ</a></div></main>;
-  if (!album) return <main className="memory-public-state"><div><div className="spinner" /><p>Đang mở album kỷ niệm...</p></div></main>;
+  if (loading && !album) return <main className="friendly-error"><PageSkeleton cards={2} /></main>;
+  if (loadError || !album) return <main className="friendly-error"><ErrorState title="Album chưa sẵn sàng" description={loadError?.message ?? "Album không còn khả dụng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" /></main>;
 
   return <main className="memory-public">
     <header className="memory-public-hero"><div className="memory-public-overlay" /><div className="memory-public-copy"><span>Album kỷ niệm ngày cưới</span><h1>{album.wedding.groomName} <i>&</i> {album.wedding.brideName}</h1><h2>{album.title}</h2><p>{album.description}</p><a href="#share-memory" className="btn btn-primary">Chia sẻ khoảnh khắc</a></div></header>

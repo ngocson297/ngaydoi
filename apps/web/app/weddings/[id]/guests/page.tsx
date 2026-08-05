@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
-import { useConfirm } from "../../../../components/ui";
-import { ApiError } from "../../../../lib/api";
+import { Alert, EmptyState, ErrorState, ListSkeleton, useConfirm } from "../../../../components/ui";
+import { ApiError, toUiError, type UiError } from "../../../../lib/api";
 import {
   downloadText,
   emptyGuestDraft,
@@ -50,6 +50,7 @@ function GuestManagementContent() {
   const [notifications, setNotifications] = useState<NotificationList>({ unread: 0, items: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
@@ -79,9 +80,9 @@ function GuestManagementContent() {
       const result = await authRequest<GuestListResponse>(`/weddings/${weddingId}/guests?${query}`);
       setData(result);
       setSelected((current) => current.filter((id) => result.items.some((item) => item.id === id)));
-      setError("");
+      setLoadError(null);
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : "Không thể tải danh sách khách");
+      setLoadError(toUiError(reason, "Không thể tải danh sách khách."));
     } finally {
       setLoading(false);
     }
@@ -288,6 +289,9 @@ function GuestManagementContent() {
 
   const responseProgress = metrics?.invited ? Math.round((metrics.responded / metrics.invited) * 100) : 0;
 
+  if (loading && !data) return <AppShell active="guests" weddingId={weddingId}><ListSkeleton rows={8} /></AppShell>;
+  if (!data && loadError) return <AppShell active="guests" weddingId={weddingId}><ErrorState title="Không thể tải danh sách khách" description={loadError.message} requestId={loadError.requestId} onRetry={() => void loadList()} homeHref={`/weddings/${weddingId}`} homeLabel="Về wedding workspace" /></AppShell>;
+
   return (
     <AppShell active="guests" weddingId={weddingId}>
       <div className="guest-page-head">
@@ -295,8 +299,9 @@ function GuestManagementContent() {
         <div className="guest-head-actions"><button className="btn btn-secondary" onClick={() => void exportGuests()} disabled={busy}>Xuất CSV</button>{canEdit && <button className="btn btn-primary" onClick={openCreate}>+ Thêm khách</button>}</div>
       </div>
 
-      {error && <div className="alert alert-error">{error}<button type="button" onClick={() => setError("")}>×</button></div>}
-      {success && <div className="alert alert-success">✓ {success}</div>}
+      {loadError && <Alert tone="error" title="Chưa thể làm mới danh sách" requestId={loadError.requestId}>{loadError.message}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">{success}</Alert>}
 
       <div className="guest-metric-grid">
         <article><span>Khách được mời</span><strong>{metrics?.invited ?? data?.pagination.total ?? 0}</strong><small>{metrics?.sent ?? 0} thiệp đã gửi</small></article>
@@ -320,7 +325,7 @@ function GuestManagementContent() {
 
         {selected.length > 0 && canEdit && <div className="guest-bulkbar"><strong>{selected.length} khách đã chọn</strong><div>{showArchived ? <button onClick={() => void bulkAction("RESTORE")}>Khôi phục</button> : <><button onClick={() => void bulkAction("MARK_SENT")}>Đánh dấu đã gửi</button><button onClick={() => void bulkAction("REGENERATE")}>Tạo link mới</button><button onClick={() => void bulkAction("REVOKE")}>Thu hồi link</button><button onClick={() => void bulkAction("ARCHIVE")}>Lưu trữ</button></>}<button className="danger" onClick={() => void bulkAction("DELETE")}>Xóa</button></div></div>}
 
-        {loading ? <div className="empty-panel"><div className="spinner" /><p>Đang tải danh sách...</p></div> : !data?.items.length ? <div className="empty-panel"><div className="empty-icon">♢</div><h3>{showArchived ? "Chưa có khách được lưu trữ" : "Chưa tìm thấy khách phù hợp"}</h3><p>{showArchived ? "Khách được lưu trữ sẽ xuất hiện tại đây và có thể khôi phục bất kỳ lúc nào." : "Thử bỏ bộ lọc hoặc thêm khách đầu tiên để tạo link thiệp cá nhân."}</p>{canEdit && !showArchived && <button className="btn btn-primary" onClick={openCreate}>Thêm khách đầu tiên</button>}</div> : <>
+        {loading ? <ListSkeleton rows={6} /> : !data?.items.length ? <EmptyState title={showArchived ? "Chưa có khách được lưu trữ" : "Chưa tìm thấy khách phù hợp"} description={showArchived ? "Khách được lưu trữ sẽ xuất hiện tại đây và có thể khôi phục bất kỳ lúc nào." : "Thử bỏ bộ lọc hoặc thêm khách đầu tiên để tạo link thiệp cá nhân."} primaryAction={canEdit && !showArchived ? { label: "Thêm khách đầu tiên", onClick: openCreate } : undefined} /> : <>
           <div className="guest-table-wrap"><table className="guest-table"><thead><tr><th><input type="checkbox" checked={allSelected} onChange={(event) => setSelected(event.target.checked ? data.items.map((item) => item.id) : [])} /></th><th>Khách mời</th><th>Nhóm / bên</th><th>Số lượng</th><th>Trạng thái</th><th>Thiệp cá nhân</th><th /></tr></thead><tbody>{data.items.map((item) => <tr key={item.id}><td><input type="checkbox" checked={selected.includes(item.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /></td><td><div className="guest-identity"><span>{item.fullName.charAt(0).toUpperCase()}</span><div><strong>{item.salutation ? `${item.salutation} ` : ""}{item.fullName}</strong><small>{item.phone || item.email || "Chưa có thông tin liên hệ"}</small>{item.tags.length > 0 && <em>{item.tags.slice(0, 2).join(" · ")}</em>}</div></div></td><td><strong>{item.groupName || "Chưa phân nhóm"}</strong><small>{item.side === "GROOM" ? "Nhà trai" : item.side === "BRIDE" ? "Nhà gái" : "Khách chung"}{item.invitedBy ? ` · ${item.invitedBy} mời` : ""}</small></td><td><strong>{item.maxAdultCount + item.maxChildCount}</strong><small>{item.maxAdultCount} lớn · {item.maxChildCount} trẻ em</small></td><td><span className={`guest-status ${invitationStatusClass(item)}`}>{invitationStatusLabel(item)}</span>{item.invitation?.rsvp?.status === "ATTENDING" && <small>{item.invitation.rsvp.adultCount + item.invitation.rsvp.childCount} người xác nhận</small>}</td><td><button className="guest-link-button" disabled={!item.invitation || Boolean(item.archivedAt)} onClick={() => void copyLink(item)}>⧉ Sao chép link</button><small>{item.invitation?.viewCount ?? 0} lượt mở</small></td><td><div className="guest-row-actions">{canEdit && <>{!item.archivedAt && <button title="Đánh dấu đã gửi" onClick={() => void markSent(item)}>✓</button>}<button title="Chỉnh sửa" onClick={() => openEdit(item)}>✎</button><button className="danger" title="Xóa" onClick={() => void removeGuest(item)}>×</button></>}</div></td></tr>)}</tbody></table></div>
           <div className="guest-pagination"><span>Hiển thị {data.items.length} / {data.pagination.total} khách</span><div><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>← Trước</button><strong>{page}/{data.pagination.totalPages}</strong><button disabled={page >= data.pagination.totalPages} onClick={() => setPage((value) => value + 1)}>Sau →</button></div></div>
         </>}

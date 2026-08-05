@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "../../components/app-shell";
 import { AuthGate } from "../../components/auth-gate";
 import { useAuth } from "../../components/auth-provider";
-import { ApiError } from "../../lib/api";
+import { EmptyState, InlineErrorState, ListSkeleton, MetricSkeleton } from "../../components/ui";
+import { toUiError, type UiError } from "../../lib/api";
 import { formatDate, statusClasses, statusLabels } from "../../lib/weddings";
 import type { WeddingSummary } from "../../lib/weddings";
 
@@ -12,14 +13,21 @@ function DashboardContent() {
   const { authRequest } = useAuth();
   const [weddings, setWeddings] = useState<WeddingSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<UiError | null>(null);
 
-  useEffect(() => {
-    void authRequest<WeddingSummary[]>("/weddings")
-      .then(setWeddings)
-      .catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải danh sách đám cưới"))
-      .finally(() => setLoading(false));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setWeddings(await authRequest<WeddingSummary[]>("/weddings"));
+    } catch (reason) {
+      setError(toUiError(reason, "Không thể tải danh sách đám cưới."));
+    } finally {
+      setLoading(false);
+    }
   }, [authRequest]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const stats = useMemo(() => ({
     total: weddings.length,
@@ -39,29 +47,32 @@ function DashboardContent() {
         <div className="dash-head-actions"><a className="btn btn-secondary" href="/pricing">Xem bảng giá</a><a className="btn btn-primary" href="/weddings/new">+ Tạo đám cưới</a></div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {loading ? <MetricSkeleton /> : (
+        <div className="metric-grid">
+          <article className="metric"><span>Tổng workspace</span><strong>{stats.total}</strong></article>
+          <article className="metric"><span>Đang chuẩn bị</span><strong>{stats.draft}</strong></article>
+          <article className="metric"><span>Đã xuất bản</span><strong>{stats.published}</strong></article>
+          <article className="metric"><span>Tổng sự kiện</span><strong>{stats.events}</strong></article>
+        </div>
+      )}
 
-      <div className="metric-grid">
-        <article className="metric"><span>Tổng workspace</span><strong>{stats.total}</strong></article>
-        <article className="metric"><span>Đang chuẩn bị</span><strong>{stats.draft}</strong></article>
-        <article className="metric"><span>Đã xuất bản</span><strong>{stats.published}</strong></article>
-        <article className="metric"><span>Tổng sự kiện</span><strong>{stats.events}</strong></article>
-      </div>
-
-      <section id="my-weddings" className="workspace-section">
+      <section id="my-weddings" className="workspace-section state-section">
         <div className="panel-head">
           <div><h2>Danh sách đám cưới</h2><p className="muted-small">Workspace bạn sở hữu hoặc được mời cộng tác.</p></div>
         </div>
+        {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
         {loading ? (
-          <div className="empty-panel"><div className="spinner" /><p>Đang tải dữ liệu...</p></div>
-        ) : weddings.length === 0 ? (
-          <div className="empty-panel">
-            <div className="empty-icon">✦</div>
-            <h3>Bắt đầu đám cưới đầu tiên</h3>
-            <p>Wizard chỉ yêu cầu thông tin cơ bản. Bạn có thể bổ sung sự kiện và gia đình sau.</p>
-            <a className="btn btn-primary" href="/weddings/new">Tạo workspace</a>
-          </div>
-        ) : (
+          <ListSkeleton rows={3} />
+        ) : !error && weddings.length === 0 ? (
+          <EmptyState
+            icon="✦"
+            title="Bắt đầu đám cưới đầu tiên"
+            description="Wizard chỉ yêu cầu thông tin cơ bản. Bạn có thể bổ sung sự kiện, khách mời và gia đình sau."
+            primaryAction={{ label: "Tạo workspace", href: "/weddings/new" }}
+            secondaryAction={{ label: "Xem mẫu thiệp", href: "/templates" }}
+            compact
+          />
+        ) : !error ? (
           <div className="wedding-card-grid">
             {weddings.map((wedding) => (
               <a className="wedding-card" href={`/weddings/${wedding.id}`} key={wedding.id}>
@@ -81,7 +92,7 @@ function DashboardContent() {
               </a>
             ))}
           </div>
-        )}
+        ) : null}
       </section>
     </AppShell>
   );

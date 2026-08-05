@@ -1,15 +1,15 @@
-# Ngày Đôi v0.15.2
+# Ngày Đôi v0.15.3
 
-Current milestone: **Phase 15 — Sprint 15.3 Form System & Unsaved Changes Protection**.
+Current milestone: **Phase 15 — Sprint 15.4 Loading, Empty, Error & Retry States**.
 
-## Điểm mới trong Sprint 15.3
+## Điểm mới trong Sprint 15.4
 
-- Form error summary có focus và liên kết tới field lỗi.
-- Trạng thái form: chưa lưu, đang lưu và đã lưu.
-- Cảnh báo khi rời trang hoặc chuyển tab khi còn thay đổi chưa lưu.
-- Date/time field và upload kéo-thả dùng chung.
-- Confirmation dialog toàn hệ thống; không còn `window.confirm` trong Web app.
-- Các luồng tạo wedding, planning, wedding workspace và upload album đã chuyển sang form system mới.
+- Skeleton loading theo đúng bố cục thay cho spinner toàn trang ở các luồng chính.
+- Empty state có hướng dẫn và CTA tiếp theo.
+- Error state có retry, mã hỗ trợ và đường quay lại an toàn.
+- Lỗi API nội bộ được làm sạch trước khi hiển thị cho người dùng.
+- Permission state thống nhất cho Admin/Partner.
+- Route-level loading cho các khu vực quan trọng.
 
 ## Chạy local
 
@@ -32,4 +32,4 @@ npm run source:pack
 
 File tạo tại `~/Downloads/ngaydoi-current.zip`.
 
-Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_3_RUN_GUIDE.md`.
+Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_4_RUN_GUIDE.md`.

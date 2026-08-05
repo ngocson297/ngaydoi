@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "../../components/app-shell";
 import { AuthGate } from "../../components/auth-gate";
 import { useAuth } from "../../components/auth-provider";
-import { ApiError } from "../../lib/api";
+import { Alert, ErrorState, PageSkeleton } from "../../components/ui";
+import { ApiError, toUiError, type UiError } from "../../lib/api";
 import type { CatalogResponse, PlanSummary } from "../../lib/commercial";
 import { formatMoney } from "../../lib/commercial";
 import type { WeddingSummary } from "../../lib/weddings";
@@ -31,19 +32,31 @@ function PricingContent() {
   const [addOnCodes, setAddOnCodes] = useState<string[]>([]);
   const [couponCode, setCouponCode] = useState("WELCOME10");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    void Promise.all([
-      authRequest<CatalogResponse>("/plans"),
-      authRequest<WeddingSummary[]>("/weddings"),
-    ]).then(([catalogResult, weddingResult]) => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [catalogResult, weddingResult] = await Promise.all([
+        authRequest<CatalogResponse>("/plans"),
+        authRequest<WeddingSummary[]>("/weddings"),
+      ]);
+      const ownedWeddings = weddingResult.filter((item) => item.access === "OWNER");
       setCatalog(catalogResult);
-      setWeddings(weddingResult.filter((item) => item.access === "OWNER"));
-      if (!weddingId && weddingResult.length) setWeddingId(weddingResult.find((item) => item.access === "OWNER")?.id ?? "");
-    }).catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải bảng giá"));
-  }, [authRequest, weddingId]);
+      setWeddings(ownedWeddings);
+      setWeddingId((current) => current || ownedWeddings[0]?.id || "");
+      setLoadError(null);
+    } catch (reason) {
+      setLoadError(toUiError(reason, "Không thể tải bảng giá."));
+    } finally {
+      setLoading(false);
+    }
+  }, [authRequest]);
+
+  useEffect(() => { void load(); }, [load]);
 
   const selectedPlan = useMemo(() => catalog?.plans.find((item) => item.code === planCode) ?? null, [catalog, planCode]);
 
@@ -81,13 +94,17 @@ function PricingContent() {
     setAddOnCodes((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code]);
   }
 
+  if (loading && !catalog) return <AppShell active="billing"><PageSkeleton cards={4} /></AppShell>;
+  if (!catalog) return <AppShell active="billing"><ErrorState title="Không thể tải bảng giá" description={loadError?.message ?? "Danh sách gói dịch vụ chưa sẵn sàng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref="/billing" homeLabel="Về đơn hàng" /></AppShell>;
+
   return (
     <AppShell active="billing">
       <div className="commerce-head">
         <div><div className="eyebrow">Commercial foundation</div><h1>Chọn gói phù hợp với ngày cưới</h1><p>Giá một lần cho một wedding. Bạn luôn thấy rõ giới hạn và số tiền trước khi tạo đơn.</p></div>
         <a className="btn btn-secondary" href="/billing">Đơn hàng của tôi</a>
       </div>
-      {error && <div className="alert alert-error">{error}</div>}
+      {loadError ? <Alert tone="error" title="Bảng giá chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
       <section className="commerce-step-card">
         <div className="commerce-step-number">1</div>

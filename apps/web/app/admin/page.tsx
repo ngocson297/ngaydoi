@@ -4,8 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "../../components/app-shell";
 import { AuthGate } from "../../components/auth-gate";
 import { useAuth } from "../../components/auth-provider";
-import { useConfirm } from "../../components/ui";
-import { ApiError } from "../../lib/api";
+import { Alert, InlineErrorState, PageSkeleton, PermissionState, useConfirm } from "../../components/ui";
+import { toUiError, type UiError } from "../../lib/api";
 import { formatMoney, orderStatusLabels, paymentStatusLabels } from "../../lib/commercial";
 
 interface AdminOverview {
@@ -42,7 +42,7 @@ function AdminContent() {
   const [search, setSearch] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<UiError | null>(null);
   const [message, setMessage] = useState("");
   const [publishDialog, setPublishDialog] = useState<{ weddingId: string; weddingTitle: string; decision: PublishDecision } | null>(null);
   const [publishNote, setPublishNote] = useState("");
@@ -51,19 +51,19 @@ function AdminContent() {
     const [overviewResult, orderResult] = await Promise.all([authRequest<AdminOverview>("/admin/overview"), authRequest<AdminOrder[]>("/admin/orders")]);
     setOverview(overviewResult); setOrders(orderResult);
   }, [authRequest]);
-  useEffect(() => { if (user && ["ADMIN", "STAFF"].includes(user.role)) void loadCore().catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải trang vận hành")); }, [loadCore, user]);
+  useEffect(() => { if (user && ["ADMIN", "STAFF"].includes(user.role)) void loadCore().catch((reason: unknown) => setError(toUiError(reason, "Không thể tải trang vận hành."))); }, [loadCore, user]);
 
   async function loadOrder(id: string): Promise<void> { setSelected(await authRequest<AdminOrderDetail>(`/admin/orders/${id}`)); }
   async function action(path: string, success: string): Promise<void> {
-    if (!selected) return; setBusy(true); setError(""); setMessage("");
+    if (!selected) return; setBusy(true); setError(null); setMessage("");
     try { const result = await authRequest<AdminOrderDetail>(`/admin/orders/${selected.id}/${path}`, { method: "POST", body: JSON.stringify({ note: note.trim() || undefined }) }); setSelected(result); setNote(""); setMessage(success); await loadCore(); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xử lý đơn hàng"); }
+    catch (reason) { setError(toUiError(reason, "Không thể xử lý đơn hàng.")); }
     finally { setBusy(false); }
   }
   async function addNote(event: FormEvent): Promise<void> {
     event.preventDefault(); if (!selected || !note.trim()) return; setBusy(true);
     try { await authRequest(`/admin/orders/${selected.id}/notes`, { method: "POST", body: JSON.stringify({ body: note, visibility: "CUSTOMER" }) }); setNote(""); await loadOrder(selected.id); setMessage("Đã gửi cập nhật cho khách hàng."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể thêm ghi chú"); } finally { setBusy(false); }
+    catch (reason) { setError(toUiError(reason, "Không thể thêm ghi chú.")); } finally { setBusy(false); }
   }
   async function searchUsers(): Promise<void> { setUsers(await authRequest<AdminUser[]>(`/admin/users?search=${encodeURIComponent(search)}`)); }
   async function searchWeddings(): Promise<void> { setWeddings(await authRequest<AdminWedding[]>(`/admin/weddings?search=${encodeURIComponent(search)}`)); }
@@ -74,25 +74,26 @@ function AdminContent() {
   async function reviewPublish(): Promise<void> {
     if (!publishDialog) return;
     if (publishDialog.decision === "CHANGES_REQUESTED" && publishNote.trim().length < 5) {
-      setError("Vui lòng mô tả rõ nội dung khách hàng cần chỉnh sửa.");
+      setError({ message: "Vui lòng mô tả rõ nội dung khách hàng cần chỉnh sửa." });
       return;
     }
-    setBusy(true); setError("");
+    setBusy(true); setError(null);
     try {
       await authRequest(`/admin/weddings/${publishDialog.weddingId}/publish-review`, { method: "POST", body: JSON.stringify({ decision: publishDialog.decision, note: publishNote.trim() || undefined }) });
       setPublishDialog(null); setPublishNote("");
       await searchWeddings(); await loadCore(); setMessage("Đã cập nhật trạng thái kiểm duyệt.");
     }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể cập nhật kiểm duyệt"); }
+    catch (reason) { setError(toUiError(reason, "Không thể cập nhật kiểm duyệt.")); }
     finally { setBusy(false); }
   }
 
   const queue = useMemo(() => orders.filter((item) => item.paymentStatus === "SUBMITTED" || item.wedding.publishReviewStatus === "REQUESTED"), [orders]);
-  if (!user || !["ADMIN", "STAFF"].includes(user.role)) return <AppShell active="admin"><div className="empty-panel"><div className="empty-icon">⌁</div><h2>Không có quyền truy cập</h2><p>Khu vực này chỉ dành cho nhân viên vận hành.</p><a className="btn btn-secondary" href="/dashboard">Quay lại dashboard</a></div></AppShell>;
+  if (!user || !["ADMIN", "STAFF"].includes(user.role)) return <AppShell active="admin"><div className="page-state-panel"><PermissionState description="Trung tâm vận hành chỉ dành cho Admin và Staff." /></div></AppShell>;
+  if (!overview && !error) return <AppShell active="admin"><PageSkeleton cards={3} /></AppShell>;
 
   return <AppShell active="admin">
     <div className="admin-head"><div><div className="eyebrow">Operations console</div><h1>Trung tâm vận hành</h1><p>Xử lý đơn hàng, đối soát thanh toán và kiểm duyệt xuất bản trong một hàng đợi thống nhất.</p></div><div className="admin-live"><i/>Sandbox operations</div></div>
-    {error && <div className="alert alert-error">{error}</div>}{message && <div className="alert alert-success">{message}</div>}
+    {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void loadCore()} /> : null}{message ? <Alert tone="success" title="Đã cập nhật">{message}</Alert> : null}
     <nav className="admin-tabs">{(["overview", "orders", "users", "weddings"] as Tab[]).map((item) => <button className={tab === item ? "active" : ""} onClick={() => { setTab(item); setSelected(null); setSearch(""); if (item === "users") void searchUsers(); if (item === "weddings") void searchWeddings(); }} key={item}>{item === "overview" ? "Tổng quan" : item === "orders" ? "Đơn hàng" : item === "users" ? "Khách hàng" : "Wedding"}</button>)}</nav>
 
     {tab === "overview" && <>

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { useConfirm } from "../../../components/ui";
-import { ApiError, apiRequest } from "../../../lib/api";
+import { Alert, ErrorState, PageSkeleton, useConfirm } from "../../../components/ui";
+import { ApiError, apiRequest, toUiError, type UiError } from "../../../lib/api";
 
 type SearchGuest = { id: string; fullName: string; salutation: string | null; groupName: string | null; phone: string | null; invitationToken: string | null; rsvp: { status: string; adultCount: number; childCount: number } | null; assignment: { table: { name: string; code: string; zone: string | null }; seatCount: number } | null; checkin: { adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null } | null };
 type StationData = { station: { id: string; name: string }; wedding: { title: string; brideName: string; groomName: string }; event: { title: string; startsAt: string; venueName: string } | null; recent: Array<{ id: string; guestId: string; adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null; guest: { fullName: string }; station: { name: string } | null }>; metrics: { guests: number; people: number } };
@@ -18,6 +18,8 @@ export default function CheckinPage() {
   const [counts, setCounts] = useState({ adults: 1, children: 0 });
   const [scanValue, setScanValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stationError, setStationError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const scanInput = useRef<HTMLInputElement>(null);
@@ -25,7 +27,12 @@ export default function CheckinPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
 
-  const load = useCallback(async () => { try { setData(await apiRequest<StationData>(`/checkin/stations/${token}`)); setError(""); } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Trạm check-in không hoạt động"); } }, [token]);
+  const load = useCallback(async () => {
+    setLoading(true); setStationError(null);
+    try { setData(await apiRequest<StationData>(`/checkin/stations/${token}`)); }
+    catch (reason) { setStationError(toUiError(reason, "Trạm check-in không hoạt động.")); }
+    finally { setLoading(false); }
+  }, [token]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => () => { streamRef.current?.getTracks().forEach((track) => track.stop()); }, []);
   useEffect(() => { const timer = window.setTimeout(async () => { if (query.trim().length < 2) { setGuests([]); return; } try { setGuests(await apiRequest<SearchGuest[]>(`/checkin/stations/${token}/search?q=${encodeURIComponent(query.trim())}`)); } catch { setGuests([]); } }, 250); return () => window.clearTimeout(timer); }, [query, token]);
@@ -69,12 +76,13 @@ export default function CheckinPage() {
 
   function submitScan(event: React.FormEvent): void { event.preventDefault(); const value = scanValue.trim(); if (!value) return; setSelected(null); setCounts({ adults: 1, children: 0 }); void checkIn({ invitationToken: value.replace(/^.*NDG:/, "NDG:") }); }
 
-  if (!data) return <main className="checkin-shell"><section className="checkin-card"><div className="spinner" /><h1>Đang mở trạm check-in</h1>{error && <div className="alert alert-error">{error}</div>}</section></main>;
+  if (loading && !data) return <main className="checkin-shell"><PageSkeleton cards={2} /></main>;
+  if (stationError || !data) return <main className="checkin-shell"><section className="checkin-card"><ErrorState title="Không thể mở trạm check-in" description={stationError?.message ?? "Trạm check-in không còn khả dụng."} requestId={stationError?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" compact /></section></main>;
   return <main className="checkin-shell">
     <header className="checkin-header"><div><span>NGÀY ĐÔI · EVENT OPS</span><h1>{data.wedding.groomName} & {data.wedding.brideName}</h1><p>{data.event?.title ?? "Toàn bộ đám cưới"} · {data.station.name}</p></div><div className="checkin-live"><strong>{data.metrics.people}</strong><span>người đã đến</span></div></header>
     <div className="checkin-layout">
       <section className="checkin-card checkin-main-card"><div className="checkin-tabs"><strong>Quét QR hoặc tìm khách</strong><span>Luôn có thể nhập tên nếu camera không hoạt động</span></div>
-        {error && <div className="alert alert-error">{error}</div>}{success && <div className="alert alert-success">{success}</div>}
+        {error ? <Alert tone="error">{error}</Alert> : null}{success ? <Alert tone="success">{success}</Alert> : null}
         <div className="camera-actions"><button className="btn btn-secondary" type="button" onClick={() => cameraActive ? stopCamera() : void startCamera()}>{cameraActive ? "Tắt camera" : "Bật camera quét QR"}</button><span>Hoạt động trên trình duyệt có hỗ trợ BarcodeDetector; luôn có phương án tìm thủ công.</span></div>{cameraActive && <div className="camera-preview"><video muted playsInline ref={videoRef} /><div>Đưa mã QR vào giữa khung hình</div></div>}<form className="scan-form" onSubmit={submitScan}><label>Mã QR / mã khách<input autoFocus ref={scanInput} value={scanValue} onChange={(e) => setScanValue(e.target.value)} placeholder="Quét mã QR hoặc dán mã NDG:..." /></label><button className="btn btn-primary" disabled={busy || !scanValue.trim()}>Check-in bằng mã</button></form>
         <div className="checkin-divider"><span>hoặc tìm thủ công</span></div>
         <label className="guest-search-label">Tên, số điện thoại hoặc email<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nhập ít nhất 2 ký tự..." /></label>

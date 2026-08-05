@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
-import { useConfirm } from "../../../../components/ui";
-import { API_URL, ApiError } from "../../../../lib/api";
+import { Alert, DetailPageSkeleton, ErrorState, useConfirm } from "../../../../components/ui";
+import { API_URL, ApiError, toUiError, type UiError } from "../../../../lib/api";
 import type { MemoryAsset, MemoryOwnerOverview, MemoryStatus } from "../../../../lib/memories";
 import { memoryAlbumUrl, memoryMediaUrl } from "../../../../lib/memories";
 
@@ -24,6 +24,7 @@ function MemoriesContent() {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [rejecting, setRejecting] = useState<MemoryAsset | null>(null);
@@ -35,8 +36,8 @@ function MemoriesContent() {
       const result = await authRequest<MemoryOwnerOverview>(`/weddings/${weddingId}/memories`);
       setData(result);
       setSettings({ title: result.title, description: result.description, thankYouTitle: result.thankYouTitle, thankYouMessage: result.thankYouMessage, uploadEnabled: result.uploadEnabled, publicEnabled: result.publicEnabled, moderationRequired: result.moderationRequired, showUploaderName: result.showUploaderName, closesAt: result.closesAt ? new Date(result.closesAt).toISOString().slice(0, 16) : "" });
-      setError("");
-    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tải album kỷ niệm"); }
+      setLoadError(null);
+    } catch (reason) { setLoadError(toUiError(reason, "Không thể tải album kỷ niệm.")); }
     finally { setLoading(false); }
   }, [authRequest, weddingId]);
 
@@ -85,13 +86,14 @@ function MemoriesContent() {
     catch { setError("Trình duyệt không cho phép sao chép tự động. Hãy chọn và sao chép liên kết thủ công."); }
   }
 
-  if (loading) return <AppShell active="memories" weddingId={weddingId}><div className="empty-panel"><div className="spinner" /><p>Đang mở album kỷ niệm...</p></div></AppShell>;
-  if (!data) return <AppShell active="memories" weddingId={weddingId}><div className="alert alert-error">{error || "Không tải được album"}</div></AppShell>;
+  if (loading && !data) return <AppShell active="memories" weddingId={weddingId}><DetailPageSkeleton /></AppShell>;
+  if (!data) return <AppShell active="memories" weddingId={weddingId}><ErrorState title="Không thể mở album kỷ niệm" description={loadError?.message ?? "Album chưa sẵn sàng hoặc bạn không còn quyền truy cập."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref={`/weddings/${weddingId}`} homeLabel="Về wedding workspace" /></AppShell>;
 
   return <AppShell active="memories" weddingId={weddingId}>
     <a className="back-link" href={`/weddings/${weddingId}`}>← Về wedding workspace</a>
     <div className="memory-hero"><div><span className="eyebrow">Post-wedding Experience</span><h1>Album kỷ niệm chung</h1><p>Mời khách chia sẻ ảnh và video, kiểm duyệt nhanh rồi lưu giữ thành một album đẹp sau ngày cưới.</p></div><div className="memory-hero-actions"><a className="btn btn-secondary" href={publicPath} target="_blank">Mở album công khai ↗</a><button className="btn btn-primary" onClick={() => setTab("share")}>Chia sẻ QR</button></div></div>
-    {error && <div className="alert alert-error">{error}</div>}{success && <div className="alert alert-success">{success}</div>}
+    {loadError && <Alert tone="error" title="Dữ liệu chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert>}
+    {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}
     <div className="metric-grid memory-metrics"><article className="metric"><span>Tổng nội dung</span><strong>{data.metrics.total}</strong></article><article className="metric"><span>Chờ duyệt</span><strong>{data.metrics.pending}</strong></article><article className="metric"><span>Đã công khai</span><strong>{data.metrics.approved}</strong></article><article className="metric"><span>Dung lượng</span><strong className="memory-size">{formatBytes(data.metrics.totalBytes)}</strong></article></div>
     <nav className="workspace-tabs memory-tabs">{(["gallery", "moderation", "settings", "share"] as Tab[]).map((key) => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{{ gallery: "Album", moderation: `Kiểm duyệt (${data.metrics.pending})`, settings: "Cài đặt", share: "Chia sẻ & QR" }[key]}</button>)}</nav>
 

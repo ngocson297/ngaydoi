@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
-import { ApiError } from "../../../lib/api";
+import { Alert, DetailPageSkeleton, ErrorState } from "../../../components/ui";
+import { toUiError, type UiError } from "../../../lib/api";
 import type { CatalogResponse, OrderSummary } from "../../../lib/commercial";
 import { formatMoney, orderStatusLabels, paymentStatusLabels } from "../../../lib/commercial";
 
@@ -23,32 +24,44 @@ function OrderContent() {
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
+  const [actionError, setActionError] = useState<UiError | null>(null);
   const [message, setMessage] = useState("");
   const load = useCallback(async () => {
-    const [orderResult, catalogResult] = await Promise.all([authRequest<OrderDetail>(`/orders/${params.id}`), authRequest<CatalogResponse>("/plans")]);
-    setOrder(orderResult); setCatalog(catalogResult);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [orderResult, catalogResult] = await Promise.all([authRequest<OrderDetail>(`/orders/${params.id}`), authRequest<CatalogResponse>("/plans")]);
+      setOrder(orderResult);
+      setCatalog(catalogResult);
+    } catch (reason) {
+      setLoadError(toUiError(reason, "Không thể tải đơn hàng."));
+    } finally {
+      setLoading(false);
+    }
   }, [authRequest, params.id]);
-  useEffect(() => { void load().catch((reason: unknown) => setError(reason instanceof ApiError ? reason.message : "Không thể tải đơn hàng")); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   async function submitPayment(event: FormEvent): Promise<void> {
-    event.preventDefault(); setBusy(true); setError(""); setMessage("");
+    event.preventDefault(); setBusy(true); setActionError(null); setMessage("");
     try { await authRequest(`/orders/${params.id}/payment-reference`, { method: "POST", body: JSON.stringify({ reference, note }) }); await load(); setMessage("Đã gửi thông tin. Đội ngũ Ngày Đôi sẽ đối soát thanh toán."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể gửi thông tin thanh toán"); }
+    catch (reason) { setActionError(toUiError(reason, "Không thể gửi thông tin thanh toán.")); }
     finally { setBusy(false); }
   }
   async function sandboxPay(): Promise<void> {
-    setBusy(true); setError("");
+    setBusy(true); setActionError(null);
     try { await authRequest(`/orders/${params.id}/sandbox-pay`, { method: "POST" }); await load(); setMessage("Sandbox đã xác nhận thanh toán và kích hoạt quyền lợi."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể thanh toán sandbox"); }
+    catch (reason) { setActionError(toUiError(reason, "Không thể thanh toán sandbox.")); }
     finally { setBusy(false); }
   }
-  if (!order) return <AppShell active="billing"><div className="empty-panel"><div className="spinner"/><p>Đang tải đơn hàng...</p>{error && <div className="alert alert-error">{error}</div>}</div></AppShell>;
+  if (loading) return <AppShell active="billing"><DetailPageSkeleton /></AppShell>;
+  if (loadError || !order) return <AppShell active="billing"><div className="page-state-panel"><ErrorState title={loadError?.status === 404 ? "Không tìm thấy đơn hàng" : "Chưa thể tải đơn hàng"} description={loadError?.message ?? "Đơn hàng không còn khả dụng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref="/billing" homeLabel="Về danh sách đơn" /></div></AppShell>;
   const payment = order.payments[0];
   const completed = order.paymentStatus === "CONFIRMED";
   return <AppShell active="billing">
     <div className="order-detail-head"><div><a className="back-link" href="/billing">← Quay lại đơn hàng</a><div className="eyebrow">{order.orderNumber}</div><h1>{order.plan.name} · {order.wedding.title}</h1><p>Tạo ngày {new Date(order.createdAt).toLocaleString("vi-VN")}</p></div><div className="order-total-box"><span>Tổng thanh toán</span><strong>{formatMoney(order.totalAmount)}</strong><em className={`commerce-status ${order.paymentStatus.toLowerCase()}`}>{paymentStatusLabels[order.paymentStatus] ?? order.paymentStatus}</em></div></div>
-    {error && <div className="alert alert-error">{error}</div>}{message && <div className="alert alert-success">{message}</div>}
+    {actionError ? <Alert tone="error" title="Chưa thể hoàn tất thao tác" requestId={actionError.requestId}>{actionError.message}</Alert> : null}{message ? <Alert tone="success" title="Đã cập nhật">{message}</Alert> : null}
     <div className="order-detail-grid">
       <div className="order-detail-main">
         <section className="order-timeline-card"><h2>Trạng thái đơn hàng</h2><div className="order-timeline">

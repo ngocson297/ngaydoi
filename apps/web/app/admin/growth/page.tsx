@@ -1,5 +1,60 @@
 "use client";
-import{useCallback,useEffect,useState}from"react";import{AppShell}from"../../../components/app-shell";import{AuthGate}from"../../../components/auth-gate";import{useAuth}from"../../../components/auth-provider";import{ApiError}from"../../../lib/api";
-type Data={funnel:Record<string,number>;tickets:any[];domains:any[];referrals:any[];events:any[]};
-function Content(){const{user,authRequest}=useAuth();const[data,setData]=useState<Data|null>(null);const[error,setError]=useState("");const[tab,setTab]=useState("funnel");const load=useCallback(()=>authRequest<Data>("/admin/growth").then(setData),[authRequest]);useEffect(()=>{if(user&&["ADMIN","STAFF"].includes(user.role))void load().catch(e=>setError(e instanceof ApiError?e.message:"Không thể tải Growth Center"))},[load,user]);async function patch(path:string,body:unknown){await authRequest(path,{method:"PATCH",body:JSON.stringify(body)});await load()}if(!user||!["ADMIN","STAFF"].includes(user.role))return <AppShell active="growthAdmin"><div className="panel empty-state"><h2>Không có quyền truy cập</h2></div></AppShell>;const funnel=[['Landing',data?.funnel.landing??0],['Đăng ký',data?.funnel.signup??0],['Tạo wedding',data?.funnel.wedding??0],['Xuất bản',data?.funnel.publish??0],['Thanh toán',data?.funnel.paid??0]];return <AppShell active="growthAdmin"><div className="page-heading"><div><p className="eyebrow">PUBLIC LAUNCH</p><h1>Growth & Customer Operations</h1><p>Funnel, referral, support và custom domain trong một không gian vận hành.</p></div></div>{error&&<div className="form-alert error">{error}</div>}<nav className="studio-tabs"><button className={tab==='funnel'?'active':''} onClick={()=>setTab('funnel')}>Funnel</button><button className={tab==='support'?'active':''} onClick={()=>setTab('support')}>Support</button><button className={tab==='domains'?'active':''} onClick={()=>setTab('domains')}>Tên miền</button><button className={tab==='referrals'?'active':''} onClick={()=>setTab('referrals')}>Referral</button></nav>{tab==='funnel'&&<section className="panel"><h2>Funnel 30 ngày</h2><div className="funnel-grid">{funnel.map(([name,value],i)=><article key={String(name)}><span>{i+1}</span><div><small>{name}</small><strong>{value}</strong></div></article>)}</div></section>}{tab==='support'&&<section className="panel table-scroll"><h2>Support inbox</h2>{data?.tickets.map(t=><article className="ops-row" key={t.id}><div><strong>{t.subject}</strong><p>{t.email} · {t.category} · {t.priority}</p></div><select value={t.status} onChange={e=>void patch(`/admin/growth/tickets/${t.id}`,{status:e.target.value})}><option>OPEN</option><option>IN_PROGRESS</option><option>WAITING_CUSTOMER</option><option>RESOLVED</option><option>CLOSED</option></select></article>)}</section>}{tab==='domains'&&<section className="panel"><h2>Custom domain queue</h2>{data?.domains.map(d=><article className="ops-row" key={d.id}><div><strong>{d.hostname}</strong><p>{d.weddingId} · {d.status}</p></div><select value={d.status} onChange={e=>void patch(`/admin/growth/domains/${d.id}`,{status:e.target.value})}><option>PENDING_DNS</option><option>VERIFYING</option><option>VERIFIED</option><option>ACTIVE</option><option>FAILED</option><option>DISABLED</option></select></article>)}</section>}{tab==='referrals'&&<section className="panel"><h2>Referral performance</h2>{data?.referrals.map(r=><article className="ops-row" key={r.id}><div><strong>{r.code}</strong><p>{r.label||'Không nhãn'}</p></div><div className="mini-metrics"><span>{r.visitCount} visit</span><span>{r.signupCount} signup</span><span>{r.conversionCount} paid</span></div></article>)}</section>}</AppShell>}
-export default function Page(){return <AuthGate><Content/></AuthGate>}
+
+import { useCallback, useEffect, useState } from "react";
+import { AppShell } from "../../../components/app-shell";
+import { AuthGate } from "../../../components/auth-gate";
+import { useAuth } from "../../../components/auth-provider";
+import { EmptyState, InlineErrorState, PageSkeleton, PermissionState, TableSkeleton } from "../../../components/ui";
+import { toUiError, type UiError } from "../../../lib/api";
+
+type Ticket = { id: string; subject: string; email: string; category: string; priority: string; status: string };
+type Domain = { id: string; hostname: string; weddingId: string; status: string };
+type Referral = { id: string; code: string; label: string | null; visitCount: number; signupCount: number; conversionCount: number };
+type Data = { funnel: Record<string, number>; tickets: Ticket[]; domains: Domain[]; referrals: Referral[]; events: unknown[] };
+
+function Content() {
+  const { user, authRequest } = useAuth();
+  const [data, setData] = useState<Data | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<UiError | null>(null);
+  const [tab, setTab] = useState("funnel");
+  const allowed = Boolean(user && ["ADMIN", "STAFF"].includes(user.role));
+
+  const load = useCallback(async () => {
+    if (!allowed) { setLoading(false); return; }
+    setLoading(true); setError(null);
+    try { setData(await authRequest<Data>("/admin/growth")); }
+    catch (reason) { setError(toUiError(reason, "Không thể tải Growth Center.")); }
+    finally { setLoading(false); }
+  }, [allowed, authRequest]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function patch(path: string, body: unknown) {
+    setError(null);
+    try { await authRequest(path, { method: "PATCH", body: JSON.stringify(body) }); await load(); }
+    catch (reason) { setError(toUiError(reason, "Không thể cập nhật dữ liệu Growth Center.")); }
+  }
+
+  if (!allowed) return <AppShell active="growthAdmin"><div className="page-state-panel"><PermissionState description="Growth & Customer Operations chỉ dành cho Admin và Staff." /></div></AppShell>;
+  if (loading && !data) return <AppShell active="growthAdmin"><PageSkeleton cards={3} /></AppShell>;
+
+  const funnel: Array<[string, number]> = [
+    ["Landing", data?.funnel.landing ?? 0],
+    ["Đăng ký", data?.funnel.signup ?? 0],
+    ["Tạo wedding", data?.funnel.wedding ?? 0],
+    ["Xuất bản", data?.funnel.publish ?? 0],
+    ["Thanh toán", data?.funnel.paid ?? 0],
+  ];
+
+  return <AppShell active="growthAdmin">
+    <div className="page-heading"><div><p className="eyebrow">PUBLIC LAUNCH</p><h1>Growth & Customer Operations</h1><p>Funnel, referral, support và custom domain trong một không gian vận hành.</p></div></div>
+    {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
+    <nav className="studio-tabs"><button className={tab === "funnel" ? "active" : ""} onClick={() => setTab("funnel")}>Funnel</button><button className={tab === "support" ? "active" : ""} onClick={() => setTab("support")}>Support</button><button className={tab === "domains" ? "active" : ""} onClick={() => setTab("domains")}>Tên miền</button><button className={tab === "referrals" ? "active" : ""} onClick={() => setTab("referrals")}>Referral</button></nav>
+    {tab === "funnel" ? <section className="panel"><h2>Funnel 30 ngày</h2><div className="funnel-grid">{funnel.map(([name, value], index) => <article key={name}><span>{index + 1}</span><div><small>{name}</small><strong>{value}</strong></div></article>)}</div></section> : null}
+    {tab === "support" ? <section className="panel table-scroll state-section"><h2>Support inbox</h2>{loading ? <TableSkeleton rows={5} columns={3} /> : data?.tickets.length ? data.tickets.map((ticket) => <article className="ops-row" key={ticket.id}><div><strong>{ticket.subject}</strong><p>{ticket.email} · {ticket.category} · {ticket.priority}</p></div><select value={ticket.status} onChange={(event) => void patch(`/admin/growth/tickets/${ticket.id}`, { status: event.target.value })}><option>OPEN</option><option>IN_PROGRESS</option><option>WAITING_CUSTOMER</option><option>RESOLVED</option><option>CLOSED</option></select></article>) : <EmptyState compact icon="✓" title="Support inbox đang trống" description="Không có yêu cầu hỗ trợ cần xử lý." />}</section> : null}
+    {tab === "domains" ? <section className="panel state-section"><h2>Custom domain queue</h2>{loading ? <TableSkeleton rows={4} columns={3} /> : data?.domains.length ? data.domains.map((domain) => <article className="ops-row" key={domain.id}><div><strong>{domain.hostname}</strong><p>{domain.weddingId} · {domain.status}</p></div><select value={domain.status} onChange={(event) => void patch(`/admin/growth/domains/${domain.id}`, { status: event.target.value })}><option>PENDING_DNS</option><option>VERIFYING</option><option>VERIFIED</option><option>ACTIVE</option><option>FAILED</option><option>DISABLED</option></select></article>) : <EmptyState compact icon="◎" title="Không có tên miền chờ xử lý" description="Yêu cầu tên miền mới sẽ xuất hiện tại đây." />}</section> : null}
+    {tab === "referrals" ? <section className="panel state-section"><h2>Referral performance</h2>{loading ? <TableSkeleton rows={4} columns={3} /> : data?.referrals.length ? data.referrals.map((referral) => <article className="ops-row" key={referral.id}><div><strong>{referral.code}</strong><p>{referral.label || "Không nhãn"}</p></div><div className="mini-metrics"><span>{referral.visitCount} visit</span><span>{referral.signupCount} signup</span><span>{referral.conversionCount} paid</span></div></article>) : <EmptyState compact icon="↗" title="Chưa có dữ liệu referral" description="Hiệu suất mã giới thiệu sẽ xuất hiện sau khi người dùng bắt đầu chia sẻ." />}</section> : null}
+  </AppShell>;
+}
+export default function Page() { return <AuthGate><Content /></AuthGate>; }

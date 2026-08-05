@@ -1,5 +1,56 @@
 "use client";
-import{useCallback,useEffect,useState}from"react";import{AppShell}from"../../../components/app-shell";import{AuthGate}from"../../../components/auth-gate";import{useAuth}from"../../../components/auth-provider";import{ApiError}from"../../../lib/api";
-type Data={partners:Array<{id:string;name:string;status:string;contactEmail:string;commissionRateBps:number;minimumPayout:number;createdAt:string}>;payouts:Array<{id:string;partnerId:string;amount:number;status:string;bankName:string;accountName:string;accountNumberMasked:string;requestedAt:string}>;commissions:Array<{status:string;_sum:{commissionAmount:number|null};_count:{_all:number}}>};const money=(n:number)=>new Intl.NumberFormat("vi-VN").format(n)+"đ";
-function Content(){const{authRequest}=useAuth();const[data,setData]=useState<Data|null>(null);const[error,setError]=useState("");const load=useCallback(async()=>setData(await authRequest<Data>("/admin/partners")),[authRequest]);useEffect(()=>{void load().catch(e=>setError(e instanceof ApiError?e.message:"Không thể tải đối tác"))},[load]);async function partner(id:string,status:string){await authRequest(`/admin/partners/${id}`,{method:"PATCH",body:JSON.stringify({status})});await load()}async function payout(id:string,status:string){await authRequest(`/admin/partner-payouts/${id}`,{method:"PATCH",body:JSON.stringify({status})});await load()}return <AppShell active="partnersAdmin"><div className="page-heading"><div><p className="eyebrow">PARTNER OPERATIONS</p><h1>Đối tác & hoa hồng</h1><p>Duyệt hồ sơ, kiểm soát tỷ lệ hoa hồng và xử lý payout minh bạch.</p></div></div>{error&&<div className="form-alert error">{error}</div>}<div className="kpi-grid">{data?.commissions.map(c=><article key={c.status}><span>{c.status}</span><strong>{money(c._sum.commissionAmount||0)}</strong><small>{c._count._all} giao dịch</small></article>)}</div><div className="partner-grid"><section className="panel"><h2>Hồ sơ đối tác</h2><div className="growth-list">{data?.partners.map(p=><article key={p.id}><div><strong>{p.name}</strong><p>{p.contactEmail} · {(p.commissionRateBps/100).toFixed(1)}%</p></div><div className="inline-actions"><span className={`status-pill ${p.status.toLowerCase()}`}>{p.status}</span>{p.status!=="ACTIVE"&&<button className="btn btn-small" onClick={()=>void partner(p.id,"ACTIVE")}>Duyệt</button>}{p.status==="ACTIVE"&&<button className="btn btn-small" onClick={()=>void partner(p.id,"SUSPENDED")}>Tạm dừng</button>}</div></article>)}</div></section><section className="panel"><h2>Yêu cầu payout</h2><div className="growth-list">{data?.payouts.map(p=><article key={p.id}><div><strong>{money(p.amount)}</strong><p>{p.bankName} · {p.accountName} · {p.accountNumberMasked}</p></div><div className="inline-actions"><span className={`status-pill ${p.status.toLowerCase()}`}>{p.status}</span>{p.status==="REQUESTED"&&<button className="btn btn-small" onClick={()=>void payout(p.id,"APPROVED")}>Duyệt</button>}{p.status==="APPROVED"&&<button className="btn btn-small" onClick={()=>void payout(p.id,"PAID")}>Đã trả</button>}</div></article>)}</div></section></div></AppShell>}
-export default function Page(){return <AuthGate><Content/></AuthGate>}
+
+import { useCallback, useEffect, useState } from "react";
+import { AppShell } from "../../../components/app-shell";
+import { AuthGate } from "../../../components/auth-gate";
+import { useAuth } from "../../../components/auth-provider";
+import { EmptyState, InlineErrorState, ListSkeleton, PageSkeleton, PermissionState } from "../../../components/ui";
+import { toUiError, type UiError } from "../../../lib/api";
+
+type Data = {
+  partners: Array<{ id: string; name: string; status: string; contactEmail: string; commissionRateBps: number; minimumPayout: number; createdAt: string }>;
+  payouts: Array<{ id: string; partnerId: string; amount: number; status: string; bankName: string; accountName: string; accountNumberMasked: string; requestedAt: string }>;
+  commissions: Array<{ status: string; _sum: { commissionAmount: number | null }; _count: { _all: number } }>;
+};
+const money = (value: number) => `${new Intl.NumberFormat("vi-VN").format(value)}đ`;
+
+function Content() {
+  const { user, authRequest } = useAuth();
+  const [data, setData] = useState<Data | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<UiError | null>(null);
+  const allowed = Boolean(user && ["ADMIN", "STAFF"].includes(user.role));
+
+  const load = useCallback(async () => {
+    if (!allowed) { setLoading(false); return; }
+    setLoading(true); setError(null);
+    try { setData(await authRequest<Data>("/admin/partners")); }
+    catch (reason) { setError(toUiError(reason, "Không thể tải danh sách đối tác.")); }
+    finally { setLoading(false); }
+  }, [allowed, authRequest]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function updatePartner(id: string, status: string) {
+    try { await authRequest(`/admin/partners/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); await load(); }
+    catch (reason) { setError(toUiError(reason, "Không thể cập nhật đối tác.")); }
+  }
+  async function updatePayout(id: string, status: string) {
+    try { await authRequest(`/admin/partner-payouts/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }); await load(); }
+    catch (reason) { setError(toUiError(reason, "Không thể cập nhật payout.")); }
+  }
+
+  if (!allowed) return <AppShell active="partnersAdmin"><div className="page-state-panel"><PermissionState description="Partner Operations chỉ dành cho Admin và Staff." /></div></AppShell>;
+  if (loading && !data) return <AppShell active="partnersAdmin"><PageSkeleton cards={2} /></AppShell>;
+
+  return <AppShell active="partnersAdmin">
+    <div className="page-heading"><div><p className="eyebrow">PARTNER OPERATIONS</p><h1>Đối tác & hoa hồng</h1><p>Duyệt hồ sơ, kiểm soát tỷ lệ hoa hồng và xử lý payout minh bạch.</p></div></div>
+    {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
+    <div className="kpi-grid">{data?.commissions.map((commission) => <article key={commission.status}><span>{commission.status}</span><strong>{money(commission._sum.commissionAmount || 0)}</strong><small>{commission._count._all} giao dịch</small></article>)}</div>
+    <div className="partner-grid">
+      <section className="panel state-section"><h2>Hồ sơ đối tác</h2><div className="growth-list">{loading ? <ListSkeleton rows={4} withAvatar={false} /> : data?.partners.length ? data.partners.map((partner) => <article key={partner.id}><div><strong>{partner.name}</strong><p>{partner.contactEmail} · {(partner.commissionRateBps / 100).toFixed(1)}%</p></div><div className="inline-actions"><span className={`status-pill ${partner.status.toLowerCase()}`}>{partner.status}</span>{partner.status !== "ACTIVE" ? <button className="btn btn-small" onClick={() => void updatePartner(partner.id, "ACTIVE")}>Duyệt</button> : <button className="btn btn-small" onClick={() => void updatePartner(partner.id, "SUSPENDED")}>Tạm dừng</button>}</div></article>) : <EmptyState compact icon="◇" title="Chưa có hồ sơ đối tác" description="Hồ sơ đăng ký mới sẽ xuất hiện tại đây để được xét duyệt." />}</div></section>
+      <section className="panel state-section"><h2>Yêu cầu payout</h2><div className="growth-list">{loading ? <ListSkeleton rows={4} withAvatar={false} /> : data?.payouts.length ? data.payouts.map((payout) => <article key={payout.id}><div><strong>{money(payout.amount)}</strong><p>{payout.bankName} · {payout.accountName} · {payout.accountNumberMasked}</p></div><div className="inline-actions"><span className={`status-pill ${payout.status.toLowerCase()}`}>{payout.status}</span>{payout.status === "REQUESTED" ? <button className="btn btn-small" onClick={() => void updatePayout(payout.id, "APPROVED")}>Duyệt</button> : null}{payout.status === "APPROVED" ? <button className="btn btn-small" onClick={() => void updatePayout(payout.id, "PAID")}>Đã trả</button> : null}</div></article>) : <EmptyState compact icon="✓" title="Không có payout chờ xử lý" description="Yêu cầu thanh toán mới sẽ xuất hiện tại đây." />}</div></section>
+    </div>
+  </AppShell>;
+}
+export default function Page() { return <AuthGate><Content /></AuthGate>; }

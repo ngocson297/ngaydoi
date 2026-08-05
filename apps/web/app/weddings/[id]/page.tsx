@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
-import { Button, ConfirmDialog, FormActions, useUnsavedChangesGuard } from "../../../components/ui";
-import { ApiError } from "../../../lib/api";
+import { Alert, Button, ConfirmDialog, DetailPageSkeleton, ErrorState, FormActions, useUnsavedChangesGuard } from "../../../components/ui";
+import { ApiError, toUiError, type UiError } from "../../../lib/api";
 import {
   formatDate,
   statusClasses,
@@ -60,6 +60,7 @@ function WorkspaceContent() {
   const [tab, setTab] = useState<WorkspaceTab>("overview");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [details, setDetails] = useState(initialDetails);
@@ -100,9 +101,9 @@ function WorkspaceContent() {
       setDuplicate({ title: `${data.title} - Bản sao`, slug: `${data.slug}-copy` });
       setEventDraft((current) => ({ ...current, timezone: data.timezone }));
       setEventBaseline((current) => ({ ...current, timezone: data.timezone }));
-      setError("");
+      setLoadError(null);
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : "Không thể tải wedding workspace");
+      setLoadError(toUiError(reason, "Không thể tải wedding workspace."));
     } finally {
       setLoading(false);
     }
@@ -268,8 +269,8 @@ function WorkspaceContent() {
     finally { setBusy(false); }
   }
 
-  if (loading) return <AppShell><div className="empty-panel"><div className="spinner" /><p>Đang tải workspace...</p></div></AppShell>;
-  if (!wedding) return <AppShell><div className="alert alert-error">{error || "Wedding không tồn tại"}</div><a href="/dashboard" className="btn btn-secondary">Về dashboard</a></AppShell>;
+  if (loading && !wedding) return <AppShell active="weddings" weddingId={weddingId}><DetailPageSkeleton /></AppShell>;
+  if (!wedding) return <AppShell active="weddings" weddingId={weddingId}><ErrorState title="Không thể mở wedding workspace" description={loadError?.message ?? "Wedding không tồn tại hoặc bạn không còn quyền truy cập."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref="/dashboard" homeLabel="Về dashboard" /></AppShell>;
 
   return (
     <AppShell active="weddings" weddingId={weddingId}>
@@ -285,8 +286,9 @@ function WorkspaceContent() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {loadError && <Alert tone="error" title="Dữ liệu chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert>}
+      {error && <Alert tone="error">{error}</Alert>}
+      {success && <Alert tone="success">{success}</Alert>}
 
       <nav className="workspace-tabs">
         {(["overview", "details", "events", "team", "lifecycle"] as WorkspaceTab[]).map((key) => (
