@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "./button";
 
 export interface ConfirmDialogProps {
@@ -71,4 +71,61 @@ export function ConfirmDialog({
       </div>
     </div>
   );
+}
+
+
+export interface ConfirmOptions {
+  title: string;
+  description: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: "default" | "danger";
+}
+
+interface ConfirmContextValue {
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
+}
+
+const ConfirmContext = createContext<ConfirmContextValue | null>(null);
+
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [options, setOptions] = useState<ConfirmOptions | null>(null);
+  const resolverRef = useRef<((result: boolean) => void) | null>(null);
+
+  const close = useCallback((result: boolean) => {
+    resolverRef.current?.(result);
+    resolverRef.current = null;
+    setOptions(null);
+  }, []);
+
+  const confirm = useCallback((nextOptions: ConfirmOptions) => {
+    resolverRef.current?.(false);
+    setOptions(nextOptions);
+    return new Promise<boolean>((resolve) => { resolverRef.current = resolve; });
+  }, []);
+
+  useEffect(() => () => resolverRef.current?.(false), []);
+  const value = useMemo(() => ({ confirm }), [confirm]);
+
+  return (
+    <ConfirmContext.Provider value={value}>
+      {children}
+      <ConfirmDialog
+        open={Boolean(options)}
+        title={options?.title ?? "Xác nhận thao tác"}
+        description={options?.description ?? ""}
+        confirmLabel={options?.confirmLabel}
+        cancelLabel={options?.cancelLabel}
+        tone={options?.tone}
+        onConfirm={() => close(true)}
+        onClose={() => close(false)}
+      />
+    </ConfirmContext.Provider>
+  );
+}
+
+export function useConfirm(): ConfirmContextValue {
+  const context = useContext(ConfirmContext);
+  if (!context) throw new Error("useConfirm must be used inside ConfirmProvider");
+  return context;
 }

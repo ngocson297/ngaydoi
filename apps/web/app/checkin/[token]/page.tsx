@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { useConfirm } from "../../../components/ui";
 import { ApiError, apiRequest } from "../../../lib/api";
 
 type SearchGuest = { id: string; fullName: string; salutation: string | null; groupName: string | null; phone: string | null; invitationToken: string | null; rsvp: { status: string; adultCount: number; childCount: number } | null; assignment: { table: { name: string; code: string; zone: string | null }; seatCount: number } | null; checkin: { adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null } | null };
 type StationData = { station: { id: string; name: string }; wedding: { title: string; brideName: string; groomName: string }; event: { title: string; startsAt: string; venueName: string } | null; recent: Array<{ id: string; guestId: string; adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null; guest: { fullName: string }; station: { name: string } | null }>; metrics: { guests: number; people: number } };
 
 export default function CheckinPage() {
+  const { confirm } = useConfirm();
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<StationData | null>(null);
   const [query, setQuery] = useState("");
@@ -30,7 +32,7 @@ export default function CheckinPage() {
 
   function choose(guest: SearchGuest): void { setSelected(guest); setCounts({ adults: guest.rsvp?.status === "ATTENDING" ? guest.rsvp.adultCount : 1, children: guest.rsvp?.status === "ATTENDING" ? guest.rsvp.childCount : 0 }); setSuccess(""); }
   async function checkIn(payload: Record<string, unknown>): Promise<void> { setBusy(true); setError(""); try { await apiRequest(`/checkin/stations/${token}/check-in`, { method: "POST", body: JSON.stringify({ ...payload, adultCount: counts.adults, childCount: counts.children }) }); setSuccess(`Đã check-in ${selected?.fullName ?? "khách mời"}.`); setSelected(null); setQuery(""); setGuests([]); setScanValue(""); await load(); window.setTimeout(() => scanInput.current?.focus(), 100); } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể check-in"); } finally { setBusy(false); } }
-  async function checkout(guestId: string): Promise<void> { if (!window.confirm("Hoàn tác lượt check-in này?")) return; setBusy(true); try { await apiRequest(`/checkin/stations/${token}/check-out`, { method: "POST", body: JSON.stringify({ guestId }) }); await load(); setSuccess("Đã hoàn tác check-in."); } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể hoàn tác"); } finally { setBusy(false); } }
+  async function checkout(guestId: string): Promise<void> { if (!(await confirm({ title: "Hoàn tác check-in?", description: "Lượt check-in này sẽ được đánh dấu là đã hoàn tác và số liệu khách đến sẽ được cập nhật lại.", confirmLabel: "Hoàn tác", tone: "danger" }))) return; setBusy(true); try { await apiRequest(`/checkin/stations/${token}/check-out`, { method: "POST", body: JSON.stringify({ guestId }) }); await load(); setSuccess("Đã hoàn tác check-in."); } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể hoàn tác"); } finally { setBusy(false); } }
 
   async function startCamera(): Promise<void> {
     setError("");

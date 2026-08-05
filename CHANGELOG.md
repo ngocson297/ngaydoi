@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.2 — Sprint 15.3 Form System & Unsaved Changes Protection
+
+- Added shared form error summaries with focus management and field links.
+- Added shared save-state/actions, native date-time wrapper and accessible drag-and-drop upload field.
+- Added unsaved-changes protection for internal links, browser close/refresh and workspace tab switches.
+- Added global promise-based confirmation service and removed all remaining `window.confirm` usage from the Web app.
+- Migrated create-wedding, planning, wedding workspace and public memory upload flows to the new form system.
+- Added clearer loading, success, destructive-action and retry states on migrated flows.
+- No database schema, migration or dependency changes.
+
+
 ## 0.15.1 — Sprint 15.2 Navigation & Information Architecture
 
 - Replaced duplicated desktop/mobile navigation markup with one role-aware navigation model.

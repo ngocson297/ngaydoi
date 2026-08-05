@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
+import { useConfirm } from "../../../../components/ui";
 import { API_URL, ApiError } from "../../../../lib/api";
 import type { EventOpsOverview, GuestOperation, SeatingTable } from "../../../../lib/event-operations";
 import { occupiedSeats } from "../../../../lib/event-operations";
@@ -15,6 +16,7 @@ const download = (content: string, filename: string): void => { const url = URL.
 type Tab = "tables" | "guests" | "checkin" | "print";
 
 function EventOperationsContent() {
+  const { confirm } = useConfirm();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<EventOpsOverview | null>(null);
@@ -59,7 +61,7 @@ function EventOperationsContent() {
     finally { setBusy(false); }
   }
   async function deleteTable(table: SeatingTable): Promise<void> {
-    if (!window.confirm(`Xóa ${table.name}?`)) return;
+    if (!(await confirm({ title: `Xóa ${table.name}?`, description: "Bàn chỉ có thể xóa khi không còn khách được phân. Thao tác này không thể hoàn tác.", confirmLabel: "Xóa bàn", tone: "danger" }))) return;
     setBusy(true); try { await authRequest(`/weddings/${weddingId}/event-operations/tables/${table.id}`, { method: "DELETE" }); await load(); flash("Đã xóa bàn."); }
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa bàn"); } finally { setBusy(false); }
   }
@@ -76,7 +78,7 @@ function EventOperationsContent() {
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể bỏ phân bàn"); } finally { setBusy(false); }
   }
   async function autoAssign(): Promise<void> {
-    if (!window.confirm("Tự động phân các khách chưa có bàn theo sức chứa hiện tại?")) return;
+    if (!(await confirm({ title: "Tự động phân bàn?", description: "Hệ thống sẽ phân những khách chưa có bàn theo sức chứa hiện tại và giữ nguyên các phân bàn đã có.", confirmLabel: "Bắt đầu phân bàn" }))) return;
     setBusy(true); setError("");
     try { const result = await authRequest<{ assigned: number; remaining: number }>(`/weddings/${weddingId}/event-operations/auto-assign`, { method: "POST", body: JSON.stringify({ eventId: eventId || undefined }) }); await load(); flash(`Đã phân ${result.assigned} khách. Còn ${result.remaining} khách chưa có bàn.`); }
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tự động phân bàn"); } finally { setBusy(false); }

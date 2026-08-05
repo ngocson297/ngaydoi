@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
+import { useConfirm } from "../../../../components/ui";
 import { API_URL, ApiError } from "../../../../lib/api";
 import type { MemoryAsset, MemoryOwnerOverview, MemoryStatus } from "../../../../lib/memories";
 import { memoryAlbumUrl, memoryMediaUrl } from "../../../../lib/memories";
@@ -14,6 +15,7 @@ const formatBytes = (value: number): string => value < 1024 * 1024 ? `${Math.max
 const statusLabel: Record<MemoryStatus, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Từ chối", ARCHIVED: "Đã lưu trữ" };
 
 function MemoriesContent() {
+  const { confirm } = useConfirm();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<MemoryOwnerOverview | null>(null);
@@ -59,7 +61,7 @@ function MemoriesContent() {
     finally { setBusy(false); }
   }
   async function remove(asset: MemoryAsset): Promise<void> {
-    if (!window.confirm("Xóa vĩnh viễn ảnh hoặc video này?")) return;
+    if (!(await confirm({ title: "Xóa nội dung khỏi album?", description: "Ảnh hoặc video sẽ bị xóa vĩnh viễn khỏi storage và không thể khôi phục.", confirmLabel: "Xóa vĩnh viễn", tone: "danger" }))) return;
     setBusy(true);
     try { await authRequest(`/weddings/${weddingId}/memories/assets/${asset.id}`, { method: "DELETE" }); await load(); flash("Đã xóa nội dung."); }
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa nội dung"); }
@@ -72,7 +74,7 @@ function MemoriesContent() {
     finally { setBusy(false); }
   }
   async function regenerate(): Promise<void> {
-    if (!window.confirm("Tạo link mới? Link album cũ sẽ không còn hoạt động.")) return;
+    if (!(await confirm({ title: "Tạo link album mới?", description: "Link và mã QR hiện tại sẽ ngừng hoạt động ngay sau khi tạo token mới.", confirmLabel: "Tạo link mới", tone: "danger" }))) return;
     setBusy(true);
     try { await authRequest(`/weddings/${weddingId}/memories/regenerate-token`, { method: "POST" }); await load(); flash("Đã tạo link album mới."); }
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tạo link mới"); }

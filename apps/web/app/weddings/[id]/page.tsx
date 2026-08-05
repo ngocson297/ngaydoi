@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
+import { Button, ConfirmDialog, FormActions, useUnsavedChangesGuard } from "../../../components/ui";
 import { ApiError } from "../../../lib/api";
 import {
   formatDate,
@@ -26,6 +27,12 @@ const eventTypeLabels: Record<EventType, string> = {
 };
 
 const sideLabels: Record<WeddingSide, string> = { SHARED: "Chung", BRIDE: "Nhà gái", GROOM: "Nhà trai" };
+
+const initialDetails = {
+  title: "", brideName: "", groomName: "", slug: "", mainDate: "", timezone: "Asia/Ho_Chi_Minh",
+  brideFatherName: "", brideMotherName: "", groomFatherName: "", groomMotherName: "",
+  showBrideParents: true, showGroomParents: true, story: "",
+};
 
 function emptyEvent(): Omit<WeddingEvent, "id"> {
   return {
@@ -55,18 +62,18 @@ function WorkspaceContent() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [details, setDetails] = useState({
-    title: "", brideName: "", groomName: "", slug: "", mainDate: "", timezone: "Asia/Ho_Chi_Minh",
-    brideFatherName: "", brideMotherName: "", groomFatherName: "", groomMotherName: "",
-    showBrideParents: true, showGroomParents: true, story: "",
-  });
+  const [details, setDetails] = useState(initialDetails);
+  const [detailsBaseline, setDetailsBaseline] = useState(initialDetails);
   const [eventDraft, setEventDraft] = useState(emptyEvent());
+  const [eventBaseline, setEventBaseline] = useState(emptyEvent());
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [collaborator, setCollaborator] = useState({ email: "", permission: "EDIT" as "VIEW" | "EDIT" });
   const [duplicate, setDuplicate] = useState({ title: "", slug: "" });
+  const [deleteEventTarget, setDeleteEventTarget] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<Collaborator | null>(null);
 
   const syncDetails = useCallback((data: WeddingDetail) => {
-    setDetails({
+    const nextDetails = {
       title: data.title,
       brideName: data.brideName,
       groomName: data.groomName,
@@ -80,7 +87,9 @@ function WorkspaceContent() {
       showBrideParents: data.showBrideParents,
       showGroomParents: data.showGroomParents,
       story: data.story ?? "",
-    });
+    };
+    setDetails(nextDetails);
+    setDetailsBaseline(nextDetails);
   }, []);
 
   const load = useCallback(async () => {
@@ -90,6 +99,7 @@ function WorkspaceContent() {
       syncDetails(data);
       setDuplicate({ title: `${data.title} - Bản sao`, slug: `${data.slug}-copy` });
       setEventDraft((current) => ({ ...current, timezone: data.timezone }));
+      setEventBaseline((current) => ({ ...current, timezone: data.timezone }));
       setError("");
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Không thể tải wedding workspace");
@@ -102,6 +112,9 @@ function WorkspaceContent() {
 
   const canEdit = wedding?.access === "OWNER" || wedding?.access === "EDIT";
   const isOwner = wedding?.access === "OWNER";
+  const detailsDirty = useMemo(() => JSON.stringify(details) !== JSON.stringify(detailsBaseline), [details, detailsBaseline]);
+  const eventDirty = useMemo(() => JSON.stringify(eventDraft) !== JSON.stringify(eventBaseline), [eventBaseline, eventDraft]);
+  const guard = useUnsavedChangesGuard(Boolean(canEdit) && (detailsDirty || eventDirty) && !busy);
 
   const lifecycleOptions = useMemo((): Array<{ status: WeddingStatus; label: string; kind?: string }> => {
     if (!wedding) return [];
@@ -141,18 +154,22 @@ function WorkspaceContent() {
 
   function beginEditEvent(item: WeddingEvent): void {
     setEditingEventId(item.id);
-    setEventDraft({
+    const nextDraft = {
       ...item,
       startsAt: toLocalInput(item.startsAt),
       endsAt: item.endsAt ? toLocalInput(item.endsAt) : null,
-    });
-    setTab("events");
+    };
+    setEventDraft(nextDraft);
+    setEventBaseline(nextDraft);
+    guard.requestAction(() => setTab("events"));
     document.getElementById("event-form")?.scrollIntoView({ behavior: "smooth" });
   }
 
   function resetEventForm(): void {
     setEditingEventId(null);
-    setEventDraft({ ...emptyEvent(), timezone: wedding?.timezone ?? "Asia/Ho_Chi_Minh" });
+    const nextDraft = { ...emptyEvent(), timezone: wedding?.timezone ?? "Asia/Ho_Chi_Minh" };
+    setEventDraft(nextDraft);
+    setEventBaseline(nextDraft);
   }
 
   async function saveEvent(event: FormEvent): Promise<void> {
@@ -179,11 +196,12 @@ function WorkspaceContent() {
     } finally { setBusy(false); }
   }
 
-  async function deleteEvent(eventId: string): Promise<void> {
-    if (!window.confirm("Xóa sự kiện này? Các lời mời liên kết với sự kiện cũng có thể bị ảnh hưởng.")) return;
+  async function deleteEvent(): Promise<void> {
+    if (!deleteEventTarget) return;
     setBusy(true); setError("");
     try {
-      await authRequest(`/weddings/${weddingId}/events/${eventId}`, { method: "DELETE" });
+      await authRequest(`/weddings/${weddingId}/events/${deleteEventTarget}`, { method: "DELETE" });
+      setDeleteEventTarget(null);
       await load();
       flash("Đã xóa sự kiện.");
     } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa sự kiện"); }
@@ -223,11 +241,12 @@ function WorkspaceContent() {
     finally { setBusy(false); }
   }
 
-  async function revokeCollaborator(item: Collaborator): Promise<void> {
-    if (!window.confirm(`Thu hồi quyền của ${item.email}?`)) return;
+  async function revokeCollaborator(): Promise<void> {
+    if (!revokeTarget) return;
     setBusy(true); setError("");
     try {
-      await authRequest(`/weddings/${weddingId}/collaborators/${item.id}`, { method: "DELETE" });
+      await authRequest(`/weddings/${weddingId}/collaborators/${revokeTarget.id}`, { method: "DELETE" });
+      setRevokeTarget(null);
       await load();
       flash("Đã thu hồi quyền cộng tác.");
     } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể thu hồi quyền"); }
@@ -271,7 +290,7 @@ function WorkspaceContent() {
 
       <nav className="workspace-tabs">
         {(["overview", "details", "events", "team", "lifecycle"] as WorkspaceTab[]).map((key) => (
-          <button className={tab === key ? "active" : ""} key={key} onClick={() => setTab(key)}>
+          <button className={tab === key ? "active" : ""} key={key} onClick={() => guard.requestAction(() => { setDetails(detailsBaseline); setEventDraft(eventBaseline); setTab(key); })}>
             {{ overview: "Tổng quan", details: "Cặp đôi & gia đình", events: `Sự kiện (${wedding.events.length})`, team: "Cộng tác", lifecycle: "Trạng thái" }[key]}
           </button>
         ))}
@@ -282,7 +301,7 @@ function WorkspaceContent() {
           <section className="panel">
             <div className="panel-head"><div><h2>Tiến độ thiết lập</h2><p className="muted-small">Hoàn thành các mục bắt buộc trước khi gửi duyệt.</p></div><strong>{wedding.checklist.completed}/{wedding.checklist.required}</strong></div>
             <div className="checklist-list">
-              {wedding.checklist.items.map((item) => <button key={item.key} onClick={() => setTab(item.key === "events" ? "events" : "details")}><span className={item.complete ? "done" : ""}>{item.complete ? "✓" : ""}</span><div><strong>{item.label}</strong><small>{item.required ? "Bắt buộc" : "Khuyến nghị"}</small></div><em>{item.complete ? "Hoàn thành" : "Bổ sung →"}</em></button>)}
+              {wedding.checklist.items.map((item) => <button key={item.key} onClick={() => guard.requestAction(() => { setDetails(detailsBaseline); setEventDraft(eventBaseline); setTab(item.key === "events" ? "events" : "details"); })}><span className={item.complete ? "done" : ""}>{item.complete ? "✓" : ""}</span><div><strong>{item.label}</strong><small>{item.required ? "Bắt buộc" : "Khuyến nghị"}</small></div><em>{item.complete ? "Hoàn thành" : "Bổ sung →"}</em></button>)}
             </div>
           </section>
           <aside className="panel summary-panel">
@@ -309,14 +328,14 @@ function WorkspaceContent() {
           <div className="form-section"><h3>Gia đình nhà trai</h3><div className="form-grid two"><label>Họ tên cha<input disabled={!canEdit} value={details.groomFatherName} onChange={(e) => setDetails({ ...details, groomFatherName: e.target.value })} /></label><label>Họ tên mẹ<input disabled={!canEdit} value={details.groomMotherName} onChange={(e) => setDetails({ ...details, groomMotherName: e.target.value })} /></label><label className="check-inline full"><input disabled={!canEdit} type="checkbox" checked={details.showGroomParents} onChange={(e) => setDetails({ ...details, showGroomParents: e.target.checked })} /> Hiển thị thông tin nhà trai trên thiệp</label></div></div>
           <div className="form-section"><h3>Gia đình nhà gái</h3><div className="form-grid two"><label>Họ tên cha<input disabled={!canEdit} value={details.brideFatherName} onChange={(e) => setDetails({ ...details, brideFatherName: e.target.value })} /></label><label>Họ tên mẹ<input disabled={!canEdit} value={details.brideMotherName} onChange={(e) => setDetails({ ...details, brideMotherName: e.target.value })} /></label><label className="check-inline full"><input disabled={!canEdit} type="checkbox" checked={details.showBrideParents} onChange={(e) => setDetails({ ...details, showBrideParents: e.target.checked })} /> Hiển thị thông tin nhà gái trên thiệp</label></div></div>
           <div className="form-section"><h3>Câu chuyện</h3><label>Giới thiệu ngắn<textarea disabled={!canEdit} rows={5} maxLength={3000} value={details.story} onChange={(e) => setDetails({ ...details, story: e.target.value })} placeholder="Từ một cuộc gặp tình cờ..." /></label></div>
-          {canEdit && <div className="form-actions"><button className="btn btn-primary" disabled={busy || !details.mainDate} type="submit">{busy ? "Đang lưu..." : "Lưu thay đổi"}</button></div>}
+          {canEdit ? <FormActions dirty={detailsDirty} saving={busy}><Button type="submit" loading={busy} loadingLabel="Đang lưu thay đổi…" disabled={!details.mainDate}>Lưu thay đổi</Button></FormActions> : null}
         </form>
       )}
 
       {tab === "events" && (
         <div className="workspace-layout events-layout">
           <section className="event-list">
-            {wedding.events.length === 0 ? <div className="empty-panel"><div className="empty-icon">◷</div><h3>Chưa có sự kiện</h3><p>Thêm lễ gia tiên, lễ thành hôn hoặc tiệc cưới.</p></div> : wedding.events.map((item) => <article className="event-manage-card" key={item.id}><div className="event-index">{String(item.sortOrder + 1).padStart(2, "0")}</div><div><div className="event-tags"><span>{sideLabels[item.side]}</span><span>{eventTypeLabels[item.type]}</span></div><h3>{item.title}</h3><p><strong>{formatDate(item.startsAt, true)}</strong><br />{item.venueName}<br />{item.address}</p>{item.dressCode && <small>Dress code: {item.dressCode}</small>}</div>{canEdit && <div className="row-actions"><button onClick={() => beginEditEvent(item)}>Sửa</button><button className="danger-link" disabled={busy} onClick={() => void deleteEvent(item.id)}>Xóa</button></div>}</article>)}
+            {wedding.events.length === 0 ? <div className="empty-panel"><div className="empty-icon">◷</div><h3>Chưa có sự kiện</h3><p>Thêm lễ gia tiên, lễ thành hôn hoặc tiệc cưới.</p></div> : wedding.events.map((item) => <article className="event-manage-card" key={item.id}><div className="event-index">{String(item.sortOrder + 1).padStart(2, "0")}</div><div><div className="event-tags"><span>{sideLabels[item.side]}</span><span>{eventTypeLabels[item.type]}</span></div><h3>{item.title}</h3><p><strong>{formatDate(item.startsAt, true)}</strong><br />{item.venueName}<br />{item.address}</p>{item.dressCode && <small>Dress code: {item.dressCode}</small>}</div>{canEdit && <div className="row-actions"><button onClick={() => beginEditEvent(item)}>Sửa</button><button className="danger-link" disabled={busy} onClick={() => setDeleteEventTarget(item.id)}>Xóa</button></div>}</article>)}
           </section>
           {canEdit && <form id="event-form" className="panel event-form" onSubmit={(event) => void saveEvent(event)}><div className="panel-head"><div><h2>{editingEventId ? "Sửa sự kiện" : "Thêm sự kiện"}</h2><p className="muted-small">Thời gian được lưu theo ISO và múi giờ đã chọn.</p></div>{editingEventId && <button type="button" className="text-button" onClick={resetEventForm}>Hủy sửa</button>}</div><div className="form-grid two">
             <label>Loại sự kiện<select value={eventDraft.type} onChange={(e) => setEventDraft({ ...eventDraft, type: e.target.value as EventType })}>{Object.entries(eventTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
@@ -330,13 +349,13 @@ function WorkspaceContent() {
             <label>Dress code<input value={eventDraft.dressCode ?? ""} onChange={(e) => setEventDraft({ ...eventDraft, dressCode: e.target.value || null })} /></label>
             <label>Thứ tự<input min={0} max={999} type="number" value={eventDraft.sortOrder} onChange={(e) => setEventDraft({ ...eventDraft, sortOrder: Number(e.target.value) })} /></label>
             <label className="full">Ghi chú<textarea rows={3} value={eventDraft.note ?? ""} onChange={(e) => setEventDraft({ ...eventDraft, note: e.target.value || null })} /></label>
-          </div><button className="btn btn-primary full-button" disabled={busy} type="submit">{busy ? "Đang lưu..." : editingEventId ? "Cập nhật sự kiện" : "Thêm sự kiện"}</button></form>}
+          </div><FormActions dirty={eventDirty} saving={busy}><Button type="submit" loading={busy} loadingLabel="Đang lưu sự kiện…">{editingEventId ? "Cập nhật sự kiện" : "Thêm sự kiện"}</Button></FormActions></form>}
         </div>
       )}
 
       {tab === "team" && (
         <div className="workspace-layout">
-          <section className="panel"><div className="panel-head"><div><h2>Cộng tác viên</h2><p className="muted-small">Người được mời chỉ truy cập được wedding này.</p></div></div>{wedding.collaborators.length === 0 ? <p className="muted-small">Chưa có lời mời nào.</p> : <div className="collaborator-list">{wedding.collaborators.map((item) => <div className="collaborator-row" key={item.id}><div className="avatar-circle">{item.email.charAt(0).toUpperCase()}</div><div><strong>{item.user?.displayName ?? item.email}</strong><p>{item.email} · {item.permission === "EDIT" ? "Có thể chỉnh sửa" : "Chỉ xem"}</p><span className={`mini-status ${item.status.toLowerCase()}`}>{item.status}</span></div>{isOwner && <div className="row-actions">{item.status === "PENDING" && <button onClick={() => void copyInvite(item.token)}>Sao chép link mời</button>}{item.status !== "REVOKED" && <button className="danger-link" onClick={() => void revokeCollaborator(item)}>Thu hồi</button>}</div>}</div>)}</div>}</section>
+          <section className="panel"><div className="panel-head"><div><h2>Cộng tác viên</h2><p className="muted-small">Người được mời chỉ truy cập được wedding này.</p></div></div>{wedding.collaborators.length === 0 ? <p className="muted-small">Chưa có lời mời nào.</p> : <div className="collaborator-list">{wedding.collaborators.map((item) => <div className="collaborator-row" key={item.id}><div className="avatar-circle">{item.email.charAt(0).toUpperCase()}</div><div><strong>{item.user?.displayName ?? item.email}</strong><p>{item.email} · {item.permission === "EDIT" ? "Có thể chỉnh sửa" : "Chỉ xem"}</p><span className={`mini-status ${item.status.toLowerCase()}`}>{item.status}</span></div>{isOwner && <div className="row-actions">{item.status === "PENDING" && <button onClick={() => void copyInvite(item.token)}>Sao chép link mời</button>}{item.status !== "REVOKED" && <button className="danger-link" onClick={() => setRevokeTarget(item)}>Thu hồi</button>}</div>}</div>)}</div>}</section>
           {isOwner && <form className="panel compact-form" onSubmit={(event) => void inviteCollaborator(event)}><h2>Mời người thân</h2><p className="muted-small">Trong môi trường local, hãy sao chép link sau khi tạo lời mời và gửi thủ công.</p><label>Email<input required type="email" value={collaborator.email} onChange={(e) => setCollaborator({ ...collaborator, email: e.target.value })} placeholder="family@example.com" /></label><label>Quyền<select value={collaborator.permission} onChange={(e) => setCollaborator({ ...collaborator, permission: e.target.value as "VIEW" | "EDIT" })}><option value="EDIT">Có thể chỉnh sửa</option><option value="VIEW">Chỉ xem</option></select></label><button className="btn btn-primary full-button" disabled={busy} type="submit">Tạo lời mời</button></form>}
         </div>
       )}
@@ -347,6 +366,9 @@ function WorkspaceContent() {
           {isOwner && <form className="panel compact-form" onSubmit={(event) => void duplicateWedding(event)}><h2>Nhân bản để thử nghiệm</h2><p className="muted-small">Sao chép hồ sơ gia đình và sự kiện; không sao chép khách mời.</p><label>Tên bản sao<input value={duplicate.title} onChange={(e) => setDuplicate({ ...duplicate, title: e.target.value })} /></label><label>Slug mới<input value={duplicate.slug} onChange={(e) => setDuplicate({ ...duplicate, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><button className="btn btn-secondary full-button" disabled={busy} type="submit">Tạo bản sao</button></form>}
         </div>
       )}
+      <ConfirmDialog open={Boolean(deleteEventTarget)} title="Xóa sự kiện?" description="Sự kiện sẽ bị xóa vĩnh viễn. Những lời mời đang liên kết với sự kiện này có thể bị ảnh hưởng." confirmLabel="Xóa sự kiện" tone="danger" loading={busy} onConfirm={() => void deleteEvent()} onClose={() => setDeleteEventTarget(null)} />
+      <ConfirmDialog open={Boolean(revokeTarget)} title="Thu hồi quyền cộng tác?" description={revokeTarget ? <>Tài khoản <strong>{revokeTarget.email}</strong> sẽ không còn truy cập được wedding này.</> : ""} confirmLabel="Thu hồi quyền" tone="danger" loading={busy} onConfirm={() => void revokeCollaborator()} onClose={() => setRevokeTarget(null)} />
+      {guard.dialog}
     </AppShell>
   );
 }

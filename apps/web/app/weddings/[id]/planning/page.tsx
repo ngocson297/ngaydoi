@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
+import { Alert, Button, ConfirmDialog, DateTimeField, FormActions, FormErrorSummary, FormField, PageSkeleton, useToast, useUnsavedChangesGuard, type FormIssue } from "../../../../components/ui";
 import { ApiError } from "../../../../lib/api";
 import {
   categoryLabels,
@@ -72,7 +73,12 @@ function PlanningContent() {
   const [category, setCategory] = useState<PlanningTaskCategory | "ALL">("ALL");
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<TaskDraft>(blankDraft());
+  const [draftBaseline, setDraftBaseline] = useState<TaskDraft>(blankDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [issues, setIssues] = useState<FormIssue[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<PlanningTask | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const { notify } = useToast();
 
   const load = useCallback(async () => {
     try {
@@ -89,6 +95,8 @@ function PlanningContent() {
   useEffect(() => { void load(); }, [load]);
 
   const canEdit = data?.access === "OWNER" || data?.access === "EDIT";
+  const draftDirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(draftBaseline), [draft, draftBaseline]);
+  const guard = useUnsavedChangesGuard(Boolean(canEdit) && draftDirty && !busy);
   const now = useMemo(() => new Date(), []);
   const upcomingLimit = useMemo(() => new Date(now.getTime() + 14 * 86_400_000), [now]);
 
@@ -108,6 +116,7 @@ function PlanningContent() {
 
   function flash(message: string): void {
     setSuccess(message);
+    notify({ tone: "success", title: message });
     window.setTimeout(() => setSuccess(""), 3500);
   }
 
@@ -124,17 +133,26 @@ function PlanningContent() {
 
   async function saveTask(event: FormEvent): Promise<void> {
     event.preventDefault();
+    const nextIssues: FormIssue[] = [];
+    if (draft.title.trim().length < 3) nextIssues.push({ fieldId: "planning-title", message: "Tên công việc cần ít nhất 3 ký tự." });
+    if (draft.dueAt && Number.isNaN(new Date(draft.dueAt).getTime())) nextIssues.push({ fieldId: "planning-dueAt", message: "Hạn hoàn thành không hợp lệ." });
+    setIssues(nextIssues);
+    if (nextIssues.length) return;
     setBusy(true); setError("");
+    const wasEditing = Boolean(editingId);
     try {
       const payload = { ...draft, dueAt: draft.dueAt ? new Date(draft.dueAt).toISOString() : null };
       await authRequest(`/weddings/${weddingId}/planning/tasks${editingId ? `/${editingId}` : ""}`, {
         method: editingId ? "PATCH" : "POST",
         body: JSON.stringify(payload),
       });
-      setDraft(blankDraft());
+      const empty = blankDraft();
+      setDraft(empty);
+      setDraftBaseline(empty);
       setEditingId(null);
+      setSavedAt(new Date());
       await load();
-      flash(editingId ? "Đã cập nhật công việc." : "Đã thêm công việc mới.");
+      flash(wasEditing ? "Đã cập nhật công việc." : "Đã thêm công việc mới.");
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : "Không thể lưu công việc");
     } finally { setBusy(false); }
@@ -142,7 +160,7 @@ function PlanningContent() {
 
   function edit(task: PlanningTask): void {
     setEditingId(task.id);
-    setDraft({
+    const nextDraft = {
       title: task.title,
       description: task.description ?? "",
       category: task.category,
@@ -151,7 +169,10 @@ function PlanningContent() {
       assigneeName: task.assigneeName ?? "",
       reminderEnabled: task.reminderEnabled,
       reminderDaysBefore: task.reminderDaysBefore,
-    });
+    };
+    setDraft(nextDraft);
+    setDraftBaseline(nextDraft);
+    setIssues([]);
     document.getElementById("planning-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -165,20 +186,24 @@ function PlanningContent() {
     finally { setBusy(false); }
   }
 
-  async function remove(task: PlanningTask): Promise<void> {
-    if (!window.confirm(`Xóa công việc “${task.title}”?`)) return;
+  async function confirmRemove(): Promise<void> {
+    if (!deleteTarget) return;
     setBusy(true); setError("");
     try {
-      await authRequest(`/weddings/${weddingId}/planning/tasks/${task.id}`, { method: "DELETE" });
-      if (editingId === task.id) { setEditingId(null); setDraft(blankDraft()); }
+      await authRequest(`/weddings/${weddingId}/planning/tasks/${deleteTarget.id}`, { method: "DELETE" });
+      if (editingId === deleteTarget.id) {
+        const empty = blankDraft();
+        setEditingId(null); setDraft(empty); setDraftBaseline(empty);
+      }
+      setDeleteTarget(null);
       await load();
       flash("Đã xóa công việc.");
     } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa công việc"); }
     finally { setBusy(false); }
   }
 
-  if (loading) return <AppShell active="planning" weddingId={weddingId}><div className="loading-panel"><div className="spinner" /><h2>Đang chuẩn bị kế hoạch cưới</h2><p>Ngày Đôi đang sắp xếp timeline của bạn.</p></div></AppShell>;
-  if (!data) return <AppShell active="planning" weddingId={weddingId}><div className="friendly-error-card"><h1>Chưa thể mở kế hoạch</h1><p>{error || "Vui lòng thử lại sau."}</p><button className="btn btn-primary" onClick={() => void load()}>Thử lại</button></div></AppShell>;
+  if (loading) return <AppShell active="planning" weddingId={weddingId}><PageSkeleton /></AppShell>;
+  if (!data) return <AppShell active="planning" weddingId={weddingId}><div className="friendly-error-card"><h1>Chưa thể mở kế hoạch</h1><p>{error || "Vui lòng thử lại sau."}</p><Button onClick={() => void load()}>Thử lại</Button></div></AppShell>;
 
   return <AppShell active="planning" weddingId={weddingId}>
     <header className="planning-hero">
@@ -188,11 +213,11 @@ function PlanningContent() {
         <h1>Kế hoạch cưới của bạn</h1>
         <p>{data.wedding.title} · Theo dõi từng việc quan trọng mà không bị quá tải.</p>
       </div>
-      {canEdit && <button className="btn btn-primary" disabled={busy} onClick={() => void bootstrap()}>✦ Tạo timeline thông minh</button>}
+      {canEdit ? <Button disabled={busy} leadingIcon={<span aria-hidden="true">✦</span>} onClick={() => void bootstrap()}>Tạo timeline thông minh</Button> : null}
     </header>
 
-    {error && <div className="alert error">{error}</div>}
-    {success && <div className="alert success">{success}</div>}
+    {error ? <Alert tone="error" title="Chưa thể hoàn tất thao tác">{error}</Alert> : null}
+    {success ? <Alert tone="success">{success}</Alert> : null}
 
     <section className="planning-metrics" aria-label="Tiến độ kế hoạch">
       <article className="planning-progress-card"><div className="planning-progress-ring" style={{ "--progress": `${data.metrics.progress * 3.6}deg` } as CSSProperties}><strong>{data.metrics.progress}%</strong><span>hoàn thành</span></div><div><span>Tiến độ tổng thể</span><strong>{data.metrics.done}/{Math.max(0, data.metrics.total)}</strong><p>Mỗi việc nhỏ được hoàn thành sẽ giúp ngày cưới nhẹ nhàng hơn.</p></div></article>
@@ -224,7 +249,7 @@ function PlanningContent() {
                 {task.description && <p>{task.description}</p>}
                 <div className="planning-task-meta"><span>◷ {taskDateLabel(task.dueAt)}</span><span>▦ {categoryLabels[task.category]}</span>{task.assigneeName && <span>◎ {task.assigneeName}</span>}{task.reminderEnabled && <span>⌁ nhắc trước {task.reminderDaysBefore} ngày</span>}</div>
               </div>
-              {canEdit && <div className="planning-task-actions"><select aria-label={`Trạng thái ${task.title}`} value={task.status} disabled={busy} onChange={(event) => void updateStatus(task, event.target.value as PlanningTaskStatus)}><option value="TODO">Chưa bắt đầu</option><option value="IN_PROGRESS">Đang làm</option><option value="DONE">Hoàn tất</option><option value="CANCELED">Đã hủy</option></select><button type="button" onClick={() => edit(task)}>Sửa</button><button type="button" className="danger" onClick={() => void remove(task)}>Xóa</button></div>}
+              {canEdit && <div className="planning-task-actions"><select aria-label={`Trạng thái ${task.title}`} value={task.status} disabled={busy} onChange={(event) => void updateStatus(task, event.target.value as PlanningTaskStatus)}><option value="TODO">Chưa bắt đầu</option><option value="IN_PROGRESS">Đang làm</option><option value="DONE">Hoàn tất</option><option value="CANCELED">Đã hủy</option></select><button type="button" onClick={() => edit(task)}>Sửa</button><button type="button" className="danger" onClick={() => setDeleteTarget(task)}>Xóa</button></div>}
             </article>;
           })}
         </div>
@@ -233,19 +258,32 @@ function PlanningContent() {
 
       <aside className="planning-form-card panel" id="planning-form">
         <div className="panel-head"><div><span className="eyebrow">{editingId ? "Chỉnh sửa" : "Thêm nhanh"}</span><h2>{editingId ? "Cập nhật công việc" : "Công việc mới"}</h2><p className="muted-small">Ghi rõ việc cần làm, hạn và người phụ trách.</p></div></div>
-        <form className="planning-form" onSubmit={(event) => void saveTask(event)}>
-          <label>Tên công việc<input required minLength={3} maxLength={120} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Ví dụ: Chốt danh sách khách nhà gái" /></label>
-          <label>Mô tả<textarea rows={4} maxLength={1000} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Ghi chú ngắn để mọi người hiểu việc cần làm..." /></label>
-          <div className="form-grid two"><label>Nhóm việc<select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as PlanningTaskCategory })}>{data.categories.map((item) => <option value={item} key={item}>{categoryLabels[item]}</option>)}</select></label><label>Mức ưu tiên<select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as PlanningTaskPriority })}>{data.priorities.map((item) => <option value={item} key={item}>{priorityLabels[item]}</option>)}</select></label></div>
-          <label>Hạn hoàn thành<input type="datetime-local" value={draft.dueAt} onChange={(event) => setDraft({ ...draft, dueAt: event.target.value })} /></label>
-          <label>Người phụ trách<input maxLength={100} value={draft.assigneeName} onChange={(event) => setDraft({ ...draft, assigneeName: event.target.value })} placeholder="Ví dụ: Minh, Anh, chị Lan..." /></label>
+        <form className="planning-form" onSubmit={(event) => void saveTask(event)} noValidate>
+          <FormErrorSummary issues={issues} />
+          <FormField id="planning-title" label="Tên công việc" required error={issues.find((item) => item.fieldId === "planning-title")?.message} helperText="Viết ngắn gọn, bắt đầu bằng một động từ để dễ hành động.">
+            <input minLength={3} maxLength={120} value={draft.title} onChange={(event) => { setDraft({ ...draft, title: event.target.value }); setIssues((current) => current.filter((item) => item.fieldId !== "planning-title")); }} placeholder="Ví dụ: Chốt danh sách khách nhà gái" />
+          </FormField>
+          <FormField id="planning-description" label="Mô tả" helperText="Ghi chú đủ để người phụ trách hiểu việc cần làm.">
+            <textarea rows={4} maxLength={1000} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Mô tả đầu việc, tài liệu hoặc kết quả mong đợi…" />
+          </FormField>
+          <div className="form-grid two">
+            <FormField id="planning-category" label="Nhóm việc" required><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as PlanningTaskCategory })}>{data.categories.map((item) => <option value={item} key={item}>{categoryLabels[item]}</option>)}</select></FormField>
+            <FormField id="planning-priority" label="Mức ưu tiên" required><select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as PlanningTaskPriority })}>{data.priorities.map((item) => <option value={item} key={item}>{priorityLabels[item]}</option>)}</select></FormField>
+          </div>
+          <DateTimeField id="planning-dueAt" label="Hạn hoàn thành" value={draft.dueAt} onChange={(event) => { setDraft({ ...draft, dueAt: event.target.value }); setIssues((current) => current.filter((item) => item.fieldId !== "planning-dueAt")); }} error={issues.find((item) => item.fieldId === "planning-dueAt")?.message} helperText="Thời gian hiển thị theo múi giờ trên thiết bị của bạn." />
+          <FormField id="planning-assignee" label="Người phụ trách"><input maxLength={100} value={draft.assigneeName} onChange={(event) => setDraft({ ...draft, assigneeName: event.target.value })} placeholder="Ví dụ: Minh, Anh, chị Lan…" /></FormField>
           <label className="planning-reminder-toggle"><input type="checkbox" checked={draft.reminderEnabled} onChange={(event) => setDraft({ ...draft, reminderEnabled: event.target.checked })} /><span><strong>Bật nhắc việc</strong><small>Gửi thông báo và email trước ngày đến hạn.</small></span></label>
-          {draft.reminderEnabled && <label>Nhắc trước<select value={draft.reminderDaysBefore} onChange={(event) => setDraft({ ...draft, reminderDaysBefore: Number(event.target.value) })}><option value={0}>Đúng ngày đến hạn</option><option value={1}>1 ngày</option><option value={3}>3 ngày</option><option value={7}>7 ngày</option><option value={14}>14 ngày</option><option value={30}>30 ngày</option></select></label>}
-          <div className="planning-form-actions"><button className="btn btn-primary" disabled={busy || !canEdit}>{busy ? "Đang lưu..." : editingId ? "Lưu thay đổi" : "Thêm công việc"}</button>{editingId && <button type="button" className="btn btn-secondary" onClick={() => { setEditingId(null); setDraft(blankDraft()); }}>Hủy chỉnh sửa</button>}</div>
+          {draft.reminderEnabled ? <FormField id="planning-reminder" label="Nhắc trước"><select value={draft.reminderDaysBefore} onChange={(event) => setDraft({ ...draft, reminderDaysBefore: Number(event.target.value) })}><option value={0}>Đúng ngày đến hạn</option><option value={1}>1 ngày</option><option value={3}>3 ngày</option><option value={7}>7 ngày</option><option value={14}>14 ngày</option><option value={30}>30 ngày</option></select></FormField> : null}
+          <FormActions dirty={draftDirty} saving={busy} savedAt={savedAt}>
+            {editingId ? <Button type="button" variant="secondary" onClick={() => { const empty = blankDraft(); setEditingId(null); setDraft(empty); setDraftBaseline(empty); setIssues([]); }}>Hủy chỉnh sửa</Button> : null}
+            <Button type="submit" loading={busy} loadingLabel="Đang lưu công việc…" disabled={!canEdit}>{editingId ? "Lưu thay đổi" : "Thêm công việc"}</Button>
+          </FormActions>
         </form>
         {!canEdit && <div className="view-only-note">Bạn đang ở chế độ chỉ xem. Hãy liên hệ chủ wedding để được cấp quyền chỉnh sửa.</div>}
       </aside>
     </div>
+    <ConfirmDialog open={Boolean(deleteTarget)} title="Xóa công việc?" description={deleteTarget ? <>Công việc <strong>“{deleteTarget.title}”</strong> sẽ bị xóa vĩnh viễn khỏi kế hoạch cưới.</> : ""} confirmLabel="Xóa công việc" tone="danger" loading={busy} onConfirm={() => void confirmRemove()} onClose={() => setDeleteTarget(null)} />
+    {guard.dialog}
   </AppShell>;
 }
 

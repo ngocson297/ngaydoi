@@ -7,6 +7,7 @@ import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { PublicInvitation } from "../../../../components/public-invitation";
 import { useAuth } from "../../../../components/auth-provider";
+import { useConfirm } from "../../../../components/ui";
 import { ApiError } from "../../../../lib/api";
 import { compressWeddingImage } from "../../../../lib/image";
 import { resolveMediaUrl } from "../../../../lib/invitations";
@@ -62,6 +63,7 @@ function SettingGroup({ title, description, children }: { title: string; descrip
 }
 
 function InvitationEditorContent() {
+  const { confirm } = useConfirm();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<InvitationEditorData | null>(null);
@@ -260,7 +262,7 @@ function InvitationEditorContent() {
   }
 
   async function deleteMedia(mediaId: string): Promise<void> {
-    if (!window.confirm("Xóa ảnh này khỏi thiệp? Thao tác này không thể hoàn tác.")) return;
+    if (!(await confirm({ title: "Xóa ảnh khỏi thiệp?", description: "Ảnh sẽ bị xóa vĩnh viễn khỏi thư viện của wedding và không thể hoàn tác.", confirmLabel: "Xóa ảnh", tone: "danger" }))) return;
     try {
       await authRequest(`/weddings/${weddingId}/media/${mediaId}`, { method: "DELETE" });
       await load();
@@ -300,7 +302,7 @@ function InvitationEditorContent() {
   }
 
   async function restoreVersion(versionId: string, versionNumber: number): Promise<void> {
-    if (!window.confirm(`Khôi phục phiên bản ${versionNumber}? Thiết kế đang chỉnh sẽ được thay thế.`)) return;
+    if (!(await confirm({ title: `Khôi phục phiên bản ${versionNumber}?`, description: "Thiết kế hiện tại sẽ được thay thế bằng phiên bản đã chọn. Bạn có thể tạo thêm phiên bản trước khi khôi phục.", confirmLabel: "Khôi phục phiên bản", tone: "danger" }))) return;
     setHistoryBusy(true);
     try {
       await authRequest(`/weddings/${weddingId}/invitation/versions/${versionId}/restore`, { method: "POST" });

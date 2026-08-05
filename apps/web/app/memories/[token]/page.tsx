@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Alert, Button, FileUploadField, FormActions, FormField, useUnsavedChangesGuard } from "../../../components/ui";
 import { useParams } from "next/navigation";
 import { API_URL, ApiError, apiRequest } from "../../../lib/api";
 import type { PublicMemoryAlbum } from "../../../lib/memories";
@@ -29,6 +30,8 @@ export default function PublicMemoriesPage() {
     void load();
   }, [token]);
   const completed = items.filter((item) => item.status === "DONE").length;
+  const uploadDirty = items.some((item) => item.status !== "DONE") || Boolean(name.trim()) || Boolean(message.trim());
+  const guard = useUnsavedChangesGuard(uploadDirty && !busy);
   const gallery = useMemo(() => album?.assets ?? [], [album]);
 
   function choose(files: FileList | null): void {
@@ -73,7 +76,12 @@ export default function PublicMemoriesPage() {
       }
     }
     setBusy(false);
-    if (successCount) { setNotice(`Đã gửi ${successCount} khoảnh khắc. Cảm ơn bạn đã góp vào album!`); await load(); }
+    if (successCount) {
+      setNotice(`Đã gửi ${successCount} khoảnh khắc. Cảm ơn bạn đã góp vào album!`);
+      setItems((current) => current.filter((item) => item.status !== "DONE"));
+      setName(""); setMessage("");
+      await load();
+    }
   }
 
   if (error && !album) return <main className="memory-public-state"><div><div className="memory-public-mark">ND</div><h1>Album chưa sẵn sàng</h1><p>{error}</p><a className="btn btn-primary" href="/">Về trang chủ</a></div></main>;
@@ -82,7 +90,31 @@ export default function PublicMemoriesPage() {
   return <main className="memory-public">
     <header className="memory-public-hero"><div className="memory-public-overlay" /><div className="memory-public-copy"><span>Album kỷ niệm ngày cưới</span><h1>{album.wedding.groomName} <i>&</i> {album.wedding.brideName}</h1><h2>{album.title}</h2><p>{album.description}</p><a href="#share-memory" className="btn btn-primary">Chia sẻ khoảnh khắc</a></div></header>
     <section className="memory-public-section"><div className="memory-public-heading"><span>Cùng lưu giữ</span><h2>{album.thankYouTitle}</h2><p>{album.thankYouMessage}</p></div>{gallery.length ? <div className="memory-public-grid">{gallery.map((asset) => <figure key={asset.id}>{asset.type === "VIDEO" ? <video controls preload="metadata" src={memoryMediaUrl(asset.id, album.token)} /> : <img src={memoryMediaUrl(asset.id, album.token)} alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} loading="lazy" />} {(album.showUploaderName && asset.uploaderName || asset.uploaderMessage) && <figcaption>{album.showUploaderName && asset.uploaderName && <strong>{asset.uploaderName}</strong>}{asset.uploaderMessage && <span>{asset.uploaderMessage}</span>}</figcaption>}</figure>)}</div> : <div className="memory-public-empty"><span>♡</span><h3>Hãy là người đầu tiên chia sẻ</h3><p>Những bức ảnh tự nhiên từ bạn bè và gia đình sẽ làm album này thật đặc biệt.</p></div>}</section>
-    <section id="share-memory" className="memory-upload-section"><div className="memory-upload-copy"><span className="eyebrow">Gửi ảnh & video</span><h2>Thêm góc nhìn của bạn</h2><p>Chọn tối đa 10 file mỗi lần. Ảnh tối đa 10 MB, video tối đa 30 MB. Nội dung có thể cần được chủ nhân album duyệt trước khi hiển thị.</p><ul><li>Không cần đăng nhập.</li><li>Không đăng ảnh riêng tư của người khác khi chưa được đồng ý.</li><li>Giữ lại file gốc cho đến khi upload hoàn tất.</li></ul></div>{album.uploadEnabled ? <form className="memory-upload-card" onSubmit={(event) => void upload(event)}><div className="memory-dropzone"><input id="memory-files" type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={(event) => choose(event.target.files)} /><label htmlFor="memory-files"><span>＋</span><strong>Chọn ảnh hoặc video</strong><small>JPEG, PNG, WebP, MP4, WebM hoặc MOV</small></label></div>{items.length > 0 && <div className="memory-upload-list">{items.map((item, index) => <article key={fileKey(item.file)}><div className="memory-upload-thumb">{item.file.type.startsWith("video/") ? <video src={item.preview} /> : <img src={item.preview} alt="Xem trước file upload" />}</div><div><strong>{item.file.name}</strong><span>{(item.file.size / 1024 / 1024).toFixed(1)} MB · {{ READY: "Sẵn sàng", UPLOADING: "Đang tải...", DONE: "Đã gửi", ERROR: "Có lỗi" }[item.status]}</span>{item.error && <small>{item.error}</small>}</div><button type="button" disabled={busy || item.status === "UPLOADING"} onClick={() => remove(index)}>×</button></article>)}</div>}<div className="form-grid two"><label>Tên của bạn <span className="optional">(không bắt buộc)</span><input maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Gia đình Minh Anh" /></label><label>Lời nhắn <span className="optional">(không bắt buộc)</span><input maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Một lời chúc hoặc chú thích ngắn..." /></label></div>{error && <div className="alert alert-error">{error}</div>}{notice && <div className="alert alert-success">{notice}</div>}<button className="btn btn-primary memory-upload-submit" disabled={busy || !items.length}>{busy ? `Đang gửi ${completed}/${items.length}...` : `Gửi ${items.length || ""} khoảnh khắc`}</button><small className="memory-privacy">Bằng việc gửi nội dung, bạn xác nhận mình có quyền chia sẻ và đồng ý để cô dâu chú rể lưu trong album kỷ niệm.</small></form> : <div className="memory-upload-closed"><span>✓</span><h3>Album đã ngừng nhận nội dung mới</h3><p>Bạn vẫn có thể xem những khoảnh khắc đã được chia sẻ.</p></div>}</section>
+    <section id="share-memory" className="memory-upload-section"><div className="memory-upload-copy"><span className="eyebrow">Gửi ảnh & video</span><h2>Thêm góc nhìn của bạn</h2><p>Chọn tối đa 10 file mỗi lần. Ảnh tối đa 10 MB, video tối đa 30 MB. Nội dung có thể cần được chủ nhân album duyệt trước khi hiển thị.</p><ul><li>Không cần đăng nhập.</li><li>Không đăng ảnh riêng tư của người khác khi chưa được đồng ý.</li><li>Giữ lại file gốc cho đến khi upload hoàn tất.</li></ul></div>{album.uploadEnabled ? <form className="memory-upload-card" onSubmit={(event) => void upload(event)} noValidate>
+      <FileUploadField
+        id="memory-files"
+        label="Ảnh và video"
+        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+        multiple
+        disabled={busy}
+        helperText="JPEG, PNG, WebP tối đa 10 MB; MP4, WebM, MOV tối đa 30 MB. Tối đa 10 file mỗi lượt."
+        selectedSummary={items.length ? `Đã chọn ${items.length}/10 file` : undefined}
+        error={error && !items.length ? error : undefined}
+        onFilesSelected={choose}
+      />
+      {items.length > 0 ? <div className="memory-upload-list">{items.map((item, index) => <article key={fileKey(item.file)}><div className="memory-upload-thumb">{item.file.type.startsWith("video/") ? <video src={item.preview} /> : <img src={item.preview} alt="Xem trước file upload" />}</div><div><strong>{item.file.name}</strong><span>{(item.file.size / 1024 / 1024).toFixed(1)} MB · {{ READY: "Sẵn sàng", UPLOADING: "Đang tải…", DONE: "Đã gửi", ERROR: "Có lỗi" }[item.status]}</span>{item.error ? <small>{item.error}</small> : null}</div><button type="button" aria-label={`Xóa ${item.file.name}`} disabled={busy || item.status === "UPLOADING"} onClick={() => remove(index)}>×</button></article>)}</div> : null}
+      <div className="form-grid two">
+        <FormField id="memory-name" label="Tên của bạn" helperText="Tên sẽ chỉ hiển thị nếu chủ album bật tùy chọn này."><input maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Gia đình Minh Anh" /></FormField>
+        <FormField id="memory-message" label="Lời nhắn" helperText="Một lời chúc hoặc chú thích ngắn cho album."><input maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Chúc hai bạn trăm năm hạnh phúc…" /></FormField>
+      </div>
+      {error ? <Alert tone="error" title="Có file chưa thể gửi">{error}</Alert> : null}
+      {notice ? <Alert tone="success">{notice}</Alert> : null}
+      <FormActions dirty={uploadDirty} saving={busy}>
+        <Button type="submit" fullWidth loading={busy} loadingLabel={`Đang gửi ${completed}/${items.length}…`} disabled={!items.length}>{`Gửi ${items.length || ""} khoảnh khắc`}</Button>
+      </FormActions>
+      <small className="memory-privacy">Bằng việc gửi nội dung, bạn xác nhận mình có quyền chia sẻ và đồng ý để cô dâu chú rể lưu trong album kỷ niệm.</small>
+    </form> : <div className="memory-upload-closed"><span>✓</span><h3>Album đã ngừng nhận nội dung mới</h3><p>Bạn vẫn có thể xem những khoảnh khắc đã được chia sẻ.</p></div>}</section>
+    {guard.dialog}
     <footer className="memory-public-footer"><div className="memory-public-mark small">ND</div><p>Được lưu giữ cùng Ngày Đôi</p><a href="/">Tạo thiệp cưới của bạn</a></footer>
   </main>;
 }

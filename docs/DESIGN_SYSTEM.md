@@ -69,3 +69,23 @@ Rules:
 - `⌘ K` / `Ctrl K` opens the keyboard-accessible command palette.
 - Mobile drawer traps focus, closes with Escape and restores focus to the menu trigger.
 - Deep workspace pages render breadcrumbs before the page content.
+
+
+## Sprint 15.3 — Form system
+
+Components mới:
+
+- `FormErrorSummary`: hiển thị lỗi tổng hợp, tự focus và đưa người dùng tới field lỗi.
+- `FormActions`, `FormSaveState`: thống nhất trạng thái chưa lưu/đang lưu/đã lưu và vùng CTA cuối form.
+- `DateTimeField`: wrapper chuẩn cho `date`, `time`, `datetime-local`.
+- `FileUploadField`: chọn file hoặc kéo-thả, hỗ trợ error/helper/selected summary.
+- `useUnsavedChangesGuard`: cảnh báo khi bấm link nội bộ hoặc đóng/refresh trang khi còn dữ liệu chưa lưu.
+- `ConfirmProvider`, `useConfirm`: dialog xác nhận dùng chung cho thao tác nguy hiểm.
+
+Quy tắc:
+
+- Form nhiều field phải có `FormErrorSummary` khi submit lỗi.
+- Form có dữ liệu chỉnh sửa phải hiển thị save state và dùng unsaved guard.
+- Không dùng `window.confirm`; dùng `useConfirm` hoặc `ConfirmDialog`.
+- Date/time phải dùng native input chuẩn hoặc `DateTimeField`, không tự format bằng chuỗi không kiểm tra.
+- Upload phải nêu định dạng, dung lượng, số lượng và lỗi cụ thể trước khi gửi.

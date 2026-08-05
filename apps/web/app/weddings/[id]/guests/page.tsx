@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
+import { useConfirm } from "../../../../components/ui";
 import { ApiError } from "../../../../lib/api";
 import {
   downloadText,
@@ -40,6 +41,7 @@ type NotificationList = {
 };
 
 function GuestManagementContent() {
+  const { confirm } = useConfirm();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [tab, setTab] = useState<GuestTab>("list");
@@ -173,7 +175,7 @@ function GuestManagementContent() {
   }
 
   async function removeGuest(item: GuestItem): Promise<void> {
-    if (!window.confirm(`Xóa ${item.fullName} và toàn bộ phản hồi liên quan?`)) return;
+    if (!(await confirm({ title: `Xóa ${item.fullName}?`, description: "Khách mời, thiệp cá nhân và toàn bộ phản hồi RSVP liên quan sẽ bị xóa vĩnh viễn.", confirmLabel: "Xóa khách mời", tone: "danger" }))) return;
     setBusy(true);
     try {
       await authRequest(`/weddings/${weddingId}/guests/${item.id}`, { method: "DELETE" });
@@ -205,7 +207,7 @@ function GuestManagementContent() {
 
   async function bulkAction(action: "MARK_SENT" | "REVOKE" | "REGENERATE" | "ARCHIVE" | "RESTORE" | "DELETE"): Promise<void> {
     if (!selected.length) return;
-    if (["REVOKE", "REGENERATE", "DELETE"].includes(action) && !window.confirm(`Áp dụng thao tác này cho ${selected.length} khách đã chọn?`)) return;
+    if (["REVOKE", "REGENERATE", "DELETE"].includes(action) && !(await confirm({ title: `Áp dụng cho ${selected.length} khách?`, description: action === "DELETE" ? "Các khách đã chọn và dữ liệu liên quan sẽ bị xóa vĩnh viễn." : "Thao tác sẽ cập nhật toàn bộ khách đang được chọn.", confirmLabel: action === "DELETE" ? "Xóa khách đã chọn" : "Xác nhận thao tác", tone: "danger" }))) return;
     setBusy(true);
     try {
       await authRequest(`/weddings/${weddingId}/guests/bulk`, { method: "POST", body: JSON.stringify({ guestIds: selected, action }) });
