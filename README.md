@@ -1,16 +1,17 @@
-# Ngày Đôi v0.15.0
+# Ngày Đôi v0.15.1
 
-Current milestone: **Phase 15 — Sprint 15.1 Design System Foundations**.
+Current milestone: **Phase 15 — Sprint 15.2 Navigation & Information Architecture**.
 
-## Điểm mới trong Sprint 15.1
+## Điểm mới trong Sprint 15.2
 
-- Design tokens tập trung cho màu sắc, typography, spacing, radius, shadow, focus và motion.
-- Shared UI components: Button, FormField, Alert, Dialog, Skeleton, Empty/Error State và Toast.
-- Chuẩn hóa trang đăng nhập, đăng ký, quên/đặt lại mật khẩu, xác minh email và tài khoản.
-- Dialog xác nhận truy cập được bằng bàn phím thay cho `window.confirm` ở luồng xóa tài khoản.
-- Request ID được tách riêng khỏi thông báo lỗi để user dễ đọc và support dễ tra cứu.
-- Global loading, error và 404 dùng trạng thái thân thiện, không hiển thị stack trace.
-- Thêm `npm run source:pack` để tạo `~/Downloads/ngaydoi-current.zip` mà không đóng gói secret hoặc build output.
+- Navigation sinh từ một cấu hình dùng chung cho desktop, mobile và command palette.
+- Menu được lọc theo role: Customer, Family Editor, Partner, Staff, Admin và Check-in Staff.
+- Các nhóm menu có thể thu gọn và ghi nhớ trạng thái theo role.
+- Công cụ wedding chỉ hiện đầy đủ sau khi user chọn một đám cưới.
+- Thêm command palette bằng `⌘ K` hoặc `Ctrl K`.
+- Thêm breadcrumb cho trang sâu và workspace wedding.
+- Mobile drawer có focus trap, Escape, khóa scroll và trả focus đúng.
+- Script `source:pack` loại thêm generated Prisma Client để ZIP nhẹ hơn.
 
 ## Chạy local
 
@@ -39,6 +40,6 @@ File được tạo tại:
 ~/Downloads/ngaydoi-current.zip
 ```
 
-Script tự loại bỏ `.env`, secret, `node_modules`, `.next`, `dist`, `.git`, dữ liệu local và log.
+Script tự loại bỏ `.env`, secret, `node_modules`, `.next`, `dist`, generated Prisma Client, `.git`, dữ liệu local và log.
 
-Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_1_RUN_GUIDE.md`.
+Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_2_RUN_GUIDE.md`.

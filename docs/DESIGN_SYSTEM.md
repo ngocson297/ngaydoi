@@ -53,3 +53,19 @@ Một nguồn chuẩn cho control, feedback và trạng thái giao diện. Các 
 - Toast dùng live region.
 - Skeleton dừng shimmer khi `prefers-reduced-motion`.
 - Trạng thái dùng cả icon và text, không chỉ dùng màu.
+
+## Sprint 15.2 — Navigation system
+
+Navigation is generated from `apps/web/components/navigation/navigation-model.ts` so desktop sidebar, mobile drawer and command palette share the same labels, destinations and role visibility.
+
+Rules:
+
+- `CUSTOMER` and `FAMILY_EDITOR` see the wedding workspace. Billing is owner/admin only.
+- `PARTNER` sees Partner Portal rather than customer wedding tools.
+- `ADMIN` and `STAFF` see operational groups.
+- `CHECKIN_STAFF` receives a minimal account/support navigation surface.
+- Wedding-specific tools are progressively disclosed after a wedding context is selected.
+- Navigation groups are collapsible and remember their state per role in browser storage.
+- `⌘ K` / `Ctrl K` opens the keyboard-accessible command palette.
+- Mobile drawer traps focus, closes with Escape and restores focus to the menu trigger.
+- Deep workspace pages render breadcrumbs before the page content.

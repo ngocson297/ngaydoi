@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.1 — Sprint 15.2 Navigation & Information Architecture
+
+- Replaced duplicated desktop/mobile navigation markup with one role-aware navigation model.
+- Added collapsible groups with per-role browser persistence and progressive wedding-tool disclosure.
+- Added keyboard-accessible command palette using `⌘ K` / `Ctrl K`.
+- Added breadcrumbs for deep pages and wedding workspaces.
+- Added accessible mobile drawer focus management, Escape handling, scroll locking and focus restoration.
+- Added role labels and clearer user context in sidebar/drawer.
+- Updated `source:pack` to exclude generated Prisma Client output.
+- No database schema or migration changes.
+
+
 ## 0.15.0 — Sprint 15.1 Design System Foundations
 
 - Added centralized design tokens and authoritative UI compatibility layer.

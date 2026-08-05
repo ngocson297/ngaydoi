@@ -1,6 +1,6 @@
 # NGÀY ĐÔI — MASTER PRODUCT & DELIVERY PLAN
 
-> **Delivery status 2026-08-05:** Release Phase 1 đến Phase 14 đã hoàn tất. Dự án đang ở **v0.15.0 — Phase 15 Sprint 15.1 Design System Foundations**, tạm đóng băng tính năng mới để chuẩn hóa UI/UX trước Closed Beta.
+> **Delivery status 2026-08-05:** Release Phase 1 đến Phase 14 đã hoàn tất. Dự án đang ở **v0.15.1 — Phase 15 Sprint 15.2 Navigation & Information Architecture**, tạm đóng băng tính năng mới để chuẩn hóa UI/UX trước Closed Beta.
 
 > Kế hoạch tổng thể từ ý tưởng, xây dựng MVP, thương mại hóa, vận hành production đến mở rộng hệ sinh thái thiệp cưới và quản lý khách mời.
 
@@ -18,7 +18,7 @@
 | Mô hình mục tiêu | SaaS B2C kết hợp B2B2C qua đối tác |
 | Kiến trúc khởi đầu | Next.js + NestJS + PostgreSQL + Prisma |
 | Đối tượng sử dụng | Cặp đôi, gia đình, nhân viên vận hành, admin, studio/wedding planner |
-| Trạng thái hiện tại | v0.15.0 đã bắt đầu Phase 15 UX Hardening: design tokens, shared controls, form/feedback/loading/error foundations; chưa lên production và chưa thêm feature mới |
+| Trạng thái hiện tại | v0.15.1 đã hoàn tất Sprint 15.2: role-based navigation, collapsible groups, command palette, breadcrumbs và mobile drawer accessibility; chưa lên production và chưa thêm feature mới |
 
 ---
 

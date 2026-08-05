@@ -1,6 +1,6 @@
 # Ngày Đôi repository instructions
 
-Current version: **v0.15.0 — Sprint 15.1 Design System Foundations**.
+Current version: **v0.15.1 — Sprint 15.2 Navigation & Information Architecture**.
 
 ## Stack
 

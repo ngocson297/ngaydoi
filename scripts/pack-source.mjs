@@ -20,6 +20,7 @@ const exclusions = [
   "dist/*", "*/dist/*", "*/*/dist/*",
   "coverage/*", "*/coverage/*",
   ".typecheck/*", "*/.typecheck/*",
+  "apps/api/src/generated/prisma/*",
   ".env", "apps/api/.env", "apps/web/.env.local", ".env.production",
   "ngaydoi-local-data/*", "*/ngaydoi-local-data/*",
   "*.log", "*/.DS_Store", ".DS_Store",
@@ -38,4 +39,4 @@ try {
 
 console.log(`Source package created: ${output}`);
 console.log(`Project: ${basename(root)} · Version: ${manifest.version}`);
-console.log("Đã loại bỏ .env, secret, node_modules, .next, dist, .git, dữ liệu local và log.");
+console.log("Đã loại bỏ .env, secret, node_modules, .next, dist, generated Prisma Client, .git, dữ liệu local và log.");
