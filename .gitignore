@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+coverage
+.env
+.env.local
+apps/api/src/generated
+*.log
+.DS_Store
+
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep

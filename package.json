@@ -1,0 +1,45 @@
+{
+  "name": "ngaydoi-mvp",
+  "version": "0.14.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @ngaydoi/api && npm run build --workspace @ngaydoi/web",
+    "db:up": "node scripts/start-db.mjs",
+    "db:down": "node scripts/stop-db.mjs",
+    "db:clean": "node scripts/clean-db.mjs",
+    "db:generate": "npm run prisma:generate --workspace @ngaydoi/api",
+    "db:migrate": "npm run prisma:migrate --workspace @ngaydoi/api",
+    "db:deploy": "npm run prisma:deploy --workspace @ngaydoi/api",
+    "db:reset": "npm run prisma:reset --workspace @ngaydoi/api && npm run db:seed",
+    "db:seed": "npm run db:wait && npm run prisma:seed --workspace @ngaydoi/api",
+    "db:validate": "npm run prisma:validate --workspace @ngaydoi/api",
+    "db:studio": "npm run prisma:studio --workspace @ngaydoi/api",
+    "dev:web": "npm run dev --workspace @ngaydoi/web",
+    "dev:api": "npm run start:dev --workspace @ngaydoi/api",
+    "security:test": "npm run security:self-test --workspace @ngaydoi/api",
+    "auth:smoke": "npm run auth:smoke --workspace @ngaydoi/api",
+    "db:wait": "node scripts/wait-for-db.mjs",
+    "db:setup": "npm run db:up && npm run db:generate && npm run db:deploy && npm run db:seed",
+    "wedding:smoke": "npm run wedding:smoke --workspace @ngaydoi/api",
+    "invitation:smoke": "npm run invitation:smoke --workspace @ngaydoi/api",
+    "guest:smoke": "npm run guest:smoke --workspace @ngaydoi/api",
+    "commercial:smoke": "npm run commercial:smoke --workspace @ngaydoi/api",
+    "operations:smoke": "npm run operations:smoke --workspace @ngaydoi/api",
+    "backup:create": "node scripts/backup-create.mjs",
+    "backup:list": "node scripts/backup-list.mjs",
+    "backup:restore": "node scripts/backup-restore.mjs",
+    "pilot:smoke": "npm run pilot:smoke --workspace @ngaydoi/api",
+    "growth:smoke": "npm run growth:smoke --workspace @ngaydoi/api",
+    "partner:smoke": "npm run partner:smoke --workspace @ngaydoi/api",
+    "event-ops:smoke": "npm run event-ops:smoke --workspace @ngaydoi/api",
+    "memories:smoke": "npm run memories:smoke --workspace @ngaydoi/api",
+    "planning:smoke": "npm run planning:smoke --workspace @ngaydoi/api",
+    "template:smoke": "npm run template:smoke --workspace @ngaydoi/api"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
