@@ -1,6 +1,6 @@
 {
   "name": "ngaydoi-mvp",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -37,7 +37,8 @@
     "event-ops:smoke": "npm run event-ops:smoke --workspace @ngaydoi/api",
     "memories:smoke": "npm run memories:smoke --workspace @ngaydoi/api",
     "planning:smoke": "npm run planning:smoke --workspace @ngaydoi/api",
-    "template:smoke": "npm run template:smoke --workspace @ngaydoi/api"
+    "template:smoke": "npm run template:smoke --workspace @ngaydoi/api",
+    "source:pack": "node scripts/pack-source.mjs"
   },
   "engines": {
     "node": ">=20.9.0"

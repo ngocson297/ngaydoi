@@ -38,7 +38,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     const rawMessage = typeof body === "object" && body && "message" in body ? (body as { message: unknown }).message : body;
     const message = Array.isArray(rawMessage) ? rawMessage.join(". ") : String(rawMessage || "Request failed");
     const requestId = typeof body === "object" && body && "requestId" in body ? String((body as { requestId?: unknown }).requestId || "") : response.headers.get("x-request-id") || undefined;
-    throw new ApiError(requestId ? `${message} (Mã hỗ trợ: ${requestId})` : message, response.status, body, requestId);
+    throw new ApiError(message, response.status, body, requestId);
   }
   return body as T;
 }

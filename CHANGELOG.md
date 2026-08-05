@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.0 — Sprint 15.1 Design System Foundations
+
+- Added centralized design tokens and authoritative UI compatibility layer.
+- Added shared Button, FormField, Alert, Dialog, Skeleton, Empty/Error State and Toast components.
+- Migrated authentication, account, global loading/error and not-found experiences to the shared system.
+- Replaced destructive account `window.confirm` with an accessible confirmation dialog.
+- Separated API support request IDs from user-facing error messages.
+- Added `npm run source:pack` for safe one-command source packaging without secrets or build output.
+- No database schema or migration changes.
+
+
 ## 0.14.0 — Template Library, Theme Marketplace & Final Product Polish
 
 - Expanded the invitation library from 5 to 24 templates.

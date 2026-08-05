@@ -1,18 +1,44 @@
-# Ngày Đôi v0.14.0
+# Ngày Đôi v0.15.0
 
-Release **Phase 14 — Template Library, Theme Marketplace & Final Product Polish**.
+Current milestone: **Phase 15 — Sprint 15.1 Design System Foundations**.
 
-## Điểm mới
+## Điểm mới trong Sprint 15.1
 
-- Mở rộng thư viện từ 5 lên **24 template**.
-- Thêm nhóm template Việt Nam, truyền thống, lãng mạn, botanical, tối giản, hiện đại, luxury và destination.
-- Thêm trang công khai `/templates` với tìm kiếm, bộ lọc, mẫu mới và yêu thích.
-- Invitation Studio có bộ lọc mẫu đã mở, mẫu khóa, yêu thích và phong cách.
-- Quyền template được kiểm tra ở cả UI và API.
-- Phân bổ theo gói: Khởi đầu 3, Cơ bản 8, Tiêu chuẩn 16, Cao cấp 24.
-- Thêm font và motif mới, hiệu ứng template nhẹ, hỗ trợ `prefers-reduced-motion`.
-- Home hiển thị 8 mẫu nổi bật, marquee 24 mẫu và parallax nhẹ.
-- Sidebar thêm **Kho mẫu thiệp**; input, select, button và template card được tối ưu responsive.
-- Thêm `template:smoke` để kiểm tra catalog, entitlement và API guard.
+- Design tokens tập trung cho màu sắc, typography, spacing, radius, shadow, focus và motion.
+- Shared UI components: Button, FormField, Alert, Dialog, Skeleton, Empty/Error State và Toast.
+- Chuẩn hóa trang đăng nhập, đăng ký, quên/đặt lại mật khẩu, xác minh email và tài khoản.
+- Dialog xác nhận truy cập được bằng bàn phím thay cho `window.confirm` ở luồng xóa tài khoản.
+- Request ID được tách riêng khỏi thông báo lỗi để user dễ đọc và support dễ tra cứu.
+- Global loading, error và 404 dùng trạng thái thân thiện, không hiển thị stack trace.
+- Thêm `npm run source:pack` để tạo `~/Downloads/ngaydoi-current.zip` mà không đóng gói secret hoặc build output.
 
-Xem `docs/PHASE_14_RUN_GUIDE.md` để nâng cấp từ v0.13.1.
+## Chạy local
+
+```bash
+npm run db:up
+npm run dev:api
+```
+
+Terminal khác:
+
+```bash
+npm run dev:web
+```
+
+## Đóng gói source cho sprint tiếp theo
+
+Chạy tại folder gốc `~/Downloads/ngaydoi`:
+
+```bash
+npm run source:pack
+```
+
+File được tạo tại:
+
+```text
+~/Downloads/ngaydoi-current.zip
+```
+
+Script tự loại bỏ `.env`, secret, `node_modules`, `.next`, `dist`, `.git`, dữ liệu local và log.
+
+Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_1_RUN_GUIDE.md`.

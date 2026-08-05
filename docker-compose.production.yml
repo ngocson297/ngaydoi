@@ -27,7 +27,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       API_PORT: 4000
       NODE_ENV: production
-      APP_VERSION: 0.14.0
+      APP_VERSION: 0.15.0
     depends_on:
       postgres:
         condition: service_healthy
