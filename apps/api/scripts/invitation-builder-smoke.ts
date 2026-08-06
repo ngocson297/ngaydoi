@@ -16,8 +16,11 @@ async function main(): Promise<void> {
     body: JSON.stringify({ email: "demo@ngaydoi.vn", password: "Demo@12345" }),
   });
   const token = session.accessToken;
-  const templates = await request<Array<{ key: string }>>("/templates", {}, token);
+  const templates = await request<Array<{ key: string; layout: string; countdownStyle: string; eventStyle: string }>>("/templates", {}, token);
   if (templates.length !== 24) throw new Error(`Expected 24 invitation templates, received ${templates.length}`);
+  if (new Set(templates.map((item) => item.layout)).size < 6) throw new Error("Template layouts are not sufficiently diverse");
+  const bankDirectory = await request<{ banks: Array<{ bin: string }>; source: "LIVE" | "UNAVAILABLE" }>("/gift-transfer/banks");
+  if (!Array.isArray(bankDirectory.banks)) throw new Error("Gift transfer bank directory returned an invalid payload");
 
   const weddings = await request<Array<{ id: string; slug: string }>>("/weddings", {}, token);
   const wedding = weddings.find((item) => item.slug === "minh-anh") ?? weddings[0];
@@ -26,9 +29,27 @@ async function main(): Promise<void> {
   const editor = await request<{ invitationDesign: { revision: number } }>(`/weddings/${wedding.id}/invitation`, {}, token);
   const updated = await request<{ revision: number }>(`/weddings/${wedding.id}/invitation`, {
     method: "PATCH",
-    body: JSON.stringify({ heroEyebrow: "Invitation Builder smoke test", showCountdown: true }),
+    body: JSON.stringify({
+      heroEyebrow: "Invitation Builder smoke test",
+      showCountdown: true,
+      showGift: false,
+      giftTitle: "Gửi lời chúc đến đôi mình",
+      giftAccounts: [{
+        id: "smoke-gift-account",
+        side: "SHARED",
+        label: "Tài khoản smoke test",
+        bankBin: "970436",
+        bankCode: "VCB",
+        bankName: "Vietcombank",
+        accountNumber: "0123456789",
+        accountName: "NGAY DOI SMOKE TEST",
+        transferNote: "MUNG CUOI",
+      }],
+    }),
   }, token);
   if (updated.revision <= editor.invitationDesign.revision) throw new Error("Design revision did not increase");
+  const editorAfterGift = await request<{ invitationDesign: { giftAccounts: Array<{ bankBin: string }> } }>(`/weddings/${wedding.id}/invitation`, {}, token);
+  if (editorAfterGift.invitationDesign.giftAccounts[0]?.bankBin !== "970436") throw new Error("Gift transfer account was not saved");
 
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZpWQAAAAASUVORK5CYII=", "base64");
   const form = new FormData();

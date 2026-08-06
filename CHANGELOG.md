@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.15.7 — Sprint 15.8 Invitation Experience & Gift Transfer QR
+
+- Chia 24 template thành 6 họ layout thực sự khác nhau: portrait, split, editorial, arch, photo story và minimal.
+- Template có thể dùng ảnh bìa, ảnh chia đôi, khung vòm hoặc collage từ ảnh do người dùng tải lên; không dùng ảnh/asset sao chép từ website khác.
+- Thiết kế lại countdown với 4 phong cách: cards, editorial, rings và minimal.
+- Thiết kế lại chương trình cưới với 4 phong cách: timeline, cards, agenda và steps.
+- Thêm phần “Mừng cưới qua QR”, tối đa 3 tài khoản cho nhà trai, nhà gái hoặc dùng chung.
+- Tích hợp danh sách ngân hàng VietQR có cache/fallback nhập BIN thủ công; QR không điền sẵn số tiền và không tự xác nhận giao dịch.
+- Bổ sung migration an toàn cho giftTitle, giftMessage, giftAccounts, showGift và section order.
+- Thêm `npm run invitation-experience:audit` vào quality gate.
+
 ## 0.15.6 — Sprint 15.7 Regression & Release Quality Gate
 
 - Added a root-level global error recovery page to prevent blank-screen failures.

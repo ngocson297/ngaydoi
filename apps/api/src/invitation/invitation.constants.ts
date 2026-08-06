@@ -1,4 +1,4 @@
-export const INVITATION_TEMPLATES = [
+const BASE_INVITATION_TEMPLATES = [
   {
     key: "classic-wine",
     name: "Rượu vang cổ điển",
@@ -409,9 +409,48 @@ export const INVITATION_TEMPLATES = [
   },
 ] as const;
 
+type TemplateExperience = {
+  layout: "portrait" | "split" | "editorial" | "arch" | "story" | "minimal";
+  photoTreatment: "full-bleed" | "split" | "framed" | "collage" | "soft" | "optional";
+  countdownStyle: "cards" | "editorial" | "rings" | "minimal";
+  eventStyle: "timeline" | "cards" | "agenda" | "steps";
+};
+
+const TEMPLATE_EXPERIENCE: Record<string, TemplateExperience> = {
+  "classic-wine": { layout: "portrait", photoTreatment: "framed", countdownStyle: "cards", eventStyle: "timeline" },
+  "garden-sage": { layout: "story", photoTreatment: "collage", countdownStyle: "rings", eventStyle: "cards" },
+  "blush-romance": { layout: "split", photoTreatment: "split", countdownStyle: "cards", eventStyle: "timeline" },
+  "modern-noir": { layout: "editorial", photoTreatment: "full-bleed", countdownStyle: "editorial", eventStyle: "agenda" },
+  "ocean-minimal": { layout: "minimal", photoTreatment: "soft", countdownStyle: "minimal", eventStyle: "cards" },
+  "lotus-vietnamese": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
+  "imperial-red": { layout: "arch", photoTreatment: "framed", countdownStyle: "cards", eventStyle: "steps" },
+  "ivory-gold": { layout: "portrait", photoTreatment: "full-bleed", countdownStyle: "rings", eventStyle: "agenda" },
+  "lavender-dream": { layout: "story", photoTreatment: "collage", countdownStyle: "cards", eventStyle: "timeline" },
+  "terracotta-sunset": { layout: "split", photoTreatment: "split", countdownStyle: "rings", eventStyle: "cards" },
+  "pearl-minimal": { layout: "minimal", photoTreatment: "optional", countdownStyle: "minimal", eventStyle: "agenda" },
+  "midnight-blue": { layout: "portrait", photoTreatment: "full-bleed", countdownStyle: "editorial", eventStyle: "timeline" },
+  "tropical-palm": { layout: "story", photoTreatment: "collage", countdownStyle: "rings", eventStyle: "cards" },
+  "cherry-blossom": { layout: "split", photoTreatment: "soft", countdownStyle: "cards", eventStyle: "timeline" },
+  "rustic-kraft": { layout: "story", photoTreatment: "framed", countdownStyle: "cards", eventStyle: "steps" },
+  "art-deco-emerald": { layout: "editorial", photoTreatment: "framed", countdownStyle: "editorial", eventStyle: "agenda" },
+  "champagne-glow": { layout: "portrait", photoTreatment: "full-bleed", countdownStyle: "rings", eventStyle: "timeline" },
+  "celestial-night": { layout: "portrait", photoTreatment: "full-bleed", countdownStyle: "editorial", eventStyle: "cards" },
+  "coastal-sand": { layout: "split", photoTreatment: "split", countdownStyle: "minimal", eventStyle: "cards" },
+  "tea-ceremony": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
+  "monochrome-editorial": { layout: "editorial", photoTreatment: "full-bleed", countdownStyle: "editorial", eventStyle: "agenda" },
+  "peach-bloom": { layout: "story", photoTreatment: "collage", countdownStyle: "cards", eventStyle: "timeline" },
+  "heritage-indigo": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
+  "botanical-white": { layout: "minimal", photoTreatment: "soft", countdownStyle: "minimal", eventStyle: "cards" },
+};
+
+export const INVITATION_TEMPLATES = BASE_INVITATION_TEMPLATES.map((template) => ({
+  ...template,
+  ...TEMPLATE_EXPERIENCE[template.key],
+}));
+
 export const INVITATION_TEMPLATE_KEYS = INVITATION_TEMPLATES.map((template) => template.key);
 export const INVITATION_TEMPLATE_KEY_SET = new Set<string>(INVITATION_TEMPLATE_KEYS);
 
-export const DEFAULT_SECTION_ORDER = ["hero", "family", "story", "gallery", "countdown", "events", "footer"];
+export const DEFAULT_SECTION_ORDER = ["hero", "family", "story", "gallery", "countdown", "events", "gift", "footer"];
 export const VALID_SECTION_KEYS = new Set(DEFAULT_SECTION_ORDER);
 export const VALID_FONT_KEYS = new Set(["elegant-serif", "romantic-serif", "editorial-serif", "heritage-serif", "minimal-serif", "display-serif", "clean-sans", "modern-sans", "humanist-sans", "soft-sans"]);

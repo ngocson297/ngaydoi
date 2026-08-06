@@ -29,14 +29,20 @@ const planLabels: Record<string, string> = {
 function TemplatePreview({ template }: { template: InvitationTemplate }) {
   const symbol = template.motif === "lotus" ? "❀" : template.motif === "star" || template.motif === "moon" ? "✦" : template.motif === "wave" || template.motif === "shell" ? "≈" : "ND";
   return (
-    <div className={`catalog-template-preview motif-${template.motif} motion-${template.motion}`} style={{ background: template.palette.backgroundColor, color: template.palette.primaryColor }}>
+    <div
+      className={`catalog-template-preview motif-${template.motif} motion-${template.motion} layout-${template.layout} photo-${template.photoTreatment}`}
+      style={{ background: template.palette.backgroundColor, color: template.palette.primaryColor }}
+    >
       <div className="catalog-template-aura" style={{ background: template.palette.accentColor }} />
+      <div className="catalog-preview-photo" aria-hidden="true"><span>♥</span><i /><i /></div>
       <div className="catalog-template-frame" style={{ borderColor: template.palette.accentColor }}>
         <span className="catalog-template-symbol">{symbol}</span>
         <small>Save the date</small>
         <strong>Minh <i>&</i> Anh</strong>
         <time>18 · 10 · 2026</time>
       </div>
+      {template.layout === "story" && <div className="catalog-preview-collage" aria-hidden="true"><i /><i /><i /></div>}
+      <span className="catalog-layout-label">{template.layout === "split" ? "Ảnh chia đôi" : template.layout === "editorial" ? "Editorial" : template.layout === "arch" ? "Khung vòm" : template.layout === "story" ? "Photo story" : template.layout === "minimal" ? "Tối giản" : "Ảnh chân dung"}</span>
     </div>
   );
 }

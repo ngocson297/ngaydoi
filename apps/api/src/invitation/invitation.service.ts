@@ -14,9 +14,12 @@ import { UpdateMediaDto } from "./dto/update-media.dto.js";
 import { UploadMediaDto } from "./dto/upload-media.dto.js";
 
 type AccessLevel = "OWNER" | "EDIT" | "VIEW";
+type GiftTransferBank = { bin: string; code: string; shortName: string; name: string; logo: string | null };
 
 @Injectable()
 export class InvitationService {
+  private giftBanksCache: { expiresAt: number; banks: GiftTransferBank[] } | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
@@ -116,11 +119,24 @@ export class InvitationService {
       await this.entitlements.assertTemplateAccess(weddingId, dto.templateKey);
     }
     const sectionOrder = this.cleanSectionOrder(dto.sectionOrder);
+    const { giftAccounts, ...designPatch } = dto;
+    const normalizedGiftAccounts = giftAccounts?.map((account) => ({
+      id: account.id.trim(),
+      side: account.side,
+      label: account.label.trim(),
+      bankBin: account.bankBin.replace(/\D/g, ""),
+      bankCode: account.bankCode.trim().toUpperCase(),
+      bankName: account.bankName.trim(),
+      accountNumber: account.accountNumber.replace(/\D/g, ""),
+      accountName: account.accountName.trim().toUpperCase(),
+      transferNote: account.transferNote.trim().slice(0, 25),
+    }));
     const updated = await this.prisma.$transaction(async (tx) => {
       const design = await tx.invitationDesign.update({
         where: { weddingId },
         data: {
-          ...dto,
+          ...designPatch,
+          ...(normalizedGiftAccounts ? { giftAccounts: normalizedGiftAccounts as Prisma.InputJsonValue } : {}),
           sectionOrder,
           musicUrl: dto.musicUrl === "" ? null : dto.musicUrl,
           revision: { increment: 1 },
@@ -190,8 +206,8 @@ export class InvitationService {
     const allowedKeys = [
       "templateKey", "paletteKey", "primaryColor", "accentColor", "backgroundColor", "surfaceColor", "textColor",
       "headingFont", "bodyFont", "heroEyebrow", "greeting", "storyTitle", "galleryTitle", "eventsTitle",
-      "countdownTitle", "footerMessage", "showHero", "showFamily", "showStory", "showGallery", "showEvents",
-      "showCountdown", "showFooter", "musicEnabled", "musicUrl", "sectionOrder",
+      "countdownTitle", "giftTitle", "giftMessage", "giftAccounts", "footerMessage", "showHero", "showFamily", "showStory", "showGallery", "showEvents",
+      "showCountdown", "showGift", "showFooter", "musicEnabled", "musicUrl", "sectionOrder",
     ];
     const data: Record<string, unknown> = {};
     for (const key of allowedKeys) if (key in design) data[key] = design[key];
@@ -340,6 +356,30 @@ export class InvitationService {
       });
     } catch {
       throw new NotFoundException("Image file not found");
+    }
+  }
+
+
+  async getGiftTransferBanks(): Promise<{ banks: GiftTransferBank[]; source: "LIVE" | "UNAVAILABLE" }> {
+    if (this.giftBanksCache && this.giftBanksCache.expiresAt > Date.now()) {
+      return { banks: this.giftBanksCache.banks, source: "LIVE" };
+    }
+    try {
+      const response = await fetch("https://api.vietqr.io/v2/banks", { signal: AbortSignal.timeout(5000) });
+      if (!response.ok) throw new Error(`VietQR bank directory returned ${response.status}`);
+      const payload = await response.json() as { data?: Array<Record<string, unknown>> };
+      const banks = (payload.data ?? []).flatMap((item): GiftTransferBank[] => {
+        const bin = String(item.bin ?? "").replace(/\D/g, "");
+        const code = String(item.code ?? item.shortName ?? "").trim().toUpperCase();
+        const shortName = String(item.shortName ?? item.code ?? "").trim();
+        const name = String(item.name ?? shortName).trim();
+        if (!/^\d{6}$/.test(bin) || !code || !name) return [];
+        return [{ bin, code, shortName, name, logo: typeof item.logo === "string" ? item.logo : null }];
+      }).sort((left, right) => left.shortName.localeCompare(right.shortName, "vi"));
+      this.giftBanksCache = { banks, expiresAt: Date.now() + 24 * 60 * 60 * 1000 };
+      return { banks, source: "LIVE" };
+    } catch {
+      return { banks: [], source: "UNAVAILABLE" };
     }
   }
 

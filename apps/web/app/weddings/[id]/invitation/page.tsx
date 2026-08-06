@@ -10,9 +10,11 @@ import { useAuth } from "../../../../components/auth-provider";
 import { Alert, DetailPageSkeleton, ErrorState, useConfirm } from "../../../../components/ui";
 import { ApiError, toUiError, type UiError } from "../../../../lib/api";
 import { compressWeddingImage } from "../../../../lib/image";
-import { resolveMediaUrl } from "../../../../lib/invitations";
+import { buildVietQrImageUrl, resolveMediaUrl } from "../../../../lib/invitations";
 import type {
   EditorTab,
+  GiftTransferAccount,
+  GiftTransferBank,
   InvitationDesign,
   InvitationEditorData,
   InvitationMedia,
@@ -27,6 +29,7 @@ const editorTabs: Array<{ key: EditorTab; label: string; icon: string }> = [
   { key: "content", label: "Nội dung", icon: "T" },
   { key: "style", label: "Màu & font", icon: "◐" },
   { key: "media", label: "Hình ảnh", icon: "▧" },
+  { key: "gift", label: "Mừng cưới", icon: "QR" },
   { key: "settings", label: "Bố cục", icon: "☷" },
   { key: "history", label: "Phiên bản", icon: "↶" },
 ];
@@ -45,6 +48,7 @@ const sectionLabels: Record<InvitationSectionKey, string> = {
   gallery: "Album ảnh",
   countdown: "Đếm ngược",
   events: "Chương trình",
+  gift: "Mừng cưới qua QR",
   footer: "Lời cảm ơn",
 };
 
@@ -55,6 +59,7 @@ const visibilityKeys: Record<InvitationSectionKey, keyof InvitationDesign> = {
   gallery: "showGallery",
   countdown: "showCountdown",
   events: "showEvents",
+  gift: "showGift",
   footer: "showFooter",
 };
 
@@ -73,6 +78,10 @@ function InvitationEditorContent() {
   const [templateStyle, setTemplateStyle] = useState("ALL");
   const [templateAccess, setTemplateAccess] = useState<"ALL" | "OPEN" | "LOCKED" | "FAVORITE">("ALL");
   const [favoriteTemplates, setFavoriteTemplates] = useState<string[]>([]);
+  const [giftBanks, setGiftBanks] = useState<GiftTransferBank[]>([]);
+  const [giftBanksLoading, setGiftBanksLoading] = useState(false);
+  const [giftBanksUnavailable, setGiftBanksUnavailable] = useState(false);
+  const giftBanksLoadedRef = useRef(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("templates");
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
   const [loading, setLoading] = useState(true);
@@ -93,10 +102,15 @@ function InvitationEditorContent() {
         authRequest<InvitationTemplate[]>("/templates"),
       ]);
       if (!editor.invitationDesign) throw new Error("Invitation design was not initialized");
-      setData(editor);
-      setDesign(editor.invitationDesign);
+      const rawGiftAccounts = Array.isArray(editor.invitationDesign.giftAccounts) ? editor.invitationDesign.giftAccounts : [];
+      const sectionOrder = editor.invitationDesign.sectionOrder.includes("gift")
+        ? editor.invitationDesign.sectionOrder
+        : [...editor.invitationDesign.sectionOrder.filter((key) => key !== "footer"), "gift" as const, "footer" as const];
+      const normalizedDesign = { ...editor.invitationDesign, giftAccounts: rawGiftAccounts, sectionOrder };
+      setData({ ...editor, invitationDesign: normalizedDesign });
+      setDesign(normalizedDesign);
       setTemplates(templateList);
-      lastSavedRef.current = JSON.stringify(editor.invitationDesign);
+      lastSavedRef.current = JSON.stringify(normalizedDesign);
       setSaveStatus("saved");
       setLoadError(null);
     } catch (reason) {
@@ -116,6 +130,19 @@ function InvitationEditorContent() {
       setFavoriteTemplates([]);
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "gift" || giftBanksLoadedRef.current) return;
+    giftBanksLoadedRef.current = true;
+    setGiftBanksLoading(true);
+    void authRequest<{ banks: GiftTransferBank[]; source: "LIVE" | "UNAVAILABLE" }>("/gift-transfer/banks")
+      .then((result) => {
+        setGiftBanks(result.banks);
+        setGiftBanksUnavailable(result.source === "UNAVAILABLE" || result.banks.length === 0);
+      })
+      .catch(() => setGiftBanksUnavailable(true))
+      .finally(() => setGiftBanksLoading(false));
+  }, [activeTab, authRequest]);
 
   useEffect(() => {
     if (!design || !data || data.access === "VIEW") return;
@@ -144,6 +171,9 @@ function InvitationEditorContent() {
             galleryTitle: design.galleryTitle,
             eventsTitle: design.eventsTitle,
             countdownTitle: design.countdownTitle,
+            giftTitle: design.giftTitle,
+            giftMessage: design.giftMessage,
+            giftAccounts: design.giftAccounts,
             footerMessage: design.footerMessage,
             showHero: design.showHero,
             showFamily: design.showFamily,
@@ -151,6 +181,7 @@ function InvitationEditorContent() {
             showGallery: design.showGallery,
             showEvents: design.showEvents,
             showCountdown: design.showCountdown,
+            showGift: design.showGift,
             showFooter: design.showFooter,
             musicEnabled: design.musicEnabled,
             musicUrl: design.musicUrl ?? "",
@@ -189,6 +220,39 @@ function InvitationEditorContent() {
 
   function updateDesign<K extends keyof InvitationDesign>(key: K, value: InvitationDesign[K]): void {
     setDesign((current) => current ? { ...current, [key]: value } : current);
+  }
+
+  function updateGiftAccount(accountId: string, patch: Partial<GiftTransferAccount>): void {
+    setDesign((current) => current ? {
+      ...current,
+      giftAccounts: current.giftAccounts.map((account) => account.id === accountId ? { ...account, ...patch } : account),
+    } : current);
+  }
+
+  function addGiftAccount(): void {
+    setDesign((current) => {
+      if (!current || current.giftAccounts.length >= 3) return current;
+      const side = current.giftAccounts.length === 0 ? "GROOM" : current.giftAccounts.length === 1 ? "BRIDE" : "SHARED";
+      const label = side === "GROOM" ? "Mừng cưới chú rể" : side === "BRIDE" ? "Mừng cưới cô dâu" : "Mừng cưới đôi mình";
+      const account: GiftTransferAccount = {
+        id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `gift-${Date.now()}`,
+        side, label, bankBin: "", bankCode: "", bankName: "", accountNumber: "", accountName: "", transferNote: "MUNG CUOI",
+      };
+      return { ...current, giftAccounts: [...current.giftAccounts, account], showGift: true };
+    });
+  }
+
+  function removeGiftAccount(accountId: string): void {
+    setDesign((current) => current ? { ...current, giftAccounts: current.giftAccounts.filter((account) => account.id !== accountId) } : current);
+  }
+
+  function chooseGiftBank(accountId: string, bankBin: string): void {
+    const bank = giftBanks.find((item) => item.bin === bankBin);
+    updateGiftAccount(accountId, bank ? { bankBin: bank.bin, bankCode: bank.code, bankName: bank.name } : { bankBin, bankCode: "", bankName: "" });
+  }
+
+  function giftAccountReady(account: GiftTransferAccount): boolean {
+    return /^\d{6}$/.test(account.bankBin) && /^\d{6,19}$/.test(account.accountNumber) && Boolean(account.accountName.trim());
   }
 
   function toggleFavorite(templateKey: string): void {
@@ -385,9 +449,11 @@ function InvitationEditorContent() {
                   const favorite = favoriteTemplates.includes(template.key);
                   return <article className={`template-card-shell ${design.templateKey === template.key ? "selected" : ""}`} key={template.key}>
                     <button className={`template-card ${design.templateKey === template.key ? "selected" : ""} ${!unlocked ? "locked" : ""}`} type="button" onClick={() => unlocked && applyTemplate(template)} disabled={!canEdit || !unlocked}>
-                      <div className={`template-swatch motif-${template.motif} motion-${template.motion}`} style={{ background: `linear-gradient(145deg, ${template.palette.backgroundColor} 0 65%, ${template.palette.primaryColor} 65%)`, color: template.palette.primaryColor }}>
-                        <i style={{ background: template.palette.accentColor }} />
-                        <span>{template.motif === "lotus" ? "❀" : template.motif === "star" || template.motif === "moon" ? "✦" : template.motif === "wave" || template.motif === "shell" ? "≈" : "ND"}</span>
+                      <div className={`template-swatch motif-${template.motif} motion-${template.motion} layout-${template.layout} photo-${template.photoTreatment}`} style={{ background: template.palette.backgroundColor, color: template.palette.primaryColor }}>
+                        <div className="template-mini-photo" aria-hidden="true"><span>♥</span><i /><i /></div>
+                        <div className="template-mini-copy"><small>Save the date</small><strong>A <span>&</span> B</strong><time>18 · 10 · 2026</time></div>
+                        {template.layout === "story" && <div className="template-mini-collage" aria-hidden="true"><i /><i /><i /></div>}
+                        <b className="template-layout-chip">{template.layout === "split" ? "Chia đôi" : template.layout === "editorial" ? "Editorial" : template.layout === "arch" ? "Vòm" : template.layout === "story" ? "Photo story" : template.layout === "minimal" ? "Tối giản" : "Chân dung"}</b>
                         {!unlocked && <em>🔒</em>}
                       </div>
                       <div>
@@ -437,6 +503,42 @@ function InvitationEditorContent() {
                 <label className={`media-upload ${uploading ? "busy" : ""}`}><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={!canEdit || uploading} onChange={(event) => void handleUpload(event)} /><strong>{uploading ? "Đang tối ưu và tải ảnh..." : "+ Chọn ảnh từ máy"}</strong><span>Tối đa 10 ảnh/lần · 12 MB/ảnh gốc</span></label>
               </SettingGroup>
               {data.mediaAssets.length === 0 ? <div className="editor-mini-empty"><b>Chưa có hình ảnh</b><p>Tải ảnh bìa và album để thiệp có cảm xúc hơn.</p></div> : <div className="media-editor-list">{data.mediaAssets.map((item, index) => <article key={item.id}><img src={resolveMediaUrl(item.publicUrl) ?? ""} alt={item.altText ?? "Ảnh cưới"} /><div><span>{item.isCover ? "Ảnh bìa" : `Ảnh ${index + 1}`}</span><small>{item.width && item.height ? `${item.width} × ${item.height}` : "Đã tối ưu"}</small></div><div className="media-actions"><button type="button" title="Đưa lên" disabled={!canEdit || index === 0} onClick={() => void moveMedia(index, -1)}>↑</button><button type="button" title="Đưa xuống" disabled={!canEdit || index === data.mediaAssets.length - 1} onClick={() => void moveMedia(index, 1)}>↓</button>{!item.isCover && <button type="button" title="Đặt làm ảnh bìa" disabled={!canEdit} onClick={() => void updateMedia(item.id, { isCover: true })}>★</button>}<button className="danger" type="button" title="Xóa ảnh" disabled={!canEdit} onClick={() => void deleteMedia(item.id)}>×</button></div></article>)}</div>}
+            </div>}
+
+            {activeTab === "gift" && <div className="editor-form-stack gift-editor">
+              <SettingGroup title="Mừng cưới qua QR" description="Cho phép khách gửi lời chúc qua chuyển khoản. Thông tin tài khoản chỉ xuất hiện trên thiệp khi bạn bật công khai và nhập đủ dữ liệu hợp lệ.">
+                <label className="toggle-row"><span><b>Hiển thị phần mừng cưới</b><small>Ngày Đôi không lưu số tiền hoặc tự xác nhận giao dịch.</small></span><input type="checkbox" checked={design.showGift} disabled={!canEdit} onChange={(event) => updateDesign("showGift", event.target.checked)} /></label>
+                <label>Tiêu đề<input value={design.giftTitle} disabled={!canEdit} maxLength={120} onChange={(event) => updateDesign("giftTitle", event.target.value)} /></label>
+                <label>Lời nhắn<textarea rows={4} value={design.giftMessage} disabled={!canEdit} maxLength={500} onChange={(event) => updateDesign("giftMessage", event.target.value)} /></label>
+              </SettingGroup>
+
+              <Alert tone="info" title="Bảo mật và minh bạch">QR chỉ chứa thông tin chuyển khoản bạn cung cấp. Khách vẫn tự nhập số tiền trong ứng dụng ngân hàng; tính năng này không liên kết với đơn hàng hoặc trạng thái thanh toán của Ngày Đôi.</Alert>
+              {giftBanksUnavailable && <Alert tone="warning" title="Chưa tải được danh sách ngân hàng">Bạn vẫn có thể nhập BIN 6 số và tên ngân hàng thủ công. Thiệp sẽ tự tạo QR khi dữ liệu hợp lệ.</Alert>}
+
+              <div className="gift-editor-list">
+                {design.giftAccounts.map((account, index) => {
+                  const ready = giftAccountReady(account);
+                  return <article className="gift-editor-card" key={account.id}>
+                    <header><div><span>Tài khoản {index + 1}</span><h3>{account.label || "Tài khoản mừng cưới"}</h3></div><button className="gift-editor-remove" type="button" disabled={!canEdit} onClick={() => removeGiftAccount(account.id)} aria-label={`Xóa tài khoản ${index + 1}`}>Xóa</button></header>
+                    <div className="gift-editor-grid">
+                      <label>Hiển thị cho<select value={account.side} disabled={!canEdit} onChange={(event) => updateGiftAccount(account.id, { side: event.target.value as GiftTransferAccount["side"] })}><option value="GROOM">Nhà trai</option><option value="BRIDE">Nhà gái</option><option value="SHARED">Cô dâu & chú rể</option></select></label>
+                      <label>Tên thẻ<input value={account.label} disabled={!canEdit} maxLength={80} placeholder="Mừng cưới cô dâu" onChange={(event) => updateGiftAccount(account.id, { label: event.target.value })} /></label>
+                      <label className="gift-editor-wide">Ngân hàng{giftBanksLoading ? <small>Đang tải danh sách...</small> : giftBanks.length > 0 ? <select value={account.bankBin} disabled={!canEdit} onChange={(event) => chooseGiftBank(account.id, event.target.value)}><option value="">Chọn ngân hàng</option>{giftBanks.map((bank) => <option key={bank.bin} value={bank.bin}>{bank.shortName} · {bank.name}</option>)}</select> : <input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Tên ngân hàng" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} />}</label>
+                      <label>BIN ngân hàng<input inputMode="numeric" value={account.bankBin} disabled={!canEdit} maxLength={6} placeholder="970436" onChange={(event) => updateGiftAccount(account.id, { bankBin: event.target.value.replace(/\D/g, "").slice(0, 6) })} /><small>6 số, dùng khi chọn ngân hàng thủ công.</small></label>
+                      <label>Tên ngân hàng<input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Vietcombank" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} /></label>
+                      <label>Số tài khoản<input inputMode="numeric" value={account.accountNumber} disabled={!canEdit} maxLength={19} placeholder="0123456789" onChange={(event) => updateGiftAccount(account.id, { accountNumber: event.target.value.replace(/\D/g, "").slice(0, 19) })} /></label>
+                      <label>Chủ tài khoản<input value={account.accountName} disabled={!canEdit} maxLength={120} placeholder="NGUYEN VAN A" onChange={(event) => updateGiftAccount(account.id, { accountName: event.target.value.toUpperCase() })} /></label>
+                      <label className="gift-editor-wide">Nội dung gợi ý<input value={account.transferNote} disabled={!canEdit} maxLength={25} placeholder="MUNG CUOI MINH ANH" onChange={(event) => updateGiftAccount(account.id, { transferNote: event.target.value.toUpperCase() })} /><small>Tối đa 25 ký tự để QR tương thích tốt với ứng dụng ngân hàng.</small></label>
+                    </div>
+                    <div className={`gift-editor-preview ${ready ? "ready" : "incomplete"}`}>
+                      {ready ? <><img src={buildVietQrImageUrl(account)} alt={`Xem trước QR ${account.bankName}`} /><div><b>QR đã sẵn sàng</b><span>{account.bankName || account.bankCode} · {account.accountNumber}</span><small>Khách quét QR và tự nhập số tiền.</small></div></> : <><div className="gift-editor-qr-placeholder">QR</div><div><b>Chưa đủ dữ liệu</b><span>Nhập BIN 6 số, số tài khoản và tên chủ tài khoản.</span></div></>}
+                    </div>
+                  </article>;
+                })}
+              </div>
+
+              {design.showGift && design.giftAccounts.length > 0 && !design.giftAccounts.some(giftAccountReady) && <Alert tone="warning">Phần mừng cưới đang bật nhưng chưa có tài khoản hợp lệ nên sẽ chưa xuất hiện trên thiệp công khai.</Alert>}
+              <button className="btn btn-secondary full-width" type="button" disabled={!canEdit || design.giftAccounts.length >= 3} onClick={addGiftAccount}>{design.giftAccounts.length >= 3 ? "Tối đa 3 tài khoản" : "+ Thêm tài khoản nhận lời chúc"}</button>
             </div>}
 
             {activeTab === "settings" && <div className="editor-form-stack">

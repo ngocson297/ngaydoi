@@ -31,6 +31,11 @@ export class InvitationController {
     return this.invitationService.getTemplates();
   }
 
+  @Get("gift-transfer/banks")
+  getGiftTransferBanks() {
+    return this.invitationService.getGiftTransferBanks();
+  }
+
   @Get("invitations/preview/:token")
   getPreview(@Param("token") token: string) {
     return this.invitationService.getPreview(token);

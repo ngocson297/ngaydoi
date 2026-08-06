@@ -11,14 +11,14 @@ const features = [
 
 
 const invitationTemplates = [
-  { key: "lotus-vietnamese", name: "Sen Việt thanh nhã", style: "Á Đông", colors: ["#315B4A", "#C8A35F", "#F8F1E4"], symbol: "❀" },
-  { key: "imperial-red", name: "Hỷ sắc cung đình", style: "Truyền thống", colors: ["#9E1F2F", "#D5AE58", "#FFF4E7"], symbol: "囍" },
-  { key: "garden-sage", name: "Vườn xanh dịu dàng", style: "Thiên nhiên", colors: ["#566B55", "#A58354", "#F4F5EF"], symbol: "❦" },
-  { key: "modern-noir", name: "Noir hiện đại", style: "Hiện đại", colors: ["#161616", "#C5A46D", "#EEECE8"], symbol: "ND" },
-  { key: "art-deco-emerald", name: "Emerald Art Deco", style: "Art Deco", colors: ["#0F5448", "#D2B46C", "#F1F5F0"], symbol: "◇" },
-  { key: "ocean-minimal", name: "Biển xanh tối giản", style: "Tối giản", colors: ["#315E6C", "#C59A65", "#F1F6F7"], symbol: "≈" },
-  { key: "celestial-night", name: "Thiên hà đêm cưới", style: "Fantasy", colors: ["#312A59", "#D6B6EA", "#F2EFFA"], symbol: "✦" },
-  { key: "heritage-indigo", name: "Chàm Việt di sản", style: "Di sản", colors: ["#294A66", "#C9A45C", "#F2F0E8"], symbol: "ND" },
+  { key: "lotus-vietnamese", name: "Sen Việt thanh nhã", style: "Á Đông", layout: "arch", colors: ["#315B4A", "#C8A35F", "#F8F1E4"], symbol: "❀" },
+  { key: "imperial-red", name: "Hỷ sắc cung đình", style: "Truyền thống", layout: "portrait", colors: ["#9E1F2F", "#D5AE58", "#FFF4E7"], symbol: "囍" },
+  { key: "garden-sage", name: "Vườn xanh dịu dàng", style: "Thiên nhiên", layout: "story", colors: ["#566B55", "#A58354", "#F4F5EF"], symbol: "❦" },
+  { key: "modern-noir", name: "Noir hiện đại", style: "Hiện đại", layout: "editorial", colors: ["#161616", "#C5A46D", "#EEECE8"], symbol: "ND" },
+  { key: "art-deco-emerald", name: "Emerald Art Deco", style: "Art Deco", layout: "split", colors: ["#0F5448", "#D2B46C", "#F1F5F0"], symbol: "◇" },
+  { key: "ocean-minimal", name: "Biển xanh tối giản", style: "Tối giản", layout: "minimal", colors: ["#315E6C", "#C59A65", "#F1F6F7"], symbol: "≈" },
+  { key: "celestial-night", name: "Thiên hà đêm cưới", style: "Fantasy", layout: "portrait", colors: ["#312A59", "#D6B6EA", "#F2EFFA"], symbol: "✦" },
+  { key: "heritage-indigo", name: "Chàm Việt di sản", style: "Di sản", layout: "arch", colors: ["#294A66", "#C9A45C", "#F2F0E8"], symbol: "ND" },
 ];
 
 const plans = [
@@ -121,13 +121,16 @@ export default function HomePage() {
           <div className="landing-template-grid">
             {invitationTemplates.map((template, index) => (
               <article data-reveal className={`landing-template-card reveal-up template-card-${index + 1}`} key={template.key}>
-                <div className="landing-template-preview" style={{ background: template.colors[2], color: template.colors[0] }}>
+                <div className={`landing-template-preview layout-${template.layout}`} style={{ background: template.colors[2], color: template.colors[0] }}>
+                  <div className="landing-template-photo" aria-hidden="true"><span>♥</span><i /><i /></div>
+                  {template.layout === "story" && <div className="landing-template-collage" aria-hidden="true"><i /><i /><i /></div>}
                   <div className="landing-template-frame" style={{ borderColor: template.colors[1] }}>
                     <b className="landing-template-symbol">{template.symbol}</b>
                     <span>Save the date</span>
                     <strong>Minh <i>&</i> Anh</strong>
                     <small>18 · 10 · 2026</small>
                   </div>
+                  <em className="landing-layout-name">{template.layout === "split" ? "Ảnh chia đôi" : template.layout === "editorial" ? "Editorial" : template.layout === "arch" ? "Khung vòm" : template.layout === "story" ? "Photo story" : template.layout === "minimal" ? "Tối giản" : "Ảnh chân dung"}</em>
                 </div>
                 <div className="landing-template-info">
                   <div><small>{template.style}</small><h3>{template.name}</h3></div>
