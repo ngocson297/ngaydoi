@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.15.6 — Sprint 15.7 Regression & Release Quality Gate
+
+- Added a root-level global error recovery page to prevent blank-screen failures.
+- Added `regression:audit` for required routes/loading boundaries, package-version alignment, TS/TSX parsing, relative imports and CSS balance.
+- Added `quality:check`, `release:check` and `smoke:all` release commands.
+- Added a documented regression matrix covering customer, invitation, guest, commerce, event and post-wedding journeys.
+- Completed the final readability pass for dense Guests, Admin, Billing, Order and Planning interfaces.
+- Added stable mobile table scrolling with sticky guest selection and identity columns.
+- No database schema, migration, API contract or runtime dependency changes.
+
+## 0.15.5 — Sprint 15.6 UX Polish, Home Performance & Contact
+
+- Simplified the desktop navigation into a focused accordion and fixed the sidebar to the viewport on long pages.
+- Preserved detailed menu descriptions inside the command palette while reducing repeated copy in the sidebar.
+- Fixed planning task check controls and template favorite buttons so touch-target rules cannot distort their shape.
+- Increased legacy content typography, with a targeted readability pass for Guests, Planning and Commerce.
+- Redesigned payment totals and the electronic receipt with a professional print layout.
+- Fixed the Home “Khám phá 24 mẫu” CTA shape and added a public Contact page for Facebook, Zalo and email.
+- Added low-power Home motion handling, inactive-tab animation pausing and below-the-fold rendering containment.
+- Added `npm run ux:audit` for release regression checks.
+
 ## 0.15.4 — Sprint 15.5 Accessibility & Inclusive UX Audit
 
 - Added a global skip link, route-change screen-reader announcements and consistent main-content landmarks.
@@ -98,13 +119,3 @@
 - Added responsive layouts for moderation cards, upload forms and public gallery.
 - Added Phase 12 Prisma migration and `memories:smoke` regression test.
 
-## 0.15.5 — Sprint 15.6 UX Polish, Home Performance & Contact
-
-- Simplified the desktop navigation into a focused accordion and fixed the sidebar to the viewport on long pages.
-- Preserved detailed menu descriptions inside the command palette while reducing repeated copy in the sidebar.
-- Fixed planning task check controls and template favorite buttons so touch-target rules cannot distort their shape.
-- Increased legacy content typography, with a targeted readability pass for Guests, Planning and Commerce.
-- Redesigned payment totals and the electronic receipt with a professional print layout.
-- Fixed the Home “Khám phá 24 mẫu” CTA shape and added a public Contact page for Facebook, Zalo and email.
-- Added low-power Home motion handling, inactive-tab animation pausing and below-the-fold rendering containment.
-- Added `npm run ux:audit` for release regression checks.
