@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   });
   const token = session.accessToken;
   const templates = await request<Array<{ key: string; layout: string; countdownStyle: string; eventStyle: string }>>("/templates", {}, token);
-  if (templates.length !== 24) throw new Error(`Expected 24 invitation templates, received ${templates.length}`);
+  if (templates.length !== 36) throw new Error(`Expected 36 invitation templates, received ${templates.length}`);
   if (new Set(templates.map((item) => item.layout)).size < 6) throw new Error("Template layouts are not sufficiently diverse");
   const bankDirectory = await request<{ banks: Array<{ bin: string }>; source: "LIVE" | "UNAVAILABLE" }>("/gift-transfer/banks");
   if (!Array.isArray(bankDirectory.banks)) throw new Error("Gift transfer bank directory returned an invalid payload");

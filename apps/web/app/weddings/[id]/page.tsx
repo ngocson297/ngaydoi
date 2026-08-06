@@ -282,7 +282,7 @@ function WorkspaceContent() {
           <p>{wedding.title} · {formatDate(wedding.mainDate)} · Quyền: {wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Chỉnh sửa" : "Chỉ xem"}</p>
         </div>
         <div className="dash-actions">
-          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary" href={`/i/${wedding.slug}`} target="_blank" rel="noreferrer">Xem thiệp ↗</a>}
+          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/i/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp ↗</a>}
           <div className="workspace-primary-actions">{isOwner && <a className="btn btn-secondary" href={`/pricing?weddingId=${weddingId}`}>{wedding.activePlan ? "Nâng cấp gói" : "Chọn gói"}</a>}<a className="btn btn-secondary" href={`/weddings/${weddingId}/planning`}>Kế hoạch cưới</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/guests`}>Khách & RSVP</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/event-operations`}>Phân bàn & check-in</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/memories`}>Album kỷ niệm</a><a className="btn btn-primary" href={`/weddings/${weddingId}/invitation`}>{canEdit ? "Thiết kế thiệp" : "Xem thiết kế"} →</a></div>
         </div>
       </div>

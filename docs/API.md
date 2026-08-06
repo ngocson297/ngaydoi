@@ -200,5 +200,5 @@ Planning reminders are also processed by the API job runner when `JOB_RUNNER_ENA
 
 ## Template Library (Phase 14)
 
-- `GET /api/templates` — Public catalog of 24 invitation templates with category, plan, tags, motif and motion metadata.
+- `GET /api/templates` — Public catalog of 36 invitation templates with category, plan, tags, motif and motion metadata.
 - `PATCH /api/weddings/:id/invitation` — Validates template entitlement when `templateKey` changes.

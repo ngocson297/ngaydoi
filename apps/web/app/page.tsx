@@ -19,6 +19,10 @@ const invitationTemplates = [
   { key: "ocean-minimal", name: "Biển xanh tối giản", style: "Tối giản", layout: "minimal", colors: ["#315E6C", "#C59A65", "#F1F6F7"], symbol: "≈" },
   { key: "celestial-night", name: "Thiên hà đêm cưới", style: "Fantasy", layout: "portrait", colors: ["#312A59", "#D6B6EA", "#F2EFFA"], symbol: "✦" },
   { key: "heritage-indigo", name: "Chàm Việt di sản", style: "Di sản", layout: "arch", colors: ["#294A66", "#C9A45C", "#F2F0E8"], symbol: "ND" },
+  { key: "polaroid-memories", name: "Polaroid ngày mình", style: "Photo story", layout: "story", colors: ["#7B5B4B", "#D59C78", "#F8EEE2"], symbol: "FILM" },
+  { key: "saigon-sunrise", name: "Sài Gòn sớm mai", style: "Urban editorial", layout: "editorial", colors: ["#713E35", "#E1A366", "#FFF6EC"], symbol: "SG" },
+  { key: "cinematic-veil", name: "Voan cưới điện ảnh", style: "Cinematic", layout: "portrait", colors: ["#40363B", "#D0B08C", "#F5F0ED"], symbol: "CINE" },
+  { key: "dragon-phoenix", name: "Long phụng giao duyên", style: "Lễ Việt", layout: "arch", colors: ["#8B1728", "#D8B15F", "#FFF2DF"], symbol: "囍" },
 ];
 
 const plans = [
@@ -53,16 +57,16 @@ export default function HomePage() {
         <div className="container hero-grid">
           <div data-reveal className="reveal-up">
             <div className="eyebrow hero-eyebrow"><span>✦</span> Thiệp cưới dành riêng cho người Việt</div>
-            <h1>Một đường link.<br />Trọn vẹn ngày đôi.</h1>
-            <p className="hero-copy">Thiệp cưới online tinh tế, cá nhân hóa từng khách và quản lý RSVP trong cùng một nơi — từ lúc gửi lời mời đến khi xếp bàn.</p>
+            <h1>Tạo thiệp cưới đẹp<br />chỉ trong 10 phút.</h1>
+            <p className="hero-copy">Chọn mẫu, thêm ảnh và gửi lời mời ngay trên điện thoại. Khách RSVP, xem chương trình và quét QR mừng cưới trong cùng một thiệp.</p>
             <div className="hero-actions">
-              <a className="btn btn-primary" href="/create">Tạo thiệp đầu tiên</a>
+              <a className="btn btn-primary" href="/create">Tạo thiệp miễn phí ngay</a>
               <a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp mẫu →</a>
             </div>
             <div className="hero-proof">
               <div><strong>10 phút</strong>Tạo bản nháp</div>
               <div><strong>Mobile-first</strong>Đẹp trên điện thoại</div>
-              <div><strong>24 mẫu</strong>Nhiều phong cách</div>
+              <div><strong>36 mẫu</strong>12 thiết kế mới</div>
             </div>
           </div>
 
@@ -90,6 +94,18 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="home-start-section" aria-labelledby="home-start-title">
+        <div className="container">
+          <div className="home-start-heading reveal-up" data-reveal><span className="eyebrow">Bắt đầu cực dễ</span><h2 id="home-start-title">Ba bước để có một thiệp sẵn sàng gửi.</h2><p>Không cần đăng ký ngay. Tạo thử trước, xem đúng giao diện thật rồi mới lưu vào tài khoản.</p></div>
+          <div className="home-start-grid">
+            <article data-reveal><b>01</b><span>Chọn phong cách</span><p>36 mẫu có ảnh, editorial, truyền thống Việt, garden và tối giản.</p></article>
+            <article data-reveal><b>02</b><span>Thêm nội dung</span><p>Điền tên, ngày cưới, ảnh và chương trình bằng form dễ hiểu.</p></article>
+            <article data-reveal><b>03</b><span>Gửi cho khách</span><p>Xuất bản một link duy nhất để nhận RSVP, lời chúc và QR mừng cưới.</p></article>
+          </div>
+          <div className="home-start-cta"><a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp miễn phí</a><small>Không cần thẻ · Chưa cần đăng ký</small></div>
+        </div>
+      </section>
+
       <section id="features" className="section section-white">
         <div className="container">
           <div className="section-head reveal-up" data-reveal>
@@ -113,10 +129,10 @@ export default function HomePage() {
           <div className="section-head template-showcase-head reveal-up" data-reveal>
             <div>
               <div className="eyebrow">Invitation Studio</div>
-              <h2>24 phong cách, một câu chuyện của riêng bạn.</h2>
+              <h2>36 thiết kế, mỗi mẫu là một câu chuyện khác nhau.</h2>
               <p className="section-lead">Từ nét Việt truyền thống đến Art Deco, garden wedding, tiệc biển và editorial hiện đại. Chọn mẫu làm điểm bắt đầu, rồi thay màu, kiểu chữ, nội dung, ảnh và bố cục ngay trong Studio.</p>
             </div>
-            <a className="btn btn-secondary home-template-cta" href="/templates">Khám phá 24 mẫu →</a>
+            <a className="btn btn-secondary home-template-cta" href="/templates">Khám phá 36 mẫu →</a>
           </div>
           <div className="landing-template-grid">
             {invitationTemplates.map((template, index) => (
@@ -140,7 +156,23 @@ export default function HomePage() {
             ))}
           </div>
           <div className="home-template-marquee" aria-hidden="true"><div>{[...invitationTemplates, ...invitationTemplates].map((template, index) => <span key={`${template.key}-${index}`}>{template.symbol} {template.name}</span>)}</div></div>
-          <div className="template-showcase-note reveal-up" data-reveal><strong>Không cần biết thiết kế.</strong> 24 mẫu được chia theo gói, có bộ lọc, yêu thích và xem trước tức thì trên điện thoại hoặc desktop.</div>
+          <div className="template-showcase-note reveal-up" data-reveal><strong>Không cần biết thiết kế.</strong> 36 mẫu được chia theo gói, có bộ lọc, yêu thích và xem trước tức thì trên điện thoại hoặc desktop.</div>
+        </div>
+      </section>
+
+      <section className="home-difference-section section" aria-labelledby="difference-title">
+        <div className="container home-difference-grid">
+          <div className="home-difference-copy reveal-up" data-reveal><span className="eyebrow">Điểm khác biệt của Ngày Đôi</span><h2 id="difference-title">Không chỉ đẹp khi mở thiệp — còn nhẹ việc cho cả hai gia đình.</h2><p>Ngày Đôi kết nối trải nghiệm của khách mời với toàn bộ công việc phía sau, thay vì chỉ tạo một trang giới thiệu tĩnh.</p><a className="btn btn-primary" href="/create">Trải nghiệm ngay</a></div>
+          <div className="home-difference-list">
+            {[
+              ["Tạo trước, đăng ký sau", "Khách hàng thấy được giá trị thật trước khi tạo tài khoản."],
+              ["Thiệp cá nhân hóa từng khách", "Mỗi người nhận được lời chào riêng và đúng giới hạn người đi cùng."],
+              ["RSVP đi thẳng vào danh sách khách", "Không tổng hợp thủ công từ tin nhắn, biểu mẫu và bảng tính rời."],
+              ["QR mừng cưới linh hoạt", "Tải QR từ ngân hàng hoặc tạo VietQR; hỗ trợ nhà trai, nhà gái và dùng chung."],
+              ["Từ phân bàn đến check-in", "Dữ liệu khách tiếp tục được dùng trong ngày cưới thay vì kết thúc ở tấm thiệp."],
+              ["Thiết kế Việt, mobile-first", "Nội dung nghi lễ, gia đình và trải nghiệm điện thoại được ưu tiên ngay từ đầu."],
+            ].map(([title, description], index) => <article key={title} data-reveal><b>{String(index + 1).padStart(2, "0")}</b><div><h3>{title}</h3><p>{description}</p></div></article>)}
+          </div>
         </div>
       </section>
 
@@ -169,6 +201,8 @@ export default function HomePage() {
           <div className="home-final-actions"><a className="btn btn-primary" href="/create">Tạo thiệp ngay</a><a className="btn btn-secondary" href="/i/minh-anh">Xem trải nghiệm mẫu</a></div>
         </div>
       </section>
+
+      <a className="home-mobile-create" href="/create"><span>Tạo thiệp miễn phí</span><small>Chỉ mất khoảng 10 phút →</small></a>
 
       <footer className="footer section-white">
         <div className="container footer-inner">

@@ -13,6 +13,44 @@ interface PublicInvitationProps {
   embedded?: boolean;
 }
 
+function WeddingFireworks({ invitationId }: { invitationId: string }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const storageKey = `ngaydoi-fireworks:${invitationId}`;
+    try {
+      if (window.sessionStorage.getItem(storageKey)) return;
+      window.sessionStorage.setItem(storageKey, "shown");
+    } catch {
+      // Private browsing may block sessionStorage; the effect can still run safely.
+    }
+    setVisible(true);
+    const timer = window.setTimeout(() => setVisible(false), 3600);
+    return () => window.clearTimeout(timer);
+  }, [invitationId]);
+  if (!visible) return null;
+  const bursts = [
+    { x: 18, y: 26, hue: 342, delay: 0 },
+    { x: 79, y: 22, hue: 42, delay: 260 },
+    { x: 52, y: 38, hue: 198, delay: 520 },
+  ];
+  return <div className="inv10-fireworks" aria-hidden="true">
+    {bursts.flatMap((burst, burstIndex) => Array.from({ length: 14 }, (_, particleIndex) => {
+      const angle = (360 / 14) * particleIndex + burstIndex * 7;
+      const distance = 62 + (particleIndex % 4) * 14;
+      const particleStyle = {
+        "--firework-x": `${burst.x}%`,
+        "--firework-y": `${burst.y}%`,
+        "--firework-angle": `${angle}deg`,
+        "--firework-distance": `${distance}px`,
+        "--firework-delay": `${burst.delay + (particleIndex % 3) * 28}ms`,
+        "--firework-color": `hsl(${burst.hue + particleIndex * 5} 82% 64%)`,
+      } as CSSProperties;
+      return <i key={`${burstIndex}-${particleIndex}`} style={particleStyle} />;
+    }))}
+  </div>;
+}
+
 type RsvpStatus = "ATTENDING" | "DECLINED" | "MAYBE";
 
 function Countdown({ target, variant }: { target: string | null; variant: "cards" | "editorial" | "rings" | "minimal" }) {
@@ -325,6 +363,7 @@ export function PublicInvitation({ data, preview = false, embedded = false }: Pu
 
   return (
     <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""}`} style={style}>
+      {!embedded && !preview && <WeddingFireworks invitationId={wedding.id} />}
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
       {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}
       {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{sections[key]}</div>)}

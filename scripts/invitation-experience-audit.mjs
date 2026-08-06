@@ -19,7 +19,7 @@ const templateExperienceCount = [...experienceBlock.matchAll(/^\s*"[^"]+":\s*\{/
 const layouts = new Set([...experienceBlock.matchAll(/layout:\s*"([^"]+)"/g)].map((match) => match[1]));
 const countdowns = new Set([...experienceBlock.matchAll(/countdownStyle:\s*"([^"]+)"/g)].map((match) => match[1]));
 const eventStyles = new Set([...experienceBlock.matchAll(/eventStyle:\s*"([^"]+)"/g)].map((match) => match[1]));
-if (templateExperienceCount !== 24) failures.push(`template experience metadata expected 24 entries, received ${templateExperienceCount}`);
+if (templateExperienceCount !== 36) failures.push(`template experience metadata expected 36 entries, received ${templateExperienceCount}`);
 for (const layout of ["portrait", "split", "editorial", "arch", "story", "minimal"]) if (!layouts.has(layout)) failures.push(`missing template layout ${layout}`);
 for (const style of ["cards", "editorial", "rings", "minimal"]) if (!countdowns.has(style)) failures.push(`missing countdown style ${style}`);
 for (const style of ["timeline", "cards", "agenda", "steps"]) if (!eventStyles.has(style)) failures.push(`missing event programme style ${style}`);
@@ -47,4 +47,4 @@ if (failures.length) {
   console.error(`Invitation experience audit failed (${failures.length}):\n${failures.join("\n")}`);
   process.exit(1);
 }
-console.log(`Invitation experience audit passed: 24 templates · ${layouts.size} layout families · ${countdowns.size} countdown styles · ${eventStyles.size} programme styles · gift transfer QR ready.`);
+console.log(`Invitation experience audit passed: 36 templates · ${layouts.size} layout families · ${countdowns.size} countdown styles · ${eventStyles.size} programme styles · gift transfer QR ready.`);

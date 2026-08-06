@@ -1,0 +1,21 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+const root = process.cwd();
+const failures = [];
+const read = (file) => { const path = join(root,file); if (!existsSync(path)) { failures.push(`${file}: missing`); return ""; } return readFileSync(path,"utf8"); };
+const requirePattern = (file, pattern, message) => { const source = read(file); if (source && !pattern.test(source)) failures.push(`${file}: ${message}`); };
+const constants = read("apps/api/src/invitation/invitation.constants.ts");
+const count = [...constants.matchAll(/^\s+key:\s+"[^"]+",$/gm)].length;
+if (count !== 36) failures.push(`expected 36 template definitions, received ${count}`);
+requirePattern("apps/api/src/invitation/dto/update-invitation-design.dto.ts", /qrImageUrl\?: string/, "backwards-compatible qrImageUrl DTO field missing");
+requirePattern("apps/web/app/weddings/[id]/invitation/page.tsx", /qrImageUrl: _derivedQrImageUrl/, "derived QR URL is still being submitted");
+requirePattern("apps/web/components/public-invitation.tsx", /WeddingFireworks/, "invitation welcome fireworks missing");
+requirePattern("apps/web/app/design-system.css", /Sprint 15\.10 — Template Expansion/, "Sprint 15.10 visual layer missing");
+requirePattern("apps/web/app/design-system.css", /\.inv8-gift-grid\.count-3/, "three-account QR responsive rule missing");
+requirePattern("apps/web/app/dashboard/page.tsx", /wedding-card-actions/, "dashboard invitation actions missing");
+requirePattern("apps/web/app/page.tsx", /Điểm khác biệt của Ngày Đôi/, "Home differentiation section missing");
+requirePattern("apps/web/app/page.tsx", /Ba bước để có một thiệp/, "Home start guide missing");
+const seed = read("apps/api/prisma/seed.ts");
+for (const expected of ["12 mẫu thiệp", "24 mẫu", "Toàn bộ 36 template"]) if (!seed.includes(expected)) failures.push(`seed entitlement copy missing: ${expected}`);
+if (failures.length) { console.error(`Sprint 15.10 audit failed (${failures.length}):\n${failures.join("\n")}`); process.exit(1); }
+console.log("Sprint 15.10 audit passed: QR compatibility fix · mobile invitation hardening · fireworks · dashboard CTA · Home conversion sections · 36 templates.");

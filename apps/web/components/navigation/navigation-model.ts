@@ -138,7 +138,7 @@ export function buildNavigation(role: NavigationRole | undefined, weddingId?: st
   }
 
   const serviceItems: NavigationItem[] = [
-    item("templates", "/templates", "✦", "Khám phá 24 mẫu thiệp theo phong cách và gói.", ["template", "mẫu", "theme"], "24 mẫu"),
+    item("templates", "/templates", "✦", "Khám phá 36 mẫu thiệp theo phong cách và gói.", ["template", "mẫu", "theme"], "36 mẫu"),
   ];
   if (billingRoles.has(currentRole)) {
     serviceItems.push(item("billing", "/billing", "◇", "Gói dịch vụ, đơn hàng và thanh toán.", ["billing", "gói", "thanh toán", "order"]));

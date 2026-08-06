@@ -204,7 +204,7 @@ function InvitationEditorContent() {
             countdownTitle: design.countdownTitle,
             giftTitle: design.giftTitle,
             giftMessage: design.giftMessage,
-            giftAccounts: design.giftAccounts,
+            giftAccounts: design.giftAccounts.map(({ qrImageUrl: _derivedQrImageUrl, ...account }) => account),
             footerMessage: design.footerMessage,
             showHero: design.showHero,
             showFamily: design.showFamily,

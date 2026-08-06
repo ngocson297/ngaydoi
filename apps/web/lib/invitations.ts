@@ -273,6 +273,18 @@ const TEMPLATE_EXPERIENCE: Record<string, TemplateExperience> = {
   "peach-bloom": { layout: "story", photoTreatment: "collage", countdownStyle: "cards", eventStyle: "timeline" },
   "heritage-indigo": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
   "botanical-white": { layout: "minimal", photoTreatment: "soft", countdownStyle: "minimal", eventStyle: "cards" },
+  "saigon-sunrise": { layout: "editorial", photoTreatment: "full-bleed", countdownStyle: "cards", eventStyle: "agenda" },
+  "polaroid-memories": { layout: "story", photoTreatment: "collage", countdownStyle: "cards", eventStyle: "timeline" },
+  "han-river-blue": { layout: "split", photoTreatment: "split", countdownStyle: "minimal", eventStyle: "cards" },
+  "rose-garden-frame": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
+  "cinematic-veil": { layout: "portrait", photoTreatment: "full-bleed", countdownStyle: "editorial", eventStyle: "agenda" },
+  "provence-blue": { layout: "story", photoTreatment: "collage", countdownStyle: "rings", eventStyle: "cards" },
+  "newspaper-love": { layout: "editorial", photoTreatment: "full-bleed", countdownStyle: "minimal", eventStyle: "agenda" },
+  "sunset-film": { layout: "split", photoTreatment: "soft", countdownStyle: "cards", eventStyle: "timeline" },
+  "dragon-phoenix": { layout: "arch", photoTreatment: "framed", countdownStyle: "rings", eventStyle: "steps" },
+  "museum-ivory": { layout: "minimal", photoTreatment: "optional", countdownStyle: "minimal", eventStyle: "agenda" },
+  "winter-silver": { layout: "portrait", photoTreatment: "framed", countdownStyle: "editorial", eventStyle: "cards" },
+  "cottage-floral": { layout: "story", photoTreatment: "collage", countdownStyle: "cards", eventStyle: "timeline" },
 };
 
 export function resolveTemplateExperience(templateKey: string): TemplateExperience {

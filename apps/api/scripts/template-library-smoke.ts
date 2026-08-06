@@ -12,8 +12,8 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
 
 async function main(): Promise<void> {
   const templates = await request<Array<{ key: string; category: string; plan: string; tags: string[] }>>("/templates");
-  if (templates.length !== 24) throw new Error(`Expected 24 templates, received ${templates.length}`);
-  if (new Set(templates.map((item) => item.key)).size !== 24) throw new Error("Template keys are not unique");
+  if (templates.length !== 36) throw new Error(`Expected 36 templates, received ${templates.length}`);
+  if (new Set(templates.map((item) => item.key)).size !== 36) throw new Error("Template keys are not unique");
   if (!templates.some((item) => item.category === "VIETNAMESE")) throw new Error("Vietnamese template category is missing");
   if (!templates.every((item) => item.tags.length >= 3)) throw new Error("Every template must include searchable tags");
 
@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   if (!wedding) throw new Error("No wedding available for template smoke testing");
 
   const editor = await request<{ invitationDesign: { templateKey: string }; entitlements: { templateKeys: string[] } }>(`/weddings/${wedding.id}/invitation`, {}, login.accessToken);
-  if (editor.entitlements.templateKeys.length !== 16) throw new Error(`Standard plan should unlock 16 templates, received ${editor.entitlements.templateKeys.length}`);
+  if (editor.entitlements.templateKeys.length !== 24) throw new Error(`Standard plan should unlock 24 templates, received ${editor.entitlements.templateKeys.length}`);
   const original = editor.invitationDesign.templateKey;
 
   await request(`/weddings/${wedding.id}/invitation`, {
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     body: JSON.stringify({ templateKey: original }),
   }, login.accessToken);
 
-  console.log("Template Library smoke test passed: 24 templates, 16 unlocked for Standard, locked-template guard active.");
+  console.log("Template Library smoke test passed: 36 templates, 24 unlocked for Standard, locked-template guard active.");
 }
 
 main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });

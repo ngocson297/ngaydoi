@@ -1,3 +1,13 @@
+# v0.15.9 — Sprint 15.10 Template Expansion & Mobile Stabilization
+
+- Fixed gift QR autosave validation for `qrImageUrl`.
+- Stabilized QR, countdown, events and invitation sections on mobile and desktop.
+- Added one-time, reduced-motion-safe wedding fireworks on public invitation entry.
+- Redesigned “Xem thiệp” actions in My Weddings and wedding workspace.
+- Added a prominent three-step Home onboarding path and a differentiation section.
+- Expanded the template library from 24 to 36 genuinely named concepts.
+- Added product-wide mobile overflow and control-size hardening.
+
 # Changelog
 
 ## v0.15.8 — Sprint 15.9 Guest-first Creation & UX Refinement

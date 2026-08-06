@@ -23,6 +23,8 @@ export class GiftTransferAccountDto {
   @IsString() @MaxLength(60) label!: string;
   @IsOptional() @IsIn(["UPLOAD", "VIETQR"]) mode?: "UPLOAD" | "VIETQR";
   @IsOptional() @IsString() @MaxLength(80) qrAssetId?: string;
+  /** Derived public URL. Accepted for backwards compatibility but ignored by the service. */
+  @IsOptional() @IsString() @MaxLength(1000) qrImageUrl?: string;
   @Matches(/^$|^\d{6}$/) bankBin!: string;
   @IsString() @MaxLength(20) bankCode!: string;
   @IsString() @MaxLength(120) bankName!: string;
