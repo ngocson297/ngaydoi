@@ -243,7 +243,7 @@ function PlanningContent() {
           {filtered.map((task) => {
             const overdue = task.dueAt && !["DONE", "CANCELED"].includes(task.status) && new Date(task.dueAt) < now;
             return <article className={`planning-task ${task.status === "DONE" ? "done" : ""} ${overdue ? "overdue" : ""}`} key={task.id}>
-              <button type="button" className="planning-check" disabled={!canEdit || busy} aria-label={task.status === "DONE" ? "Mở lại công việc" : "Đánh dấu hoàn tất"} onClick={() => void updateStatus(task, task.status === "DONE" ? "TODO" : "DONE")}>{task.status === "DONE" ? "✓" : ""}</button>
+              <button type="button" className="planning-check" disabled={!canEdit || busy} aria-pressed={task.status === "DONE"} aria-label={task.status === "DONE" ? "Mở lại công việc" : "Đánh dấu hoàn tất"} onClick={() => void updateStatus(task, task.status === "DONE" ? "TODO" : "DONE")}><span aria-hidden="true">{task.status === "DONE" ? "✓" : ""}</span></button>
               <div className="planning-task-main">
                 <div className="planning-task-title"><strong>{task.title}</strong><span className={`priority priority-${task.priority.toLowerCase()}`}>{priorityLabels[task.priority]}</span></div>
                 {task.description && <p>{task.description}</p>}

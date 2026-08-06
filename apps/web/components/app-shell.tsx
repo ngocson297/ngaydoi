@@ -52,6 +52,8 @@ function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; ac
       className={`app-nav-link ${isActive ? "active" : ""}`}
       href={item.href}
       aria-current={isActive ? "page" : undefined}
+      aria-label={`${item.label}. ${item.description}`}
+      title={item.description}
       onClick={onNavigate}
     >
       <span className="app-nav-icon" aria-hidden="true">{item.icon}</span>
@@ -297,26 +299,20 @@ export function AppShell({ children, active = "weddings", weddingId, breadcrumbs
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const groups = useMemo(() => buildNavigation(user?.role, weddingId), [user?.role, weddingId]);
   const currentGroup = activeGroupId(groups, active);
-  const [expanded, setExpanded] = useState<ExpandedGroups>(() => ({ overview: true, account: true }));
+  const [expanded, setExpanded] = useState<ExpandedGroups>(() => ({ overview: true }));
   const breadcrumbItems = breadcrumbs ?? buildBreadcrumbs(active, weddingId);
 
   useEffect(() => {
-    const storageKey = `ngaydoi.navigation.groups.${user?.role ?? "guest"}`;
-    let stored: ExpandedGroups = {};
+    const storageKey = `ngaydoi.navigation.groups.v2.${user?.role ?? "guest"}`;
+    let preferredGroup: string | null = null;
     try {
-      stored = JSON.parse(window.localStorage.getItem(storageKey) ?? "{}") as ExpandedGroups;
+      preferredGroup = window.localStorage.getItem(storageKey);
     } catch {
-      stored = {};
+      preferredGroup = null;
     }
-    setExpanded((current) => ({
-      overview: true,
-      account: true,
-      wedding: Boolean(weddingId),
-      ...current,
-      ...stored,
-      ...(currentGroup ? { [currentGroup]: true } : {}),
-    }));
-  }, [currentGroup, user?.role, weddingId]);
+    const groupToOpen = currentGroup ?? (groups.some((group) => group.id === preferredGroup) ? preferredGroup : "overview");
+    setExpanded(Object.fromEntries(groups.map((group) => [group.id, group.id === groupToOpen])));
+  }, [currentGroup, groups, user?.role]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -354,9 +350,11 @@ export function AppShell({ children, active = "weddings", weddingId, breadcrumbs
 
   function toggleGroup(id: string): void {
     setExpanded((current) => {
-      const next = { ...current, [id]: !current[id] };
+      const opening = !current[id];
+      const next = Object.fromEntries(groups.map((group) => [group.id, opening && group.id === id]));
       try {
-        window.localStorage.setItem(`ngaydoi.navigation.groups.${user?.role ?? "guest"}`, JSON.stringify(next));
+        if (opening) window.localStorage.setItem(`ngaydoi.navigation.groups.v2.${user?.role ?? "guest"}`, id);
+        else window.localStorage.removeItem(`ngaydoi.navigation.groups.v2.${user?.role ?? "guest"}`);
       } catch {
         // Navigation remains usable when storage is unavailable.
       }

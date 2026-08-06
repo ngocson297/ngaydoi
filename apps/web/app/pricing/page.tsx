@@ -165,7 +165,7 @@ function PricingContent() {
             return item ? <div className="summary-line" key={code}><span>{item.name}</span><strong>{formatMoney(item.priceAmount)}</strong></div> : null;
           })}
           {quote?.discountAmount ? <div className="summary-line discount"><span>Ưu đãi {quote.coupon?.code}</span><strong>-{formatMoney(quote.discountAmount)}</strong></div> : null}
-          <div className="summary-total"><span>Tổng thanh toán</span><strong>{formatMoney(quote?.totalAmount ?? (selectedPlan?.priceAmount ?? 0) + addOnCodes.reduce((sum, code) => sum + (catalog?.addOns.find((item) => item.code === code)?.priceAmount ?? 0), 0))}</strong></div>
+          <div className="summary-total payment-total-focus"><span><small>Tổng thanh toán</small><em>Thanh toán một lần cho wedding đã chọn</em></span><strong>{formatMoney(quote?.totalAmount ?? (selectedPlan?.priceAmount ?? 0) + addOnCodes.reduce((sum, code) => sum + (catalog?.addOns.find((item) => item.code === code)?.priceAmount ?? 0), 0))}</strong></div>
           {!quote ? <button className="btn btn-primary" disabled={busy || !weddingId} onClick={() => void calculateQuote()}>{busy ? "Đang tính..." : "Xem giá cuối cùng"}</button> : <button className="btn btn-primary" disabled={busy} onClick={() => void createOrder()}>{busy ? "Đang tạo đơn..." : "Tạo đơn hàng"}</button>}
           <small>Chưa thu tiền ở bước này. Bạn sẽ nhận hướng dẫn chuyển khoản sau khi tạo đơn.</small>
         </aside>

@@ -97,3 +97,14 @@
 - Increased form-control size, body text scale and sidebar usability.
 - Added responsive layouts for moderation cards, upload forms and public gallery.
 - Added Phase 12 Prisma migration and `memories:smoke` regression test.
+
+## 0.15.5 — Sprint 15.6 UX Polish, Home Performance & Contact
+
+- Simplified the desktop navigation into a focused accordion and fixed the sidebar to the viewport on long pages.
+- Preserved detailed menu descriptions inside the command palette while reducing repeated copy in the sidebar.
+- Fixed planning task check controls and template favorite buttons so touch-target rules cannot distort their shape.
+- Increased legacy content typography, with a targeted readability pass for Guests, Planning and Commerce.
+- Redesigned payment totals and the electronic receipt with a professional print layout.
+- Fixed the Home “Khám phá 24 mẫu” CTA shape and added a public Contact page for Facebook, Zalo and email.
+- Added low-power Home motion handling, inactive-tab animation pausing and below-the-fold rendering containment.
+- Added `npm run ux:audit` for release regression checks.

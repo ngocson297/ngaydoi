@@ -40,3 +40,13 @@ npm run source:pack
 File tạo tại `~/Downloads/ngaydoi-current.zip`.
 
 Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_5_RUN_GUIDE.md`.
+
+### Sprint 15.6 UX regression check
+
+```bash
+npm run ux:audit
+npm run a11y:audit
+npm run build
+```
+
+Public contact links are configured in `apps/web/.env.local` using `NEXT_PUBLIC_FACEBOOK_CONTACT_URL`, `NEXT_PUBLIC_ZALO_CONTACT_URL` and `NEXT_PUBLIC_SUPPORT_EMAIL`.

@@ -39,6 +39,7 @@ export default function HomePage() {
             <a href="/templates">Kho mẫu thiệp</a>
             <a href="#pricing">Bảng giá</a>
             <a href="/i/minh-anh">Xem thiệp mẫu</a>
+            <a href="/contact">Liên hệ</a>
             <a href="/login">Đăng nhập</a>
             <a className="btn btn-primary" href="/register">Bắt đầu tạo thiệp</a>
           </div>
@@ -115,7 +116,7 @@ export default function HomePage() {
               <h2>24 phong cách, một câu chuyện của riêng bạn.</h2>
               <p className="section-lead">Từ nét Việt truyền thống đến Art Deco, garden wedding, tiệc biển và editorial hiện đại. Chọn mẫu làm điểm bắt đầu, rồi thay màu, kiểu chữ, nội dung, ảnh và bố cục ngay trong Studio.</p>
             </div>
-            <a className="btn btn-secondary" href="/templates">Khám phá 24 mẫu →</a>
+            <a className="btn btn-secondary home-template-cta" href="/templates">Khám phá 24 mẫu →</a>
           </div>
           <div className="landing-template-grid">
             {invitationTemplates.map((template, index) => (
@@ -169,6 +170,7 @@ export default function HomePage() {
       <footer className="footer section-white">
         <div className="container footer-inner">
           <div className="brand">Ngày <span>Đôi</span></div>
+          <nav className="home-footer-links" aria-label="Liên kết cuối trang"><a href="/templates">Kho mẫu</a><a href="/contact">Liên hệ</a><a href="/login">Đăng nhập</a></nav>
           <div>Working brand — cần kiểm tra tên miền và nhãn hiệu trước khi ra mắt.</div>
         </div>
       </footer>

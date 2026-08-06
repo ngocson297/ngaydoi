@@ -1,6 +1,6 @@
 {
   "name": "ngaydoi-mvp",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -39,7 +39,8 @@
     "planning:smoke": "npm run planning:smoke --workspace @ngaydoi/api",
     "template:smoke": "npm run template:smoke --workspace @ngaydoi/api",
     "source:pack": "node scripts/pack-source.mjs",
-    "a11y:audit": "node scripts/accessibility-audit.mjs"
+    "a11y:audit": "node scripts/accessibility-audit.mjs",
+    "ux:audit": "node scripts/ux-polish-audit.mjs"
   },
   "engines": {
     "node": ">=20.9.0"

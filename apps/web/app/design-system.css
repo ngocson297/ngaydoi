@@ -591,3 +591,256 @@ body { color: var(--color-ink); background: var(--color-canvas); font-size: var(
   .home-hero,
   .catalog-hero { --pointer-x: 0 !important; --pointer-y: 0 !important; }
 }
+
+/* Sprint 15.6 — UX polish, stable sidebar, commerce clarity and Home performance */
+@media (min-width: 901px) {
+  .app-shell .dash-shell { display: block; min-height: 100vh; }
+  .navigation-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 90;
+    width: var(--app-sidebar-width);
+    height: 100dvh;
+    min-height: 0;
+    box-shadow: 12px 0 38px rgba(26, 18, 14, .08);
+  }
+  .app-main-content { min-height: 100vh; margin-inline-start: var(--app-sidebar-width); }
+}
+
+/* Sidebar: reduce repeated copy and keep the active destination visually dominant. */
+.app-shell { --app-sidebar-width: 252px; }
+.navigation-sidebar { padding: 20px 14px 16px; }
+.navigation-sidebar .brand { margin: 0 8px 18px; }
+.app-sidebar-user { margin-bottom: 10px; padding: 11px 8px 13px; }
+.app-nav-search { min-height: 42px; margin-bottom: 9px; }
+.app-nav-groups { gap: 4px; }
+.app-nav-group-toggle { min-height: 40px; padding: 7px 9px; }
+.app-nav-group-toggle small { display: none; }
+.app-nav-group-toggle strong { font-size: 10px; letter-spacing: .115em; }
+.app-nav-group-panel { gap: 2px; padding-bottom: 3px; }
+.app-nav-link { min-height: 44px; grid-template-columns: 30px minmax(0, 1fr) auto; padding: 6px 8px; border-radius: 11px; }
+.app-nav-copy { display: block; }
+.app-nav-copy strong { display: block; font-size: 13px; }
+.app-nav-copy small { display: none; }
+.app-nav-link em { padding: 3px 6px; font-size: 8px; }
+.app-nav-icon { width: 30px; height: 30px; }
+.app-nav-link.active { box-shadow: inset 3px 0 0 #e3b979, 0 6px 18px rgba(0,0,0,.08); }
+.app-sidebar-logout { min-height: 42px; margin-top: 8px; }
+
+/* Keep square controls square even when coarse-pointer accessibility rules increase touch targets. */
+.planning-check {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  aspect-ratio: 1;
+  flex: 0 0 42px;
+  border-radius: 12px !important;
+  padding: 0;
+}
+.planning-check > span { display: grid; place-items: center; width: 100%; height: 100%; }
+.template-favorite,
+.catalog-favorite {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  aspect-ratio: 1;
+  flex: 0 0 44px;
+  padding: 0;
+  border-radius: 50% !important;
+  line-height: 1;
+}
+.template-favorite { top: 10px; right: 10px; }
+
+/* Content readability pass. Legacy pages used 7–10px text in several modules. */
+.app-main-content :where(p, li, dd, td, th, label) { line-height: 1.58; }
+.app-main-content :where(.muted-small, .commerce-head p, .admin-head p, .order-detail-head p, .commerce-section-title p, .commerce-hint) { font-size: 13px; }
+.app-main-content :where(.guest-identity strong, .guest-breakdown span, .guest-breakdown strong, .order-row > div:nth-child(2) strong, .summary-line, .breakdown-line, .commerce-plan-card li, .commerce-plan-card p, .addon-card strong, .addon-card b, .planning-task-main p, .planning-task-meta span) { font-size: 13px; }
+.app-main-content :where(.guest-identity small, .guest-identity em, .guest-status, .guest-link-button, .guest-pagination, .guest-pagination button, .guest-breakdown small, .guest-import-card > p, .guest-notification-panel .panel-head > span, .guest-form-grid label, .drawer-full-label, .guest-event-options strong, .guest-event-options small, .commerce-plan-card > small, .commerce-plan-card > em, .addon-card p, .order-summary-card > span, .order-breakdown-card > span, .order-summary-card > small, .order-row > div:nth-child(2) small, .order-row > div:nth-child(2) span, .order-state small, .commerce-status, .order-timeline strong, .order-timeline span) { font-size: 11.5px; }
+.app-main-content .guest-page :where(input, select, textarea, button) { font-size: 14px; }
+.app-main-content .guest-identity strong { max-width: 260px; }
+.app-main-content .guest-identity small,
+.app-main-content .guest-identity em { max-width: 260px; }
+
+/* Commerce totals: give the amount a stable, readable visual hierarchy. */
+.payment-total-focus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 14px -4px 18px;
+  padding: 18px;
+  border: 1px solid #dbc8c4;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff8f7 0%, #fff 72%);
+  box-shadow: 0 10px 30px rgba(124, 45, 59, .08);
+}
+.payment-total-focus > span { min-width: 0; display: grid; gap: 3px; }
+.payment-total-focus small { color: var(--color-primary); font-size: 12px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.payment-total-focus em { color: var(--color-muted); font-size: 12px; font-style: normal; line-height: 1.4; }
+.payment-total-focus > strong { color: var(--color-primary); font-size: clamp(23px, 2.5vw, 31px); line-height: 1; white-space: nowrap; }
+.order-total-box {
+  min-width: min(100%, 300px);
+  padding: 18px 20px;
+  border-color: #dbc8c4;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fff 0%, #fff8f7 100%);
+  box-shadow: 0 12px 34px rgba(70, 42, 34, .08);
+  text-align: left;
+}
+.order-total-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.order-total-meta > span { color: var(--color-muted); font-size: 12px; font-weight: 760; }
+.order-total-box > strong { margin: 12px 0 6px; color: var(--color-primary); font-size: clamp(26px, 3vw, 34px); line-height: 1; white-space: nowrap; }
+.order-total-box > small { display: block; color: var(--color-muted); font-size: 12px; }
+
+/* Professional electronic receipt. */
+.receipt-document { overflow: hidden; padding: 0; border-radius: 22px; box-shadow: 0 18px 50px rgba(61, 40, 31, .09); }
+.receipt-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 26px; border-bottom: 1px solid var(--color-border); background: #2a211e; color: white; }
+.receipt-brand { font-family: Georgia, "Times New Roman", serif; font-size: 24px; line-height: 1; }
+.receipt-brand strong { color: #e4bc82; }
+.receipt-brand small { display: block; margin-top: 7px; color: rgba(255,255,255,.58); font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.receipt-paid-mark { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid rgba(155, 224, 184, .35); border-radius: 999px; color: #b9ebce; background: rgba(45, 115, 81, .2); font-size: 11px; letter-spacing: .06em; }
+.receipt-paid-mark > span { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #173d2b; background: #b9ebce; font-weight: 900; }
+.receipt-title-block { display: flex; justify-content: space-between; gap: 26px; padding: 28px 26px 22px; }
+.receipt-title-block small { color: var(--color-primary); font-size: 11px; font-weight: 850; letter-spacing: .1em; }
+.receipt-title-block h2 { margin: 5px 0 7px; font: 500 clamp(29px, 4vw, 40px)/1.1 Georgia, "Times New Roman", serif; }
+.receipt-title-block p { margin: 0; color: var(--color-muted); font-size: 13px; }
+.receipt-number { min-width: 180px; padding: 13px 15px; border: 1px solid var(--color-border); border-radius: 14px; background: #faf7f3; }
+.receipt-number span, .receipt-context-grid span { display: block; color: var(--color-muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.receipt-number strong { display: block; margin-top: 7px; font: 700 15px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.receipt-context-grid { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr; gap: 1px; margin: 0 26px 24px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 15px; background: var(--color-border); }
+.receipt-context-grid > div { min-width: 0; padding: 15px; background: white; }
+.receipt-context-grid strong { display: block; margin-top: 7px; font-size: 14px; overflow-wrap: anywhere; }
+.receipt-context-grid small { display: block; margin-top: 4px; color: var(--color-muted); font-size: 11.5px; }
+.receipt-table { margin: 0 26px; overflow: hidden; border: 1px solid var(--color-border); border-radius: 15px; }
+.receipt-table-head, .receipt-table-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(130px, .7fr) minmax(120px, .55fr); align-items: center; gap: 16px; }
+.receipt-table-head { padding: 11px 15px; color: var(--color-muted); background: #f4efea; font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.receipt-table-row { min-height: 66px; padding: 13px 15px; border-top: 1px solid var(--color-border); font-size: 13px; }
+.receipt-table-row > span:first-child { display: grid; gap: 3px; }
+.receipt-table-row small { color: var(--color-muted); font-size: 11px; }
+.receipt-table-row > strong:last-child { text-align: right; white-space: nowrap; }
+.receipt-summary { width: min(380px, calc(100% - 52px)); margin: 20px 26px 0 auto; display: grid; }
+.receipt-summary > div { display: flex; justify-content: space-between; gap: 18px; padding: 9px 0; color: var(--color-muted); font-size: 13px; }
+.receipt-summary .discount { color: var(--color-success); }
+.receipt-summary .receipt-grand-total { margin-top: 5px; padding-top: 15px; border-top: 1px solid var(--color-border-strong); color: var(--color-ink); font-weight: 850; }
+.receipt-grand-total strong { color: var(--color-primary); font-size: 24px; white-space: nowrap; }
+.receipt-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 24px; padding: 20px 26px 24px; border-top: 1px solid var(--color-border); background: #fcfaf7; }
+.receipt-footer p { max-width: 610px; margin: 0; color: var(--color-muted); font-size: 12px; }
+.receipt-actions { flex: none; display: flex; gap: 9px; }
+
+/* Home CTA shape and contact links. */
+.home-template-cta { width: auto !important; min-width: 210px; min-height: 48px; flex: 0 0 auto; border-radius: 999px !important; padding-inline: 20px !important; white-space: nowrap; }
+.home-footer-links { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.home-footer-links a { color: var(--color-muted); font-weight: 720; }
+.home-footer-links a:hover { color: var(--color-primary); }
+
+/* Contact page */
+.contact-page { min-height: 100vh; background: #f8f3ed; color: var(--color-ink); }
+.contact-nav { position: relative; z-index: 20; border-bottom: 1px solid rgba(74, 54, 44, .08); background: rgba(255,253,249,.9); backdrop-filter: blur(14px); }
+.contact-hero { position: relative; isolation: isolate; overflow: hidden; padding: 92px 0 74px; background: radial-gradient(circle at 14% 10%, #fff, transparent 40%), linear-gradient(145deg, #faf4ef, #f1e3dc); }
+.contact-orb { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; }
+.contact-orb-one { width: 520px; height: 520px; right: -220px; top: -260px; border: 1px solid rgba(124,45,59,.12); box-shadow: 0 0 0 70px rgba(178,138,74,.035), 0 0 0 140px rgba(124,45,59,.02); }
+.contact-orb-two { width: 300px; height: 300px; left: -160px; bottom: -190px; background: radial-gradient(circle, rgba(124,45,59,.11), transparent 68%); }
+.contact-hero-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr); align-items: center; gap: 64px; }
+.contact-hero h1 { max-width: 780px; margin: 14px 0 18px; font: 500 clamp(44px, 6vw, 76px)/1 Georgia, "Times New Roman", serif; letter-spacing: -.05em; text-wrap: balance; }
+.contact-hero p { max-width: 720px; margin: 0; color: #6f625a; font-size: 17px; line-height: 1.75; }
+.contact-service-note { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 15px; padding: 22px; border: 1px solid rgba(255,255,255,.75); border-radius: 22px; background: rgba(255,255,255,.7); box-shadow: 0 22px 60px rgba(66,43,32,.09); backdrop-filter: blur(14px); }
+.contact-service-note > span { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 17px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 24px; }
+.contact-service-note strong { font-size: 16px; }
+.contact-service-note p { margin-top: 6px; font-size: 13px; line-height: 1.6; }
+.contact-channel-section { padding: 58px 0 90px; }
+.contact-channel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.contact-channel-card { min-height: 330px; display: flex; align-items: flex-start; flex-direction: column; padding: 28px; border: 1px solid var(--color-border); border-radius: 24px; background: white; box-shadow: 0 16px 45px rgba(62,42,31,.06); }
+.contact-channel-icon { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 24px; border-radius: 17px; color: white; background: var(--color-primary); font-size: 22px; font-weight: 900; }
+.contact-channel-card h2 { margin: 7px 0 10px; font: 500 30px/1.2 Georgia, "Times New Roman", serif; }
+.contact-channel-card p { margin: 0 0 24px; color: var(--color-muted); font-size: 14px; line-height: 1.7; }
+.contact-channel-action { margin-top: auto; border-radius: 999px !important; }
+.contact-channel-action > span { margin-left: 4px; }
+.contact-channel-card > small { margin-top: 10px; color: var(--color-muted); font-size: 11px; }
+.contact-email-card { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 18px; padding: 28px; border: 1px solid var(--color-border); border-radius: 24px; background: #2a211e; color: white; }
+.contact-email-card h2 { margin: 7px 0; font: 500 30px/1.2 Georgia, "Times New Roman", serif; }
+.contact-email-card p { max-width: 650px; margin: 0; color: rgba(255,255,255,.62); font-size: 14px; }
+.contact-email-card .btn-secondary { border-color: rgba(255,255,255,.28); color: white; background: rgba(255,255,255,.08); }
+.contact-config-note { margin-top: 18px; padding: 15px 17px; border: 1px dashed var(--color-border-strong); border-radius: 14px; color: var(--color-muted); background: rgba(255,255,255,.55); font-size: 12px; line-height: 1.6; }
+.contact-config-note code { color: var(--color-primary); font-size: 11px; }
+
+/* Home performance: avoid work below the fold and pause decorative animation when inactive. */
+.home-page > .section,
+.home-page > .home-final-cta,
+.home-page > .footer { content-visibility: auto; contain-intrinsic-size: 760px; }
+.page-is-hidden .home-template-marquee > div,
+.page-is-hidden .home-petals i,
+.page-is-hidden .catalog-stack-card,
+.page-is-hidden .landing-template-symbol { animation-play-state: paused !important; }
+.home-motion-lite .home-template-marquee > div { animation-duration: 54s; }
+.home-motion-lite .home-petals,
+.home-motion-lite .home-orb { display: none; }
+.home-motion-lite .phone-wrap,
+.home-motion-lite .home-orb-one,
+.home-motion-lite .home-orb-two { transform: none !important; }
+
+@media (max-width: 900px) {
+  .order-detail-head { align-items: stretch; flex-direction: column; }
+  .order-total-box { width: 100%; }
+  .receipt-title-block, .receipt-footer { align-items: stretch; flex-direction: column; }
+  .receipt-context-grid { grid-template-columns: 1fr; }
+  .receipt-table-head, .receipt-table-row { grid-template-columns: minmax(0, 1.4fr) minmax(100px, .6fr); }
+  .receipt-table-head > :nth-child(2), .receipt-table-row > :nth-child(2) { display: none; }
+  .contact-hero-grid { grid-template-columns: 1fr; gap: 34px; }
+}
+
+@media (max-width: 620px) {
+  .app-main-content :where(.muted-small, .commerce-head p, .admin-head p, .order-detail-head p, .commerce-section-title p, .commerce-hint) { font-size: 13.5px; }
+  .planning-check { width: 44px !important; min-width: 44px !important; height: 44px !important; min-height: 44px !important; flex-basis: 44px; }
+  .planning-task { align-items: flex-start; }
+  .payment-total-focus { grid-template-columns: 1fr; gap: 10px; }
+  .payment-total-focus > strong { font-size: 29px; }
+  .receipt-header { align-items: flex-start; flex-direction: column; padding: 20px; }
+  .receipt-title-block { padding: 22px 20px 18px; }
+  .receipt-number { width: 100%; min-width: 0; }
+  .receipt-context-grid, .receipt-table { margin-inline: 20px; }
+  .receipt-summary { width: calc(100% - 40px); margin-inline: 20px; }
+  .receipt-table-head, .receipt-table-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .receipt-table-row { padding-inline: 12px; }
+  .receipt-footer { padding: 18px 20px 22px; }
+  .receipt-actions { width: 100%; display: grid; grid-template-columns: 1fr; }
+  .receipt-actions .btn { width: 100%; }
+  .home-template-cta { width: 100% !important; min-width: 0; }
+  .contact-hero { padding: 58px 0 48px; }
+  .contact-hero h1 { font-size: clamp(40px, 12vw, 56px); }
+  .contact-channel-grid { grid-template-columns: 1fr; }
+  .contact-channel-card { min-height: 0; padding: 22px; }
+  .contact-email-card { align-items: stretch; flex-direction: column; padding: 22px; }
+  .contact-email-card .btn { width: 100%; overflow-wrap: anywhere; }
+  .home-footer-links { order: 3; width: 100%; }
+}
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: white !important; }
+  body * { visibility: hidden !important; }
+  .receipt-document, .receipt-document * { visibility: visible !important; }
+  .receipt-document {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .receipt-actions, .no-print { display: none !important; }
+  .receipt-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .receipt-table-row, .receipt-context-grid > div { break-inside: avoid; }
+}
+
+/* Readability overrides for dense legacy workspace content. */
+.app-main-content :where(.panel p, .panel li, .panel dd, .panel td, .panel th) { font-size: max(13px, .82rem); }
+.app-main-content .guest-page-head p { font-size: 14px; line-height: 1.65; }
+.app-main-content :where(.guest-metric-grid span, .guest-metric-grid small, .guest-bulkbar, .guest-table, .guest-table th, .guest-table td, .guest-filters label, .guest-filter-hint) { font-size: 12.5px; }
+.app-main-content :where(.guest-form-scroll h3, .guest-form-grid label, .drawer-full-label, .guest-event-options strong) { font-size: 13px; }
+.app-main-content :where(.guest-event-options small, .guest-drawer > header span) { font-size: 11.5px; }
+.contact-channel-card:nth-child(1) .contact-channel-icon { background: #1877f2; }
+.contact-channel-card:nth-child(2) .contact-channel-icon { background: #0068ff; }
