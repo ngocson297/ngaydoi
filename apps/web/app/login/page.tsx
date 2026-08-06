@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../../lib/api";
 import { useAuth } from "../../components/auth-provider";
@@ -11,6 +11,12 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<ApiError | Error | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [nextPath, setNextPath] = useState("");
+
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    setNextPath(next?.startsWith("/") ? next : "");
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,8 +25,7 @@ export default function LoginPage() {
     const data = new FormData(event.currentTarget);
     try {
       await login(String(data.get("email")), String(data.get("password")));
-      const next = new URLSearchParams(window.location.search).get("next");
-      router.replace(next?.startsWith("/") ? next : "/dashboard");
+      router.replace(nextPath || "/dashboard");
     } catch (cause) {
       setError(cause instanceof Error ? cause : new Error("Không thể đăng nhập"));
     } finally {
@@ -47,7 +52,7 @@ export default function LoginPage() {
           <div className="auth-row auth-row-end"><a href="/forgot-password">Quên mật khẩu?</a></div>
           <Button className="auth-submit ui-button-mobile-full" type="submit" fullWidth loading={submitting} loadingLabel="Đang đăng nhập…">Đăng nhập</Button>
         </form>
-        <p className="auth-foot">Chưa có tài khoản? <a href="/register">Tạo tài khoản miễn phí</a></p>
+        <p className="auth-foot">Chưa có tài khoản? <a href={`/register${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}>Tạo tài khoản miễn phí</a></p>
       </section>
     </main>
   );

@@ -21,6 +21,8 @@ export class GiftTransferAccountDto {
   @IsString() @MaxLength(80) id!: string;
   @IsIn(["BRIDE", "GROOM", "SHARED"]) side!: "BRIDE" | "GROOM" | "SHARED";
   @IsString() @MaxLength(60) label!: string;
+  @IsOptional() @IsIn(["UPLOAD", "VIETQR"]) mode?: "UPLOAD" | "VIETQR";
+  @IsOptional() @IsString() @MaxLength(80) qrAssetId?: string;
   @Matches(/^$|^\d{6}$/) bankBin!: string;
   @IsString() @MaxLength(20) bankCode!: string;
   @IsString() @MaxLength(120) bankName!: string;

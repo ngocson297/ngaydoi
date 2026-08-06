@@ -302,6 +302,7 @@ model Wedding {
   events            Event[]
   guests            Guest[]
   mediaAssets       MediaAsset[]
+  giftQrAssets      GiftQrAsset[]
   invitationDesign  InvitationDesign?
   invitationVersions InvitationVersion[]
   previewTokens      InvitationPreviewToken[]
@@ -532,6 +533,19 @@ model MediaAsset {
 
   @@index([weddingId, sortOrder])
   @@index([weddingId, isCover])
+}
+
+model GiftQrAsset {
+  id         String   @id @default(cuid())
+  weddingId  String
+  wedding    Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  storageKey String   @unique
+  publicUrl  String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  @@index([weddingId, createdAt])
 }
 
 model InvitationDesign {

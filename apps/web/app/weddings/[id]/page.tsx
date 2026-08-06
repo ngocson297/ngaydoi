@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
-import { Alert, Button, ConfirmDialog, DetailPageSkeleton, ErrorState, FormActions, Tabs, tabPanelProps, useUnsavedChangesGuard } from "../../../components/ui";
+import { Alert, Button, ConfirmDialog, DetailPageSkeleton, ErrorState, FormActions, Tabs, tabPanelProps, useUnsavedChangesGuard, useToast } from "../../../components/ui";
 import { ApiError, toUiError, type UiError } from "../../../lib/api";
 import {
   formatDate,
@@ -53,6 +53,7 @@ function emptyEvent(): Omit<WeddingEvent, "id"> {
 
 function WorkspaceContent() {
   const { authRequest } = useAuth();
+  const { notify } = useToast();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const weddingId = params.id;
@@ -256,7 +257,7 @@ function WorkspaceContent() {
 
   async function copyInvite(token: string): Promise<void> {
     await navigator.clipboard.writeText(`${window.location.origin}/collaborate/${token}`);
-    flash("Đã sao chép đường dẫn mời.");
+    notify({ tone: "success", title: "Đã sao chép link mời", message: "Bạn có thể gửi link này cho cộng tác viên ngay." });
   }
 
   async function duplicateWedding(event: FormEvent): Promise<void> {

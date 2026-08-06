@@ -37,6 +37,9 @@ export interface GiftTransferAccount {
   id: string;
   side: "BRIDE" | "GROOM" | "SHARED";
   label: string;
+  mode: "UPLOAD" | "VIETQR";
+  qrAssetId: string;
+  qrImageUrl: string;
   bankBin: string;
   bankCode: string;
   bankName: string;
@@ -281,14 +284,21 @@ export function normalizeGiftAccounts(value: unknown): GiftTransferAccount[] {
   return value.flatMap((item): GiftTransferAccount[] => {
     if (!item || typeof item !== "object") return [];
     const account = item as Partial<GiftTransferAccount>;
+    const mode = account.mode === "UPLOAD" ? "UPLOAD" : "VIETQR";
+    const qrImageUrl = String(account.qrImageUrl ?? "").trim();
+    const qrAssetId = String(account.qrAssetId ?? "").trim();
     const bankBin = String(account.bankBin ?? "").replace(/\D/g, "");
     const accountNumber = String(account.accountNumber ?? "").replace(/\D/g, "");
     const accountName = String(account.accountName ?? "").trim().toUpperCase();
-    if (!/^\d{6}$/.test(bankBin) || !/^\d{6,19}$/.test(accountNumber) || !accountName) return [];
+    if (mode === "UPLOAD" && !qrImageUrl) return [];
+    if (mode === "VIETQR" && (!/^\d{6}$/.test(bankBin) || !/^\d{6,19}$/.test(accountNumber) || !accountName)) return [];
     return [{
-      id: String(account.id ?? `${bankBin}-${accountNumber}`),
+      id: String(account.id ?? `${mode}-${qrAssetId || bankBin}-${accountNumber}`),
       side: account.side === "BRIDE" || account.side === "GROOM" ? account.side : "SHARED",
       label: String(account.label ?? "Tài khoản mừng cưới").trim(),
+      mode,
+      qrAssetId,
+      qrImageUrl,
       bankBin,
       bankCode: String(account.bankCode ?? "").trim().toUpperCase(),
       bankName: String(account.bankName ?? account.bankCode ?? "Ngân hàng").trim(),
@@ -297,6 +307,12 @@ export function normalizeGiftAccounts(value: unknown): GiftTransferAccount[] {
       transferNote: String(account.transferNote ?? "MUNG CUOI").trim().slice(0, 25),
     }];
   }).slice(0, 3);
+}
+
+export function giftAccountQrUrl(account: GiftTransferAccount): string {
+  return account.mode === "UPLOAD" && account.qrImageUrl
+    ? resolveMediaUrl(account.qrImageUrl) ?? account.qrImageUrl
+    : buildVietQrImageUrl(account);
 }
 
 export function buildVietQrImageUrl(account: GiftTransferAccount): string {

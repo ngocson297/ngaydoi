@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { apiRequest, ApiError } from "../../lib/api";
 import { Alert, Button, ButtonLink, FormField, FormRequiredNote } from "../../components/ui";
 
@@ -10,6 +10,12 @@ export default function RegisterPage() {
   const [result, setResult] = useState<RegisterResponse | null>(null);
   const [error, setError] = useState<ApiError | Error | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [nextPath, setNextPath] = useState("");
+
+  useEffect(() => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    setNextPath(next?.startsWith("/") ? next : "");
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -19,7 +25,7 @@ export default function RegisterPage() {
     try {
       setResult(await apiRequest<RegisterResponse>("/auth/register", {
         method: "POST",
-        body: JSON.stringify({ displayName: data.get("displayName"), email: data.get("email"), password: data.get("password") }),
+        body: JSON.stringify({ displayName: data.get("displayName"), email: data.get("email"), password: data.get("password"), ...(nextPath ? { returnPath: nextPath } : {}) }),
       }));
     } catch (cause) {
       setError(cause instanceof Error ? cause : new Error("Không thể tạo tài khoản"));
@@ -40,7 +46,7 @@ export default function RegisterPage() {
           <div className="success-panel" role="status">
             <h3>Đã tạo tài khoản</h3><p>{result.message}</p>
             {result.developmentVerificationUrl ? <ButtonLink href={result.developmentVerificationUrl} fullWidth>Xác minh email trong môi trường local</ButtonLink> : null}
-            <ButtonLink href="/login" variant="secondary" fullWidth>Đi đến đăng nhập</ButtonLink>
+            <ButtonLink href={`/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`} variant="secondary" fullWidth>Đi đến đăng nhập</ButtonLink>
           </div>
         ) : (
           <form className="auth-form" onSubmit={submit}>
@@ -57,7 +63,7 @@ export default function RegisterPage() {
             <Button className="auth-submit ui-button-mobile-full" type="submit" fullWidth loading={submitting} loadingLabel="Đang tạo tài khoản…">Tạo tài khoản</Button>
           </form>
         )}
-        <p className="auth-foot">Đã có tài khoản? <a href="/login">Đăng nhập</a></p>
+        <p className="auth-foot">Đã có tài khoản? <a href={`/login${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}>Đăng nhập</a></p>
       </section>
     </main>
   );

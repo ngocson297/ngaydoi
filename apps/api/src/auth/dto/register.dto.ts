@@ -1,4 +1,4 @@
-import { IsEmail, IsString, Length, Matches, MaxLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength } from "class-validator";
 
 export class RegisterDto {
   @IsEmail()
@@ -15,4 +15,10 @@ export class RegisterDto {
     message: "Password must include uppercase, lowercase and a number",
   })
   password: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Matches(/^\/(?!\/)/, { message: "Return path must be an internal application path" })
+  returnPath?: string;
 }

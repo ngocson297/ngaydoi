@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest, ApiError } from "../lib/api";
 import { formatDate } from "../lib/weddings";
-import { buildVietQrImageUrl, normalizeGiftAccounts, resolveMediaUrl, resolveTemplateExperience, withDefaultDesign } from "../lib/invitations";
+import { giftAccountQrUrl, normalizeGiftAccounts, resolveMediaUrl, resolveTemplateExperience, withDefaultDesign } from "../lib/invitations";
 import type { GiftTransferAccount, InvitationPersonalization, InvitationSectionKey, PublicInvitationData } from "../lib/invitations";
 
 interface PublicInvitationProps {
@@ -58,24 +58,24 @@ function GiftTransferSection({ title, message, accounts, copiedAccountId, onCopy
           return (
             <article className="inv8-gift-card" key={account.id}>
               <div className="inv8-gift-qr">
-                {!qrFailed ? <img src={buildVietQrImageUrl(account)} alt={`QR chuyển khoản ${account.bankName} cho ${account.accountName}`} loading="lazy" onError={() => setFailedQrIds((current) => current.includes(account.id) ? current : [...current, account.id])} /> : <div className="inv8-gift-qr-fallback"><span>QR</span><small>Vui lòng dùng thông tin bên cạnh</small></div>}
+                {!qrFailed ? <img src={giftAccountQrUrl(account)} alt={account.mode === "UPLOAD" ? `QR mừng cưới ${account.label}` : `QR chuyển khoản ${account.bankName} cho ${account.accountName}`} loading="lazy" onError={() => setFailedQrIds((current) => current.includes(account.id) ? current : [...current, account.id])} /> : <div className="inv8-gift-qr-fallback"><span>QR</span><small>Ảnh QR chưa thể hiển thị. Vui lòng dùng thông tin bên cạnh.</small></div>}
               </div>
               <div className="inv8-gift-details">
                 <span>{sideLabel}</span>
                 <h3>{account.label || "Tài khoản mừng cưới"}</h3>
-                <dl>
-                  <div><dt>Ngân hàng</dt><dd>{account.bankName || account.bankCode}</dd></div>
-                  <div><dt>Chủ tài khoản</dt><dd>{account.accountName}</dd></div>
-                  <div><dt>Số tài khoản</dt><dd>{account.accountNumber}</dd></div>
-                  <div><dt>Nội dung</dt><dd>{account.transferNote}</dd></div>
-                </dl>
-                <button type="button" onClick={() => onCopy(account)}>{copiedAccountId === account.id ? "Đã sao chép số tài khoản" : "Sao chép số tài khoản"}</button>
+                {(account.bankName || account.accountName || account.accountNumber || account.transferNote) && <dl>
+                  {account.bankName && <div><dt>Ngân hàng</dt><dd>{account.bankName || account.bankCode}</dd></div>}
+                  {account.accountName && <div><dt>Chủ tài khoản</dt><dd>{account.accountName}</dd></div>}
+                  {account.accountNumber && <div><dt>Số tài khoản</dt><dd>{account.accountNumber}</dd></div>}
+                  {account.transferNote && <div><dt>Nội dung</dt><dd>{account.transferNote}</dd></div>}
+                </dl>}
+                {account.accountNumber && <button type="button" onClick={() => onCopy(account)}>{copiedAccountId === account.id ? "Đã sao chép số tài khoản" : "Sao chép số tài khoản"}</button>}
               </div>
             </article>
           );
         })}
       </div>
-      <p className="inv8-gift-note">Quét bằng ứng dụng ngân hàng hỗ trợ VietQR. Số tiền do khách chủ động nhập; Ngày Đôi không lưu hoặc tự động xác nhận giao dịch.</p>
+      <p className="inv8-gift-note">Quét QR bằng ứng dụng ngân hàng. Hãy kiểm tra tên người nhận trước khi xác nhận; số tiền do khách chủ động nhập và Ngày Đôi không lưu hoặc tự động xác nhận giao dịch.</p>
     </section>
   );
 }

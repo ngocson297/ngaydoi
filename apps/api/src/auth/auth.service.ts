@@ -59,7 +59,7 @@ export class AuthService {
     });
 
     let verificationUrl: string | undefined;
-    if (requireVerification) verificationUrl = await this.createEmailVerification(user);
+    if (requireVerification) verificationUrl = await this.createEmailVerification(user, dto.returnPath);
     await this.audit("AUTH_REGISTER", true, metadata, user.id);
 
     return {
@@ -263,7 +263,7 @@ export class AuthService {
     return { message: "Password changed. Sign in again on your devices." };
   }
 
-  private async createEmailVerification(user: { id: string; email: string; displayName: string }): Promise<string> {
+  private async createEmailVerification(user: { id: string; email: string; displayName: string }, returnPath?: string): Promise<string> {
     const raw = createOpaqueToken();
     const minutes = Number(process.env.EMAIL_TOKEN_TTL_MINUTES ?? 30);
     const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
@@ -273,7 +273,7 @@ export class AuthService {
         data: { userId: user.id, tokenHash: hashToken(raw), expiresAt },
       }),
     ]);
-    const verificationUrl = `${this.frontendUrl()}/verify-email?token=${encodeURIComponent(raw)}`;
+    const verificationUrl = `${this.frontendUrl()}/verify-email?token=${encodeURIComponent(raw)}${returnPath?.startsWith("/") ? `&next=${encodeURIComponent(returnPath)}` : ""}`;
     await this.mail.queue({
       recipient: user.email,
       subject: "Xác minh tài khoản Ngày Đôi",

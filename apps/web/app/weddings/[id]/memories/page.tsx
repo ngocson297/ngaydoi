@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
-import { Alert, ConfirmDialog, DetailPageSkeleton, ErrorState, FormField, Tabs, tabPanelProps, useConfirm } from "../../../../components/ui";
+import { Alert, ConfirmDialog, DetailPageSkeleton, ErrorState, FormField, Tabs, tabPanelProps, useConfirm, useToast } from "../../../../components/ui";
 import { API_URL, ApiError, toUiError, type UiError } from "../../../../lib/api";
 import type { MemoryAsset, MemoryOwnerOverview, MemoryStatus } from "../../../../lib/memories";
 import { memoryAlbumUrl, memoryMediaUrl } from "../../../../lib/memories";
@@ -16,6 +16,7 @@ const statusLabel: Record<MemoryStatus, string> = { PENDING: "Chờ duyệt", AP
 
 function MemoriesContent() {
   const { confirm } = useConfirm();
+  const { notify } = useToast();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<MemoryOwnerOverview | null>(null);
@@ -82,7 +83,7 @@ function MemoriesContent() {
     finally { setBusy(false); }
   }
   async function copy(value: string): Promise<void> {
-    try { await navigator.clipboard.writeText(value); flash("Đã sao chép liên kết."); }
+    try { await navigator.clipboard.writeText(value); notify({ tone: "success", title: "Đã sao chép liên kết", message: "Liên kết album đã sẵn sàng để gửi cho khách." }); }
     catch { setError("Trình duyệt không cho phép sao chép tự động. Hãy chọn và sao chép liên kết thủ công."); }
   }
 

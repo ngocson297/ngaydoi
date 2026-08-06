@@ -41,7 +41,7 @@ export default function ContactPage() {
             <a href="/templates">Kho mẫu thiệp</a>
             <a href="/#pricing">Bảng giá</a>
             <a href="/login">Đăng nhập</a>
-            <a className="btn btn-primary" href="/register">Bắt đầu tạo thiệp</a>
+            <a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a>
           </div>
         </div>
       </nav>

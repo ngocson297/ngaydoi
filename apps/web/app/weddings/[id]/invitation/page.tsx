@@ -7,10 +7,10 @@ import { AppShell } from "../../../../components/app-shell";
 import { AuthGate } from "../../../../components/auth-gate";
 import { PublicInvitation } from "../../../../components/public-invitation";
 import { useAuth } from "../../../../components/auth-provider";
-import { Alert, DetailPageSkeleton, ErrorState, useConfirm } from "../../../../components/ui";
+import { Alert, DetailPageSkeleton, ErrorState, FileUploadField, useConfirm, useToast } from "../../../../components/ui";
 import { ApiError, toUiError, type UiError } from "../../../../lib/api";
 import { compressWeddingImage } from "../../../../lib/image";
-import { buildVietQrImageUrl, resolveMediaUrl } from "../../../../lib/invitations";
+import { giftAccountQrUrl, resolveMediaUrl } from "../../../../lib/invitations";
 import type {
   EditorTab,
   GiftTransferAccount,
@@ -69,6 +69,7 @@ function SettingGroup({ title, description, children }: { title: string; descrip
 
 function InvitationEditorContent() {
   const { confirm } = useConfirm();
+  const { notify } = useToast();
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<InvitationEditorData | null>(null);
@@ -90,9 +91,24 @@ function InvitationEditorContent() {
   const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [giftQrUploadingId, setGiftQrUploadingId] = useState<string | null>(null);
   const [historyBusy, setHistoryBusy] = useState(false);
   const lastSavedRef = useRef("");
   const saveRequestRef = useRef(0);
+  const pendingGiftQrDeleteRef = useRef<Set<string>>(new Set());
+  const guestDraftNoticeRef = useRef(false);
+
+  useEffect(() => {
+    if (guestDraftNoticeRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("from") !== "guest-draft") return;
+    guestDraftNoticeRef.current = true;
+    if (params.get("template") === "fallback") {
+      notify({ tone: "info", title: "Bản nháp đã được lưu", message: "Mẫu bạn thử cần gói cao hơn, nên workspace đang dùng một mẫu miễn phí. Nội dung tên, ngày cưới và lời mời vẫn được giữ nguyên." });
+    } else {
+      notify({ tone: "success", title: "Đã lưu bản nháp vào workspace", message: "Bạn có thể tiếp tục thêm ảnh, chương trình, khách mời và QR mừng cưới." });
+    }
+  }, [notify]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,7 +118,22 @@ function InvitationEditorContent() {
         authRequest<InvitationTemplate[]>("/templates"),
       ]);
       if (!editor.invitationDesign) throw new Error("Invitation design was not initialized");
-      const rawGiftAccounts = Array.isArray(editor.invitationDesign.giftAccounts) ? editor.invitationDesign.giftAccounts : [];
+      const rawGiftAccounts = Array.isArray(editor.invitationDesign.giftAccounts)
+        ? editor.invitationDesign.giftAccounts.map((raw) => ({
+            id: raw.id,
+            side: raw.side,
+            label: raw.label,
+            mode: raw.mode === "UPLOAD" ? "UPLOAD" as const : "VIETQR" as const,
+            qrAssetId: raw.qrAssetId ?? "",
+            qrImageUrl: raw.qrImageUrl ?? "",
+            bankBin: raw.bankBin ?? "",
+            bankCode: raw.bankCode ?? "",
+            bankName: raw.bankName ?? "",
+            accountNumber: raw.accountNumber ?? "",
+            accountName: raw.accountName ?? "",
+            transferNote: raw.transferNote ?? "",
+          }))
+        : [];
       const sectionOrder = editor.invitationDesign.sectionOrder.includes("gift")
         ? editor.invitationDesign.sectionOrder
         : [...editor.invitationDesign.sectionOrder.filter((key) => key !== "footer"), "gift" as const, "footer" as const];
@@ -192,6 +223,12 @@ function InvitationEditorContent() {
           setDesign((current) => current ? { ...current, revision: updated.revision, autosavedAt: updated.autosavedAt, updatedAt: updated.updatedAt } : current);
           lastSavedRef.current = JSON.stringify({ ...design, revision: updated.revision, autosavedAt: updated.autosavedAt, updatedAt: updated.updatedAt });
           setSaveStatus("saved");
+          const activeGiftQrIds = new Set(design.giftAccounts.flatMap((account) => account.qrAssetId ? [account.qrAssetId] : []));
+          const removableGiftQrIds = [...pendingGiftQrDeleteRef.current].filter((assetId) => !activeGiftQrIds.has(assetId));
+          if (removableGiftQrIds.length) {
+            removableGiftQrIds.forEach((assetId) => pendingGiftQrDeleteRef.current.delete(assetId));
+            void Promise.all(removableGiftQrIds.map((assetId) => authRequest(`/weddings/${weddingId}/gift-qr/${assetId}`, { method: "DELETE" }).catch(() => undefined)));
+          }
         }
       } catch (reason) {
         if (requestId === saveRequestRef.current) {
@@ -243,7 +280,9 @@ function InvitationEditorContent() {
   }
 
   function removeGiftAccount(accountId: string): void {
-    setDesign((current) => current ? { ...current, giftAccounts: current.giftAccounts.filter((account) => account.id !== accountId) } : current);
+    const account = design?.giftAccounts.find((item) => item.id === accountId);
+    if (account?.qrAssetId) pendingGiftQrDeleteRef.current.add(account.qrAssetId);
+    setDesign((current) => current ? { ...current, giftAccounts: current.giftAccounts.filter((item) => item.id !== accountId) } : current);
   }
 
   function chooseGiftBank(accountId: string, bankBin: string): void {
@@ -252,7 +291,29 @@ function InvitationEditorContent() {
   }
 
   function giftAccountReady(account: GiftTransferAccount): boolean {
+    if (account.mode === "UPLOAD") return Boolean(account.qrImageUrl.trim());
     return /^\d{6}$/.test(account.bankBin) && /^\d{6,19}$/.test(account.accountNumber) && Boolean(account.accountName.trim());
+  }
+
+  async function uploadGiftQr(accountId: string, files: FileList | null): Promise<void> {
+    const file = files?.[0];
+    if (!file) return;
+    const account = design?.giftAccounts.find((item) => item.id === accountId);
+    if (!account) return;
+    setGiftQrUploadingId(accountId);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const asset = await authRequest<{ id: string; publicUrl: string }>(`/weddings/${weddingId}/gift-qr`, { method: "POST", body: form });
+      if (account.qrAssetId && account.qrAssetId !== asset.id) pendingGiftQrDeleteRef.current.add(account.qrAssetId);
+      updateGiftAccount(accountId, { mode: "UPLOAD", qrAssetId: asset.id, qrImageUrl: asset.publicUrl });
+      notify({ tone: "success", title: "Đã tải QR ngân hàng", message: "Ảnh QR sẽ xuất hiện trên thiệp sau khi tự động lưu hoàn tất." });
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : "Không thể tải ảnh QR");
+    } finally {
+      setGiftQrUploadingId(null);
+    }
   }
 
   function toggleFavorite(templateKey: string): void {
@@ -506,38 +567,57 @@ function InvitationEditorContent() {
             </div>}
 
             {activeTab === "gift" && <div className="editor-form-stack gift-editor">
-              <SettingGroup title="Mừng cưới qua QR" description="Cho phép khách gửi lời chúc qua chuyển khoản. Thông tin tài khoản chỉ xuất hiện trên thiệp khi bạn bật công khai và nhập đủ dữ liệu hợp lệ.">
-                <label className="toggle-row"><span><b>Hiển thị phần mừng cưới</b><small>Ngày Đôi không lưu số tiền hoặc tự xác nhận giao dịch.</small></span><input type="checkbox" checked={design.showGift} disabled={!canEdit} onChange={(event) => updateDesign("showGift", event.target.checked)} /></label>
+              <SettingGroup title="Mừng cưới qua QR" description="Mặc định, bạn chỉ cần tải ảnh QR từ ứng dụng ngân hàng. Tạo VietQR tự động là lựa chọn nâng cao.">
+                <label className="toggle-row"><span><b>Hiển thị phần mừng cưới</b><small>Khách tự kiểm tra người nhận và nhập số tiền trong ứng dụng ngân hàng.</small></span><input type="checkbox" checked={design.showGift} disabled={!canEdit} onChange={(event) => updateDesign("showGift", event.target.checked)} /></label>
                 <label>Tiêu đề<input value={design.giftTitle} disabled={!canEdit} maxLength={120} onChange={(event) => updateDesign("giftTitle", event.target.value)} /></label>
                 <label>Lời nhắn<textarea rows={4} value={design.giftMessage} disabled={!canEdit} maxLength={500} onChange={(event) => updateDesign("giftMessage", event.target.value)} /></label>
               </SettingGroup>
 
-              <Alert tone="info" title="Bảo mật và minh bạch">QR chỉ chứa thông tin chuyển khoản bạn cung cấp. Khách vẫn tự nhập số tiền trong ứng dụng ngân hàng; tính năng này không liên kết với đơn hàng hoặc trạng thái thanh toán của Ngày Đôi.</Alert>
-              {giftBanksUnavailable && <Alert tone="warning" title="Chưa tải được danh sách ngân hàng">Bạn vẫn có thể nhập BIN 6 số và tên ngân hàng thủ công. Thiệp sẽ tự tạo QR khi dữ liệu hợp lệ.</Alert>}
+              <Alert tone="info" title="Cách đơn giản nhất">Mở ứng dụng ngân hàng, tải hoặc chụp QR cá nhân rồi upload. BIN chỉ được yêu cầu khi bạn chọn tạo QR tự động.</Alert>
+              {giftBanksUnavailable && design.giftAccounts.some((account) => account.mode === "VIETQR") && <Alert tone="warning" title="Chưa tải được danh sách ngân hàng">Bạn vẫn có thể nhập BIN 6 số và tên ngân hàng thủ công cho chế độ VietQR.</Alert>}
 
               <div className="gift-editor-list">
                 {design.giftAccounts.map((account, index) => {
                   const ready = giftAccountReady(account);
+                  const uploadingQr = giftQrUploadingId === account.id;
                   return <article className="gift-editor-card" key={account.id}>
-                    <header><div><span>Tài khoản {index + 1}</span><h3>{account.label || "Tài khoản mừng cưới"}</h3></div><button className="gift-editor-remove" type="button" disabled={!canEdit} onClick={() => removeGiftAccount(account.id)} aria-label={`Xóa tài khoản ${index + 1}`}>Xóa</button></header>
+                    <header><div><span>Tài khoản {index + 1}</span><h3>{account.label || "Tài khoản mừng cưới"}</h3></div><button className="gift-editor-remove" type="button" disabled={!canEdit || uploadingQr} onClick={() => removeGiftAccount(account.id)} aria-label={`Xóa tài khoản ${index + 1}`}>Xóa</button></header>
+                    <div className="gift-mode-switch" role="radiogroup" aria-label={`Cách tạo QR cho tài khoản ${index + 1}`}>
+                      <button type="button" role="radio" aria-checked={account.mode === "UPLOAD"} className={account.mode === "UPLOAD" ? "active" : ""} disabled={!canEdit} onClick={() => updateGiftAccount(account.id, { mode: "UPLOAD" })}><span>↑</span><b>Tải QR ngân hàng</b><small>Nhanh nhất, không cần BIN</small></button>
+                      <button type="button" role="radio" aria-checked={account.mode === "VIETQR"} className={account.mode === "VIETQR" ? "active" : ""} disabled={!canEdit} onClick={() => updateGiftAccount(account.id, { mode: "VIETQR" })}><span>QR</span><b>Tạo QR tự động</b><small>Nhập ngân hàng và tài khoản</small></button>
+                    </div>
                     <div className="gift-editor-grid">
                       <label>Hiển thị cho<select value={account.side} disabled={!canEdit} onChange={(event) => updateGiftAccount(account.id, { side: event.target.value as GiftTransferAccount["side"] })}><option value="GROOM">Nhà trai</option><option value="BRIDE">Nhà gái</option><option value="SHARED">Cô dâu & chú rể</option></select></label>
                       <label>Tên thẻ<input value={account.label} disabled={!canEdit} maxLength={80} placeholder="Mừng cưới cô dâu" onChange={(event) => updateGiftAccount(account.id, { label: event.target.value })} /></label>
-                      <label className="gift-editor-wide">Ngân hàng{giftBanksLoading ? <small>Đang tải danh sách...</small> : giftBanks.length > 0 ? <select value={account.bankBin} disabled={!canEdit} onChange={(event) => chooseGiftBank(account.id, event.target.value)}><option value="">Chọn ngân hàng</option>{giftBanks.map((bank) => <option key={bank.bin} value={bank.bin}>{bank.shortName} · {bank.name}</option>)}</select> : <input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Tên ngân hàng" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} />}</label>
-                      <label>BIN ngân hàng<input inputMode="numeric" value={account.bankBin} disabled={!canEdit} maxLength={6} placeholder="970436" onChange={(event) => updateGiftAccount(account.id, { bankBin: event.target.value.replace(/\D/g, "").slice(0, 6) })} /><small>6 số, dùng khi chọn ngân hàng thủ công.</small></label>
-                      <label>Tên ngân hàng<input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Vietcombank" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} /></label>
-                      <label>Số tài khoản<input inputMode="numeric" value={account.accountNumber} disabled={!canEdit} maxLength={19} placeholder="0123456789" onChange={(event) => updateGiftAccount(account.id, { accountNumber: event.target.value.replace(/\D/g, "").slice(0, 19) })} /></label>
-                      <label>Chủ tài khoản<input value={account.accountName} disabled={!canEdit} maxLength={120} placeholder="NGUYEN VAN A" onChange={(event) => updateGiftAccount(account.id, { accountName: event.target.value.toUpperCase() })} /></label>
-                      <label className="gift-editor-wide">Nội dung gợi ý<input value={account.transferNote} disabled={!canEdit} maxLength={25} placeholder="MUNG CUOI MINH ANH" onChange={(event) => updateGiftAccount(account.id, { transferNote: event.target.value.toUpperCase() })} /><small>Tối đa 25 ký tự để QR tương thích tốt với ứng dụng ngân hàng.</small></label>
                     </div>
+
+                    {account.mode === "UPLOAD" ? <div className="gift-upload-panel">
+                      <FileUploadField id={`gift-qr-${account.id}`} label="Ảnh QR từ ứng dụng ngân hàng" accept="image/jpeg,image/png,image/webp" disabled={!canEdit || uploadingQr} helperText="PNG, JPG hoặc WebP · tối đa 4 MB · nên dùng ảnh vuông, rõ nét" selectedSummary={uploadingQr ? "Đang tải ảnh QR…" : account.qrImageUrl ? "Đã có ảnh QR · chọn file khác để thay thế" : undefined} onFilesSelected={(files) => void uploadGiftQr(account.id, files)} />
+                      <div className="gift-editor-grid">
+                        <label>Ngân hàng <small>Không bắt buộc</small><input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Ví dụ: Vietcombank" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} /></label>
+                        <label>Chủ tài khoản <small>Không bắt buộc</small><input value={account.accountName} disabled={!canEdit} maxLength={120} placeholder="NGUYEN VAN A" onChange={(event) => updateGiftAccount(account.id, { accountName: event.target.value.toUpperCase() })} /></label>
+                        <label>Số tài khoản <small>Không bắt buộc</small><input inputMode="numeric" value={account.accountNumber} disabled={!canEdit} maxLength={19} placeholder="Dùng cho nút sao chép" onChange={(event) => updateGiftAccount(account.id, { accountNumber: event.target.value.replace(/\D/g, "").slice(0, 19) })} /></label>
+                        <label>Nội dung gợi ý <small>Không bắt buộc</small><input value={account.transferNote} disabled={!canEdit} maxLength={25} placeholder="MUNG CUOI MINH ANH" onChange={(event) => updateGiftAccount(account.id, { transferNote: event.target.value.toUpperCase() })} /></label>
+                      </div>
+                    </div> : <div className="gift-auto-panel">
+                      <div className="gift-editor-grid">
+                        <label className="gift-editor-wide">Ngân hàng{giftBanksLoading ? <small>Đang tải danh sách...</small> : giftBanks.length > 0 ? <select value={account.bankBin} disabled={!canEdit} onChange={(event) => chooseGiftBank(account.id, event.target.value)}><option value="">Chọn ngân hàng</option>{giftBanks.map((bank) => <option key={bank.bin} value={bank.bin}>{bank.shortName} · {bank.name}</option>)}</select> : <input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Tên ngân hàng" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} />}</label>
+                        <label>BIN ngân hàng<input inputMode="numeric" value={account.bankBin} disabled={!canEdit} maxLength={6} placeholder="970436" onChange={(event) => updateGiftAccount(account.id, { bankBin: event.target.value.replace(/\D/g, "").slice(0, 6) })} /><small>Chỉ cần khi chọn ngân hàng thủ công.</small></label>
+                        <label>Tên ngân hàng<input value={account.bankName} disabled={!canEdit} maxLength={120} placeholder="Vietcombank" onChange={(event) => updateGiftAccount(account.id, { bankName: event.target.value })} /></label>
+                        <label>Số tài khoản<input inputMode="numeric" value={account.accountNumber} disabled={!canEdit} maxLength={19} placeholder="0123456789" onChange={(event) => updateGiftAccount(account.id, { accountNumber: event.target.value.replace(/\D/g, "").slice(0, 19) })} /></label>
+                        <label>Chủ tài khoản<input value={account.accountName} disabled={!canEdit} maxLength={120} placeholder="NGUYEN VAN A" onChange={(event) => updateGiftAccount(account.id, { accountName: event.target.value.toUpperCase() })} /></label>
+                        <label className="gift-editor-wide">Nội dung gợi ý<input value={account.transferNote} disabled={!canEdit} maxLength={25} placeholder="MUNG CUOI MINH ANH" onChange={(event) => updateGiftAccount(account.id, { transferNote: event.target.value.toUpperCase() })} /><small>Tối đa 25 ký tự để tương thích tốt với ứng dụng ngân hàng.</small></label>
+                      </div>
+                    </div>}
+
                     <div className={`gift-editor-preview ${ready ? "ready" : "incomplete"}`}>
-                      {ready ? <><img src={buildVietQrImageUrl(account)} alt={`Xem trước QR ${account.bankName}`} /><div><b>QR đã sẵn sàng</b><span>{account.bankName || account.bankCode} · {account.accountNumber}</span><small>Khách quét QR và tự nhập số tiền.</small></div></> : <><div className="gift-editor-qr-placeholder">QR</div><div><b>Chưa đủ dữ liệu</b><span>Nhập BIN 6 số, số tài khoản và tên chủ tài khoản.</span></div></>}
+                      {ready ? <><img src={giftAccountQrUrl(account)} alt={`Xem trước QR ${account.label}`} /><div><b>QR đã sẵn sàng</b><span>{account.mode === "UPLOAD" ? "Ảnh QR do bạn tải lên" : `${account.bankName || account.bankCode} · ${account.accountNumber}`}</span><small>Khách quét QR và kiểm tra người nhận trước khi chuyển khoản.</small></div></> : <><div className="gift-editor-qr-placeholder">QR</div><div><b>Chưa đủ dữ liệu</b><span>{account.mode === "UPLOAD" ? "Tải ảnh QR từ ứng dụng ngân hàng." : "Chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản."}</span></div></>}
                     </div>
                   </article>;
                 })}
               </div>
 
-              {design.showGift && design.giftAccounts.length > 0 && !design.giftAccounts.some(giftAccountReady) && <Alert tone="warning">Phần mừng cưới đang bật nhưng chưa có tài khoản hợp lệ nên sẽ chưa xuất hiện trên thiệp công khai.</Alert>}
+              {design.showGift && design.giftAccounts.length > 0 && !design.giftAccounts.some(giftAccountReady) && <Alert tone="warning">Phần mừng cưới đang bật nhưng chưa có QR hợp lệ nên sẽ chưa xuất hiện trên thiệp công khai.</Alert>}
               <button className="btn btn-secondary full-width" type="button" disabled={!canEdit || design.giftAccounts.length >= 3} onClick={addGiftAccount}>{design.giftAccounts.length >= 3 ? "Tối đa 3 tài khoản" : "+ Thêm tài khoản nhận lời chúc"}</button>
             </div>}
 

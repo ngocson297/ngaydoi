@@ -106,7 +106,7 @@ export default function TemplateCatalogPage() {
       <nav className="nav catalog-nav">
         <div className="container nav-inner">
           <a className="brand" href="/">Ngày <span>Đôi</span></a>
-          <div className="nav-links"><a href="/">Trang chủ</a><a href="/pricing">Bảng giá</a><a href="/login">Đăng nhập</a><a className="btn btn-primary" href="/register">Tạo thiệp</a></div>
+          <div className="nav-links"><a href="/">Trang chủ</a><a href="/pricing">Bảng giá</a><a href="/login">Đăng nhập</a><a className="btn btn-primary" href="/create">Tạo thiệp</a></div>
         </div>
       </nav>
 
@@ -118,7 +118,7 @@ export default function TemplateCatalogPage() {
             <span className="eyebrow">Template Library · 24 lựa chọn</span>
             <h1>Mỗi câu chuyện tình yêu cần một phong cách riêng.</h1>
             <p>Từ lễ cưới Việt truyền thống đến tiệc biển, garden wedding, Art Deco hay editorial hiện đại. Chọn một mẫu, sau đó tùy chỉnh màu, font, ảnh và nội dung trong Invitation Studio.</p>
-            <div className="catalog-hero-actions"><a className="btn btn-primary" href="/register">Bắt đầu tạo thiệp</a><a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp đang hoạt động</a></div>
+            <div className="catalog-hero-actions"><a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a><a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp đang hoạt động</a></div>
           </div>
           <div className="catalog-stack reveal-scale" data-reveal aria-label="Xem trước nhiều phong cách template">
             {templates.slice(0, 3).map((template, index) => <div className={`catalog-stack-card stack-${index + 1}`} key={template.key}><TemplatePreview template={template} /></div>)}
@@ -140,7 +140,7 @@ export default function TemplateCatalogPage() {
         <div className="catalog-result-head"><div><strong>{filtered.length}</strong><span>template phù hợp</span></div><p>Free 3 · Cơ bản 8 · Tiêu chuẩn 16 · Cao cấp 24</p></div>
 
         {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
-        {loading ? <div className="catalog-template-grid" aria-label="Đang tải thư viện template" aria-busy="true"><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /></div> : !error && filtered.length === 0 ? <EmptyState icon="⌕" title="Không tìm thấy mẫu phù hợp" description="Thử xóa bớt bộ lọc hoặc dùng một từ khóa rộng hơn." primaryAction={{ label: "Xóa bộ lọc", onClick: () => { setQuery(""); setCategory("ALL"); setPlan("ALL"); setOnlyNew(false); setOnlyFavorites(false); } }} secondaryAction={{ label: "Tạo thiệp", href: "/register" }} /> : !error ? <div className="catalog-template-grid">
+        {loading ? <div className="catalog-template-grid" aria-label="Đang tải thư viện template" aria-busy="true"><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /><CardSkeleton lines={4} /></div> : !error && filtered.length === 0 ? <EmptyState icon="⌕" title="Không tìm thấy mẫu phù hợp" description="Thử xóa bớt bộ lọc hoặc dùng một từ khóa rộng hơn." primaryAction={{ label: "Xóa bộ lọc", onClick: () => { setQuery(""); setCategory("ALL"); setPlan("ALL"); setOnlyNew(false); setOnlyFavorites(false); } }} secondaryAction={{ label: "Tạo thiệp", href: "/create" }} /> : !error ? <div className="catalog-template-grid">
           {filtered.map((template) => {
             const favorite = favorites.includes(template.key);
             return <article className="catalog-template-card" key={template.key}>
@@ -150,7 +150,7 @@ export default function TemplateCatalogPage() {
                 <h2>{template.name}</h2>
                 <p>{template.description}</p>
                 <div className="catalog-template-tags">{template.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div>
-                <div className="catalog-template-actions"><a className="btn btn-primary compact" href="/register">Dùng mẫu này</a><button className={`catalog-favorite ${favorite ? "active" : ""}`} type="button" onClick={() => toggleFavorite(template.key)} aria-label={favorite ? "Bỏ khỏi yêu thích" : "Thêm vào yêu thích"}>{favorite ? "♥" : "♡"}</button></div>
+                <div className="catalog-template-actions"><a className="btn btn-primary compact" href={`/create?template=${encodeURIComponent(template.key)}`}>Dùng mẫu này</a><button className={`catalog-favorite ${favorite ? "active" : ""}`} type="button" onClick={() => toggleFavorite(template.key)} aria-label={favorite ? "Bỏ khỏi yêu thích" : "Thêm vào yêu thích"}>{favorite ? "♥" : "♡"}</button></div>
               </div>
               {(template.isNew || template.badge) && <b className="catalog-card-badge">{template.isNew ? "Mới" : template.badge}</b>}
             </article>;
@@ -158,7 +158,7 @@ export default function TemplateCatalogPage() {
         </div> : null}
       </section>
 
-      <section className="catalog-final-cta"><div className="container home-final-card reveal-scale" data-reveal><div><span className="eyebrow">Không bị giới hạn bởi template</span><h2>Chọn mẫu làm điểm bắt đầu, rồi biến thành thiệp của riêng bạn.</h2><p>Invitation Studio cho phép thay bảng màu, font, ảnh, nội dung và thứ tự từng phần. Mọi thay đổi được tự động lưu.</p></div><div className="home-final-actions"><a className="btn btn-primary" href="/register">Tạo thiệp miễn phí</a><a className="btn btn-secondary" href="/pricing">So sánh các gói</a></div></div></section>
+      <section className="catalog-final-cta"><div className="container home-final-card reveal-scale" data-reveal><div><span className="eyebrow">Không bị giới hạn bởi template</span><h2>Chọn mẫu làm điểm bắt đầu, rồi biến thành thiệp của riêng bạn.</h2><p>Invitation Studio cho phép thay bảng màu, font, ảnh, nội dung và thứ tự từng phần. Mọi thay đổi được tự động lưu.</p></div><div className="home-final-actions"><a className="btn btn-primary" href="/create">Tạo thiệp miễn phí</a><a className="btn btn-secondary" href="/pricing">So sánh các gói</a></div></div></section>
     </main>
   );
 }

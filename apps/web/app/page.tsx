@@ -41,7 +41,7 @@ export default function HomePage() {
             <a href="/i/minh-anh">Xem thiệp mẫu</a>
             <a href="/contact">Liên hệ</a>
             <a href="/login">Đăng nhập</a>
-            <a className="btn btn-primary" href="/register">Bắt đầu tạo thiệp</a>
+            <a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a>
           </div>
         </div>
       </nav>
@@ -56,7 +56,7 @@ export default function HomePage() {
             <h1>Một đường link.<br />Trọn vẹn ngày đôi.</h1>
             <p className="hero-copy">Thiệp cưới online tinh tế, cá nhân hóa từng khách và quản lý RSVP trong cùng một nơi — từ lúc gửi lời mời đến khi xếp bàn.</p>
             <div className="hero-actions">
-              <a className="btn btn-primary" href="/register">Tạo thiệp đầu tiên</a>
+              <a className="btn btn-primary" href="/create">Tạo thiệp đầu tiên</a>
               <a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp mẫu →</a>
             </div>
             <div className="hero-proof">
@@ -156,7 +156,7 @@ export default function HomePage() {
                 <strong>{plan.name}</strong>
                 <div className="price">{plan.price}<small> / đám cưới</small></div>
                 <div className="check-list">{plan.items.map((item) => <div key={item}>{item}</div>)}</div>
-                <a className={`btn ${plan.featured ? "btn-primary" : "btn-secondary"}`} href="/register">Bắt đầu với gói này</a>
+                <a className={`btn ${plan.featured ? "btn-primary" : "btn-secondary"}`} href="/create">Bắt đầu với gói này</a>
               </article>
             ))}
           </div>
@@ -166,7 +166,7 @@ export default function HomePage() {
       <section className="home-final-cta">
         <div className="container home-final-card reveal-scale" data-reveal>
           <div><span className="eyebrow">Bắt đầu thật nhẹ nhàng</span><h2>Ngày trọng đại xứng đáng được chuẩn bị bằng một trải nghiệm đẹp.</h2><p>Tạo bản nháp miễn phí, mời người thân cùng chỉnh sửa và hoàn thiện từng bước theo timeline thông minh.</p></div>
-          <div className="home-final-actions"><a className="btn btn-primary" href="/register">Tạo thiệp ngay</a><a className="btn btn-secondary" href="/i/minh-anh">Xem trải nghiệm mẫu</a></div>
+          <div className="home-final-actions"><a className="btn btn-primary" href="/create">Tạo thiệp ngay</a><a className="btn btn-secondary" href="/i/minh-anh">Xem trải nghiệm mẫu</a></div>
         </div>
       </section>
 

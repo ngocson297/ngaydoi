@@ -46,6 +46,12 @@ export class InvitationController {
     return this.invitationService.getMediaFile(mediaId);
   }
 
+  @Get("gift-transfer/media/:assetId")
+  getGiftQr(@Param("assetId") assetId: string) {
+    return this.invitationService.getGiftQrFile(assetId);
+  }
+
+
   @Get("weddings/:id/invitation")
   @UseGuards(JwtAuthGuard)
   getEditor(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
@@ -92,6 +98,33 @@ export class InvitationController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.invitationService.restoreVersion(id, versionId, user);
+  }
+
+  @Post("weddings/:id/gift-qr")
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor("file", {
+    limits: { fileSize: 4 * 1024 * 1024, files: 1 },
+    fileFilter: (_request, file, callback) => {
+      const allowed = ["image/jpeg", "image/png", "image/webp"].includes(file.mimetype);
+      callback(allowed ? null : new BadRequestException("Only JPEG, PNG and WebP QR images are supported"), allowed);
+    },
+  }))
+  uploadGiftQr(
+    @Param("id") id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.invitationService.uploadGiftQr(id, file, user);
+  }
+
+  @Delete("weddings/:id/gift-qr/:assetId")
+  @UseGuards(JwtAuthGuard)
+  deleteGiftQr(
+    @Param("id") id: string,
+    @Param("assetId") assetId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.invitationService.deleteGiftQr(id, assetId, user);
   }
 
   @Post("weddings/:id/media")

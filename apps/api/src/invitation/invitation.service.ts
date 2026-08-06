@@ -120,17 +120,29 @@ export class InvitationService {
     }
     const sectionOrder = this.cleanSectionOrder(dto.sectionOrder);
     const { giftAccounts, ...designPatch } = dto;
-    const normalizedGiftAccounts = giftAccounts?.map((account) => ({
-      id: account.id.trim(),
-      side: account.side,
-      label: account.label.trim(),
-      bankBin: account.bankBin.replace(/\D/g, ""),
-      bankCode: account.bankCode.trim().toUpperCase(),
-      bankName: account.bankName.trim(),
-      accountNumber: account.accountNumber.replace(/\D/g, ""),
-      accountName: account.accountName.trim().toUpperCase(),
-      transferNote: account.transferNote.trim().slice(0, 25),
-    }));
+    const requestedGiftQrIds = [...new Set((giftAccounts ?? []).flatMap((account) => account.mode !== "VIETQR" && account.qrAssetId ? [account.qrAssetId] : []))];
+    const giftQrAssets = requestedGiftQrIds.length
+      ? await this.prisma.giftQrAsset.findMany({ where: { weddingId, id: { in: requestedGiftQrIds } } })
+      : [];
+    const giftQrById = new Map(giftQrAssets.map((asset) => [asset.id, asset]));
+    const normalizedGiftAccounts = giftAccounts?.map((account) => {
+      const mode = account.mode === "UPLOAD" || account.qrAssetId ? "UPLOAD" : "VIETQR";
+      const qrAsset = mode === "UPLOAD" && account.qrAssetId ? giftQrById.get(account.qrAssetId) : undefined;
+      return {
+        id: account.id.trim(),
+        side: account.side,
+        label: account.label.trim(),
+        mode,
+        qrAssetId: qrAsset?.id ?? "",
+        qrImageUrl: qrAsset?.publicUrl ?? "",
+        bankBin: account.bankBin.replace(/\D/g, ""),
+        bankCode: account.bankCode.trim().toUpperCase(),
+        bankName: account.bankName.trim(),
+        accountNumber: account.accountNumber.replace(/\D/g, ""),
+        accountName: account.accountName.trim().toUpperCase(),
+        transferNote: account.transferNote.trim().slice(0, 25),
+      };
+    });
     const updated = await this.prisma.$transaction(async (tx) => {
       const design = await tx.invitationDesign.update({
         where: { weddingId },
@@ -251,6 +263,53 @@ export class InvitationService {
       },
       select: { id: true, versionNumber: true, reason: true, createdAt: true },
     });
+  }
+
+  async uploadGiftQr(weddingId: string, file: Express.Multer.File | undefined, user: AuthenticatedUser) {
+    if (!file) throw new BadRequestException("Choose a QR image to upload");
+    const { access } = await this.getAccess(weddingId, user);
+    this.requireEdit(access);
+    const mimeExtensions: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+    const extension = mimeExtensions[file.mimetype] ?? ".png";
+    const storageKey = `gift-qr/${weddingId}/${randomUUID()}${extension}`;
+    const stored = await this.storage.put(storageKey, file.buffer, file.mimetype);
+    try {
+      const created = await this.prisma.giftQrAsset.create({
+        data: { weddingId, storageKey, publicUrl: stored.publicUrl, mimeType: file.mimetype, sizeBytes: file.size },
+      });
+      const publicUrl = stored.publicUrl || `/gift-transfer/media/${created.id}`;
+      const asset = stored.publicUrl ? created : await this.prisma.giftQrAsset.update({ where: { id: created.id }, data: { publicUrl } });
+      await this.writeAudit(user.id, "GIFT_QR_UPLOADED", { weddingId, giftQrAssetId: asset.id, sizeBytes: file.size });
+      return { id: asset.id, publicUrl: asset.publicUrl, mimeType: asset.mimeType, sizeBytes: asset.sizeBytes };
+    } catch (error) {
+      await this.storage.delete(storageKey).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async deleteGiftQr(weddingId: string, assetId: string, user: AuthenticatedUser) {
+    const { access } = await this.getAccess(weddingId, user);
+    this.requireEdit(access);
+    const asset = await this.prisma.giftQrAsset.findFirst({ where: { id: assetId, weddingId } });
+    if (!asset) throw new NotFoundException("Gift QR image not found");
+    await this.prisma.giftQrAsset.delete({ where: { id: asset.id } });
+    await this.storage.delete(asset.storageKey).catch(() => undefined);
+    await this.writeAudit(user.id, "GIFT_QR_DELETED", { weddingId, giftQrAssetId: asset.id });
+    return { success: true };
+  }
+
+  async getGiftQrFile(assetId: string): Promise<StreamableFile> {
+    const asset = await this.prisma.giftQrAsset.findUnique({ where: { id: assetId } });
+    if (!asset) throw new NotFoundException("Gift QR image not found");
+    try {
+      const buffer = await this.storage.read(asset.storageKey);
+      return new StreamableFile(buffer, {
+        type: asset.mimeType,
+        disposition: `inline; filename="gift-qr${extname(asset.storageKey)}"`,
+      });
+    } catch {
+      throw new NotFoundException("Gift QR image file not found");
+    }
   }
 
   async uploadMedia(weddingId: string, file: Express.Multer.File | undefined, dto: UploadMediaDto, user: AuthenticatedUser) {

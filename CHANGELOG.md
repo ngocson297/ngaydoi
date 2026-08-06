@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.15.8 — Sprint 15.9 Guest-first Creation & UX Refinement
+
+- Added a public `/create` flow so visitors can choose a template and start composing an invitation before registering.
+- Added local draft persistence and a safe post-registration import flow with duplicate-wedding protection.
+- Preserved `next` through login, registration and email verification so users return to their draft automatically.
+- Added uploaded bank QR images as the default gift-transfer mode while keeping automatic VietQR generation as an advanced option.
+- Added wedding-scoped QR asset storage, public streaming, safe deletion after autosave and an additive Prisma migration.
+- Added fixed-position toast feedback for copied guest, collaborator and album links.
+- Standardized native select triggers with consistent chevrons, focus/hover states and pointer cursors.
+- Fixed Invitation Studio header overlap inside authenticated layouts.
+- Replaced the persistent guest “check” action with a clear “Đã gửi?” action and a confirmed “Đã gửi” status.
+- Retained the focused one-open sidebar accordion: the active group opens automatically and other groups remain collapsed.
+- Added `npm run guest-first-ux:audit` to the quality gate.
+
 ## v0.15.7 — Sprint 15.8 Invitation Experience & Gift Transfer QR
 
 - Chia 24 template thành 6 họ layout thực sự khác nhau: portrait, split, editorial, arch, photo story và minimal.
