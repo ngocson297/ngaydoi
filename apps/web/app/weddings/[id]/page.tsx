@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "../../../components/app-shell";
 import { AuthGate } from "../../../components/auth-gate";
 import { useAuth } from "../../../components/auth-provider";
-import { Alert, Button, ConfirmDialog, DetailPageSkeleton, ErrorState, FormActions, useUnsavedChangesGuard } from "../../../components/ui";
+import { Alert, Button, ConfirmDialog, DetailPageSkeleton, ErrorState, FormActions, Tabs, tabPanelProps, useUnsavedChangesGuard } from "../../../components/ui";
 import { ApiError, toUiError, type UiError } from "../../../lib/api";
 import {
   formatDate,
@@ -281,7 +281,7 @@ function WorkspaceContent() {
           <p>{wedding.title} · {formatDate(wedding.mainDate)} · Quyền: {wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Chỉnh sửa" : "Chỉ xem"}</p>
         </div>
         <div className="dash-actions">
-          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary" href={`/i/${wedding.slug}`} target="_blank">Xem thiệp ↗</a>}
+          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary" href={`/i/${wedding.slug}`} target="_blank" rel="noreferrer">Xem thiệp ↗</a>}
           <div className="workspace-primary-actions">{isOwner && <a className="btn btn-secondary" href={`/pricing?weddingId=${weddingId}`}>{wedding.activePlan ? "Nâng cấp gói" : "Chọn gói"}</a>}<a className="btn btn-secondary" href={`/weddings/${weddingId}/planning`}>Kế hoạch cưới</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/guests`}>Khách & RSVP</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/event-operations`}>Phân bàn & check-in</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/memories`}>Album kỷ niệm</a><a className="btn btn-primary" href={`/weddings/${weddingId}/invitation`}>{canEdit ? "Thiết kế thiệp" : "Xem thiết kế"} →</a></div>
         </div>
       </div>
@@ -290,16 +290,23 @@ function WorkspaceContent() {
       {error && <Alert tone="error">{error}</Alert>}
       {success && <Alert tone="success">{success}</Alert>}
 
-      <nav className="workspace-tabs">
-        {(["overview", "details", "events", "team", "lifecycle"] as WorkspaceTab[]).map((key) => (
-          <button className={tab === key ? "active" : ""} key={key} onClick={() => guard.requestAction(() => { setDetails(detailsBaseline); setEventDraft(eventBaseline); setTab(key); })}>
-            {{ overview: "Tổng quan", details: "Cặp đôi & gia đình", events: `Sự kiện (${wedding.events.length})`, team: "Cộng tác", lifecycle: "Trạng thái" }[key]}
-          </button>
-        ))}
-      </nav>
+      <Tabs<WorkspaceTab>
+        id="workspace-tabs"
+        label="Khu vực quản lý wedding"
+        className="workspace-tabs"
+        value={tab}
+        onChange={(key) => guard.requestAction(() => { setDetails(detailsBaseline); setEventDraft(eventBaseline); setTab(key); })}
+        items={[
+          { value: "overview", label: "Tổng quan" },
+          { value: "details", label: "Cặp đôi & gia đình" },
+          { value: "events", label: `Sự kiện (${wedding.events.length})` },
+          { value: "team", label: "Cộng tác" },
+          { value: "lifecycle", label: "Trạng thái" },
+        ]}
+      />
 
       {tab === "overview" && (
-        <div className="workspace-layout">
+        <div className="workspace-layout" {...tabPanelProps("workspace-tabs", "overview")}>
           <section className="panel">
             <div className="panel-head"><div><h2>Tiến độ thiết lập</h2><p className="muted-small">Hoàn thành các mục bắt buộc trước khi gửi duyệt.</p></div><strong>{wedding.checklist.completed}/{wedding.checklist.required}</strong></div>
             <div className="checklist-list">
@@ -317,7 +324,7 @@ function WorkspaceContent() {
       )}
 
       {tab === "details" && (
-        <form className="panel workspace-form" onSubmit={(event) => void saveDetails(event)}>
+        <form className="panel workspace-form" {...tabPanelProps("workspace-tabs", "details")} onSubmit={(event) => void saveDetails(event)}>
           <div className="panel-head"><div><h2>Thông tin cặp đôi và gia đình</h2><p className="muted-small">Các trường bỏ trống sẽ không hiển thị trên thiệp.</p></div>{!canEdit && <span className="access-chip">Chỉ xem</span>}</div>
           <div className="form-section"><h3>Thông tin cơ bản</h3><div className="form-grid two">
             <label>Tên workspace<input disabled={!canEdit} value={details.title} onChange={(e) => setDetails({ ...details, title: e.target.value })} /></label>
@@ -335,7 +342,7 @@ function WorkspaceContent() {
       )}
 
       {tab === "events" && (
-        <div className="workspace-layout events-layout">
+        <div className="workspace-layout events-layout" {...tabPanelProps("workspace-tabs", "events")}>
           <section className="event-list">
             {wedding.events.length === 0 ? <div className="empty-panel"><div className="empty-icon">◷</div><h3>Chưa có sự kiện</h3><p>Thêm lễ gia tiên, lễ thành hôn hoặc tiệc cưới.</p></div> : wedding.events.map((item) => <article className="event-manage-card" key={item.id}><div className="event-index">{String(item.sortOrder + 1).padStart(2, "0")}</div><div><div className="event-tags"><span>{sideLabels[item.side]}</span><span>{eventTypeLabels[item.type]}</span></div><h3>{item.title}</h3><p><strong>{formatDate(item.startsAt, true)}</strong><br />{item.venueName}<br />{item.address}</p>{item.dressCode && <small>Dress code: {item.dressCode}</small>}</div>{canEdit && <div className="row-actions"><button onClick={() => beginEditEvent(item)}>Sửa</button><button className="danger-link" disabled={busy} onClick={() => setDeleteEventTarget(item.id)}>Xóa</button></div>}</article>)}
           </section>
@@ -356,14 +363,14 @@ function WorkspaceContent() {
       )}
 
       {tab === "team" && (
-        <div className="workspace-layout">
+        <div className="workspace-layout" {...tabPanelProps("workspace-tabs", "team")}>
           <section className="panel"><div className="panel-head"><div><h2>Cộng tác viên</h2><p className="muted-small">Người được mời chỉ truy cập được wedding này.</p></div></div>{wedding.collaborators.length === 0 ? <p className="muted-small">Chưa có lời mời nào.</p> : <div className="collaborator-list">{wedding.collaborators.map((item) => <div className="collaborator-row" key={item.id}><div className="avatar-circle">{item.email.charAt(0).toUpperCase()}</div><div><strong>{item.user?.displayName ?? item.email}</strong><p>{item.email} · {item.permission === "EDIT" ? "Có thể chỉnh sửa" : "Chỉ xem"}</p><span className={`mini-status ${item.status.toLowerCase()}`}>{item.status}</span></div>{isOwner && <div className="row-actions">{item.status === "PENDING" && <button onClick={() => void copyInvite(item.token)}>Sao chép link mời</button>}{item.status !== "REVOKED" && <button className="danger-link" onClick={() => setRevokeTarget(item)}>Thu hồi</button>}</div>}</div>)}</div>}</section>
           {isOwner && <form className="panel compact-form" onSubmit={(event) => void inviteCollaborator(event)}><h2>Mời người thân</h2><p className="muted-small">Trong môi trường local, hãy sao chép link sau khi tạo lời mời và gửi thủ công.</p><label>Email<input required type="email" value={collaborator.email} onChange={(e) => setCollaborator({ ...collaborator, email: e.target.value })} placeholder="family@example.com" /></label><label>Quyền<select value={collaborator.permission} onChange={(e) => setCollaborator({ ...collaborator, permission: e.target.value as "VIEW" | "EDIT" })}><option value="EDIT">Có thể chỉnh sửa</option><option value="VIEW">Chỉ xem</option></select></label><button className="btn btn-primary full-button" disabled={busy} type="submit">Tạo lời mời</button></form>}
         </div>
       )}
 
       {tab === "lifecycle" && (
-        <div className="workspace-layout">
+        <div className="workspace-layout" {...tabPanelProps("workspace-tabs", "lifecycle")}>
           <section className="panel"><div className="panel-head"><div><h2>Vòng đời wedding</h2><p className="muted-small">Xuất bản được kiểm soát theo gói và trạng thái thanh toán.</p></div><span className={`status-pill ${statusClasses[wedding.status]}`}>{statusLabels[wedding.status]}</span></div><div className="publish-plan-banner"><div><span>Gói hiện tại</span><strong>{wedding.activePlan?.name ?? "Khởi đầu"}</strong><small>{wedding.activePlan?.requiresPublishReview ? "Cần nhân viên duyệt trước khi public" : wedding.activePlan ? "Có thể tự động xuất bản khi đủ thông tin" : "Cần mua gói để xuất bản"}</small></div><a href={`/pricing?weddingId=${weddingId}`}>{wedding.activePlan ? "Nâng cấp gói" : "Chọn gói"}</a></div><div className="lifecycle-track">{["DRAFT", "READY_FOR_REVIEW", "PUBLISHED", "EXPIRED", "ARCHIVED"].map((status) => <div className={wedding.status === status ? "active" : ""} key={status}><span />{statusLabels[status as WeddingStatus]}</div>)}</div>{isOwner ? <><div className="publish-review-state"><span>Trạng thái kiểm duyệt</span><strong>{wedding.publishReviewStatus}</strong>{wedding.publishReviewStatus === "CHANGES_REQUESTED" && <small>Hãy chỉnh sửa thiệp rồi gửi yêu cầu lại.</small>}</div><div className="lifecycle-actions">{["DRAFT", "READY_FOR_REVIEW", "SUSPENDED"].includes(wedding.status) && <button className="btn btn-primary" disabled={busy || !wedding.checklist.readyToReview} onClick={() => void requestPublish()}>{wedding.publishReviewStatus === "REQUESTED" || wedding.publishReviewStatus === "IN_REVIEW" ? "Đang chờ duyệt" : wedding.status === "SUSPENDED" ? "Yêu cầu mở lại" : "Gửi yêu cầu xuất bản"}</button>}{lifecycleOptions.map((option) => <button className={`btn ${option.kind === "secondary" ? "btn-secondary" : "btn-primary"}`} disabled={busy} key={option.status} onClick={() => void changeLifecycle(option.status)}>{option.label}</button>)}</div></> : <div className="alert">Bạn không phải chủ sở hữu nên không thể đổi trạng thái.</div>}</section>
           {isOwner && <form className="panel compact-form" onSubmit={(event) => void duplicateWedding(event)}><h2>Nhân bản để thử nghiệm</h2><p className="muted-small">Sao chép hồ sơ gia đình và sự kiện; không sao chép khách mời.</p><label>Tên bản sao<input value={duplicate.title} onChange={(e) => setDuplicate({ ...duplicate, title: e.target.value })} /></label><label>Slug mới<input value={duplicate.slug} onChange={(e) => setDuplicate({ ...duplicate, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></label><button className="btn btn-secondary full-button" disabled={busy} type="submit">Tạo bản sao</button></form>}
         </div>

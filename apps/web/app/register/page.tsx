@@ -29,7 +29,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="auth-shell">
+    <main id="main-content" tabIndex={-1} className="auth-shell">
       <section className="auth-card">
         <a className="brand auth-brand" href="/">Ngày <span>Đôi</span></a>
         <div className="eyebrow">Bắt đầu ngày đôi</div>

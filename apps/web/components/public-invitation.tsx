@@ -55,6 +55,13 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
   function toggleEvent(eventId: string): void {
     setSelectedEventIds((current) => current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId]);
   }
+  const rsvpStatuses: RsvpStatus[] = ["ATTENDING", "MAYBE", "DECLINED"];
+  function moveStatus(current: RsvpStatus, direction: 1 | -1): void {
+    const index = rsvpStatuses.indexOf(current);
+    const next = rsvpStatuses[(index + direction + rsvpStatuses.length) % rsvpStatuses.length];
+    setStatus(next);
+    window.requestAnimationFrame(() => document.getElementById(`rsvp-status-${next}`)?.focus());
+  }
 
   async function submit(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -94,8 +101,23 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
             ["MAYBE", "Chưa chắc", "Mình sẽ xác nhận sau"],
             ["DECLINED", "Không thể dự", "Gửi lời chúc từ xa"],
           ] as const).map(([value, label, hint]) => (
-            <button className={status === value ? "active" : ""} type="button" key={value} onClick={() => setStatus(value)}>
-              <span>{value === "ATTENDING" ? "✓" : value === "MAYBE" ? "?" : "×"}</span><strong>{label}</strong><small>{hint}</small>
+            <button
+              id={`rsvp-status-${value}`}
+              className={status === value ? "active" : ""}
+              type="button"
+              role="radio"
+              aria-checked={status === value}
+              tabIndex={status === value ? 0 : -1}
+              key={value}
+              onClick={() => setStatus(value)}
+              onKeyDown={(event) => {
+                if (["ArrowRight", "ArrowDown"].includes(event.key)) { event.preventDefault(); moveStatus(value, 1); }
+                else if (["ArrowLeft", "ArrowUp"].includes(event.key)) { event.preventDefault(); moveStatus(value, -1); }
+                else if (event.key === "Home") { event.preventDefault(); setStatus("ATTENDING"); window.requestAnimationFrame(() => document.getElementById("rsvp-status-ATTENDING")?.focus()); }
+                else if (event.key === "End") { event.preventDefault(); setStatus("DECLINED"); window.requestAnimationFrame(() => document.getElementById("rsvp-status-DECLINED")?.focus()); }
+              }}
+            >
+              <span aria-hidden="true">{value === "ATTENDING" ? "✓" : value === "MAYBE" ? "?" : "×"}</span><strong>{label}</strong><small>{hint}</small>
             </button>
           ))}
         </div>
@@ -113,10 +135,10 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
         )}
 
         <label className="inv5-message">Lời nhắn dành cho cô dâu chú rể<textarea rows={4} maxLength={1000} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Gửi một lời chúc thật ấm áp..." /></label>
-        {error && <div className="inv5-form-message error">{error}</div>}
-        {notice && <div className="inv5-form-message success">✓ {notice}</div>}
-        {missingAttendee && <div className="inv5-form-message error">Vui lòng chọn ít nhất một người tham dự.</div>}
-        {missingEvent && <div className="inv5-form-message error">Vui lòng chọn ít nhất một chương trình sẽ tham dự.</div>}
+        {error && <div className="inv5-form-message error" role="alert">{error}</div>}
+        {notice && <div className="inv5-form-message success" role="status"><span aria-hidden="true">✓</span> {notice}</div>}
+        {missingAttendee && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một người tham dự.</div>}
+        {missingEvent && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một chương trình sẽ tham dự.</div>}
         <button className="inv5-submit" type="submit" disabled={busy || missingAttendee || missingEvent}>{busy ? "Đang gửi phản hồi..." : hasResponded ? "Cập nhật phản hồi" : "Gửi xác nhận"}</button>
         <small className="inv5-privacy-note">Thông tin phản hồi chỉ được chia sẻ với chủ nhân thiệp.</small>
       </form>
@@ -227,11 +249,13 @@ export function PublicInvitation({ data, preview = false, embedded = false }: Pu
     footer: design.showFooter ? <footer className="inv4-footer"><div className="inv4-ornament small">ND</div><h2>{wedding.groomName} <span>&</span> {wedding.brideName}</h2><p>{design.footerMessage}</p><div className="inv4-footer-actions"><button type="button" onClick={shareInvitation}>{copied ? "Đã sao chép liên kết" : "Chia sẻ ngày vui"}</button>{wedding.memoryAlbum?.publicEnabled && <a href={`/memories/${wedding.memoryAlbum.token}${wedding.personalization ? `?guest=${encodeURIComponent(wedding.personalization.token)}` : ""}`}>Góp ảnh vào album</a>}</div></footer> : null,
   }), [copied, coverUrl, day, design, gallery, greeting, month, preview, wedding, year]);
 
+  const Root = embedded ? "div" : "main";
+
   return (
-    <main className={`inv4 invitation-template-${design.templateKey} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""}`} style={style}>
+    <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""}`} style={style}>
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
-      {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label="Bật hoặc tắt nhạc">{musicPlaying ? "Ⅱ" : "♪"}</button></>}
+      {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}
       {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{sections[key]}</div>)}
-    </main>
+    </Root>
   );
 }

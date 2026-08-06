@@ -220,7 +220,7 @@ function PlanningContent() {
     {success ? <Alert tone="success">{success}</Alert> : null}
 
     <section className="planning-metrics" aria-label="Tiến độ kế hoạch">
-      <article className="planning-progress-card"><div className="planning-progress-ring" style={{ "--progress": `${data.metrics.progress * 3.6}deg` } as CSSProperties}><strong>{data.metrics.progress}%</strong><span>hoàn thành</span></div><div><span>Tiến độ tổng thể</span><strong>{data.metrics.done}/{Math.max(0, data.metrics.total)}</strong><p>Mỗi việc nhỏ được hoàn thành sẽ giúp ngày cưới nhẹ nhàng hơn.</p></div></article>
+      <article className="planning-progress-card"><div className="planning-progress-ring" role="progressbar" aria-label="Tiến độ kế hoạch cưới" aria-valuemin={0} aria-valuemax={100} aria-valuenow={data.metrics.progress} style={{ "--progress": `${data.metrics.progress * 3.6}deg` } as CSSProperties}><strong>{data.metrics.progress}%</strong><span>hoàn thành</span></div><div><span>Tiến độ tổng thể</span><strong>{data.metrics.done}/{Math.max(0, data.metrics.total)}</strong><p>Mỗi việc nhỏ được hoàn thành sẽ giúp ngày cưới nhẹ nhàng hơn.</p></div></article>
       <article><span>Đang thực hiện</span><strong>{data.metrics.active}</strong><small>công việc còn lại</small></article>
       <article className={data.metrics.overdue ? "attention" : ""}><span>Quá hạn</span><strong>{data.metrics.overdue}</strong><small>{data.metrics.overdue ? "cần ưu tiên xử lý" : "mọi việc đúng tiến độ"}</small></article>
       <article><span>14 ngày tới</span><strong>{data.metrics.dueSoon}</strong><small>công việc sắp đến hạn</small></article>
@@ -230,12 +230,12 @@ function PlanningContent() {
       <section className="planning-board panel">
         <div className="planning-toolbar">
           <div><h2>Danh sách công việc</h2><p className="muted-small">Lọc nhanh theo hạn, nhóm việc hoặc người phụ trách.</p></div>
-          <div className="planning-filter-tabs" role="tablist" aria-label="Lọc kế hoạch">
-            {([ ["ALL", "Tất cả"], ["OVERDUE", "Quá hạn"], ["UPCOMING", "Sắp đến hạn"], ["DONE", "Hoàn tất"] ] as Array<[Filter, string]>).map(([value, label]) => <button type="button" className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{label}</button>)}
+          <div className="planning-filter-tabs" role="group" aria-label="Lọc kế hoạch">
+            {([ ["ALL", "Tất cả"], ["OVERDUE", "Quá hạn"], ["UPCOMING", "Sắp đến hạn"], ["DONE", "Hoàn tất"] ] as Array<[Filter, string]>).map(([value, label]) => <button type="button" aria-pressed={filter === value} className={filter === value ? "active" : ""} onClick={() => setFilter(value)} key={value}>{label}</button>)}
           </div>
         </div>
         <div className="planning-search-row">
-          <label className="search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm công việc hoặc người phụ trách..." aria-label="Tìm công việc" /></label>
+          <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm công việc hoặc người phụ trách..." aria-label="Tìm công việc" /></label>
           <select value={category} onChange={(event) => setCategory(event.target.value as PlanningTaskCategory | "ALL")} aria-label="Lọc nhóm công việc"><option value="ALL">Tất cả nhóm việc</option>{data.categories.map((item) => <option key={item} value={item}>{categoryLabels[item]}</option>)}</select>
         </div>
 

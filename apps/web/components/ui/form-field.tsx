@@ -5,6 +5,7 @@ interface FieldControlProps {
   id?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;
+  "aria-errormessage"?: string;
   "aria-required"?: boolean;
   className?: string;
 }
@@ -44,19 +45,20 @@ export function FormField({
     <div className={cn("ui-field", error && "ui-field-error", successText && !error && "ui-field-success", className)}>
       <label className="ui-field-label" htmlFor={id}>
         <span>{label}</span>
-        {required ? <span className="ui-field-required" aria-label="Bắt buộc">*</span> : <span className="ui-field-optional">{optionalLabel}</span>}
+        {required ? <><span className="ui-field-required" aria-hidden="true">*</span><span className="sr-only">Bắt buộc</span></> : <span className="ui-field-optional">{optionalLabel}</span>}
       </label>
       {cloneElement(children, {
         id,
         className: cn("ui-control", children.props.className),
         "aria-describedby": describedBy,
         "aria-invalid": Boolean(error) || undefined,
+        "aria-errormessage": errorId,
         "aria-required": required || undefined,
       })}
       {helperText ? <p className="ui-field-help" id={helpId}>{helperText}</p> : null}
-      {disabledReason ? <p className="ui-field-disabled-reason" id={disabledId}>🔒 {disabledReason}</p> : null}
-      {error ? <p className="ui-field-message ui-field-message-error" id={errorId} role="alert">⚠ {error}</p> : null}
-      {successText && !error ? <p className="ui-field-message ui-field-message-success" id={successId}>✓ {successText}</p> : null}
+      {disabledReason ? <p className="ui-field-disabled-reason" id={disabledId}><span aria-hidden="true">🔒</span> {disabledReason}</p> : null}
+      {error ? <p className="ui-field-message ui-field-message-error" id={errorId} role="alert"><span aria-hidden="true">⚠</span> {error}</p> : null}
+      {successText && !error ? <p className="ui-field-message ui-field-message-success" id={successId}><span aria-hidden="true">✓</span> {successText}</p> : null}
     </div>
   );
 }

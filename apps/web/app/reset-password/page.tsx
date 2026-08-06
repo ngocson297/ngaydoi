@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
     }
   }
 
-  return <main className="auth-shell"><section className="auth-card">
+  return <main id="main-content" tabIndex={-1} className="auth-shell"><section className="auth-card">
     <a className="brand auth-brand" href="/">Ngày <span>Đôi</span></a>
     <div className="eyebrow">Bảo mật tài khoản</div><h1>Đặt mật khẩu mới</h1>
     <p className="auth-lead">Chọn mật khẩu mới đủ mạnh và khác mật khẩu bạn đã dùng trước đây.</p>

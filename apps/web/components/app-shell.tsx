@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useAuth } from "./auth-provider";
 import {
   activeGroupId,
@@ -150,6 +150,10 @@ function CommandPalette({
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const id = useId();
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
+  const resultsId = `${id}-results`;
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -205,6 +209,12 @@ function CommandPalette({
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActiveIndex((current) => (current - 1 + filtered.length) % filtered.length);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setActiveIndex(filtered.length - 1);
     } else if (event.key === "Enter") {
       event.preventDefault();
       navigate(filtered[Math.min(activeIndex, filtered.length - 1)]);
@@ -213,11 +223,12 @@ function CommandPalette({
 
   return (
     <div className="command-palette-backdrop" role="presentation" onMouseDown={(event: ReactMouseEvent<HTMLDivElement>) => { if (event.currentTarget === event.target) onClose(); }}>
-      <div className="command-palette" role="dialog" aria-modal="true" aria-labelledby="command-palette-title" ref={dialogRef}>
+      <div className="command-palette" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} ref={dialogRef}>
         <header>
           <div>
             <p className="eyebrow">ĐIỀU HƯỚNG NHANH</p>
-            <h2 id="command-palette-title">Bạn muốn mở phần nào?</h2>
+            <h2 id={titleId}>Bạn muốn mở phần nào?</h2>
+            <p className="sr-only" id={descriptionId}>Nhập từ khóa rồi dùng phím mũi tên để chọn kết quả. Nhấn Enter để mở hoặc Escape để đóng.</p>
           </div>
           <button type="button" aria-label="Đóng tìm kiếm menu" onClick={onClose}>×</button>
         </header>
@@ -233,20 +244,22 @@ function CommandPalette({
             aria-expanded="true"
             aria-autocomplete="list"
             aria-label="Tìm trong menu"
-            aria-controls="command-results"
-            aria-activedescendant={filtered.length ? `command-result-${activeIndex}` : undefined}
+            aria-controls={resultsId}
+            aria-activedescendant={filtered.length ? `${id}-result-${activeIndex}` : undefined}
             autoComplete="off"
           />
           <kbd>ESC</kbd>
         </label>
-        <div className="command-results" id="command-results" role="listbox" aria-label="Kết quả điều hướng">
+        <p className="sr-only" aria-live="polite">{filtered.length} kết quả điều hướng.</p>
+        <div className="command-results" id={resultsId} role="listbox" aria-label="Kết quả điều hướng">
           {filtered.length ? filtered.map((entry, index) => (
             <button
               type="button"
               role="option"
               aria-selected={index === activeIndex}
               className={index === activeIndex ? "active" : ""}
-              id={`command-result-${index}`}
+              id={`${id}-result-${index}`}
+              tabIndex={-1}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => navigate(entry)}
               key={`${entry.groupLabel}-${entry.key}`}
@@ -357,7 +370,7 @@ export function AppShell({ children, active = "weddings", weddingId, breadcrumbs
   }
 
   return (
-    <main className="dashboard app-shell">
+    <div className="dashboard app-shell">
       <header className="mobile-appbar app-mobile-bar">
         <a className="brand" href="/dashboard">Ngày <span>Đôi</span></a>
         <span className="app-mobile-title">{activeLabel(active)}</span>
@@ -376,11 +389,13 @@ export function AppShell({ children, active = "weddings", weddingId, breadcrumbs
 
       {menuOpen ? (
         <>
-          <button className="app-drawer-backdrop" aria-label="Đóng menu" onClick={() => setMenuOpen(false)} />
+          <div className="app-drawer-backdrop" role="presentation" onMouseDown={() => setMenuOpen(false)} />
           <aside
             className="app-mobile-drawer"
             id="mobile-navigation-drawer"
-            aria-label="Điều hướng chính"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu điều hướng"
             ref={drawerRef}
           >
             <header>
@@ -428,13 +443,13 @@ export function AppShell({ children, active = "weddings", weddingId, breadcrumbs
           </nav>
           <button className="side-logout app-sidebar-logout" type="button" onClick={() => void logout()}>Đăng xuất</button>
         </aside>
-        <section className="dash-main app-main-content">
+        <main className="dash-main app-main-content" id="main-content" tabIndex={-1}>
           <Breadcrumbs items={breadcrumbItems} />
           {children}
-        </section>
+        </main>
       </div>
 
       <CommandPalette open={commandOpen} groups={groups} onClose={() => setCommandOpen(false)} />
-    </main>
+    </div>
   );
 }

@@ -21,9 +21,9 @@ export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; column
 }
 
 export function DetailPageSkeleton() {
-  return <main className="ui-detail-skeleton" aria-label="Đang tải chi tiết" aria-busy="true"><div className="ui-detail-skeleton-head"><span><Skeleton width={110} height={12} /><Skeleton width="min(520px, 84vw)" height={38} /><Skeleton width={260} height={14} /></span><CardSkeleton lines={2} /></div><div className="ui-detail-skeleton-grid"><CardSkeleton lines={5} /><CardSkeleton lines={4} /></div><span className="sr-only">Đang tải chi tiết…</span></main>;
+  return <div className="ui-detail-skeleton" role="status" aria-label="Đang tải chi tiết" aria-busy="true"><div className="ui-detail-skeleton-head"><span><Skeleton width={110} height={12} /><Skeleton width="min(520px, 84vw)" height={38} /><Skeleton width={260} height={14} /></span><CardSkeleton lines={2} /></div><div className="ui-detail-skeleton-grid"><CardSkeleton lines={5} /><CardSkeleton lines={4} /></div><span className="sr-only">Đang tải chi tiết…</span></div>;
 }
 
 export function PageSkeleton({ cards = 3 }: { cards?: number }) {
-  return <main className="ui-page-skeleton" aria-label="Đang tải nội dung" aria-busy="true"><div><Skeleton className="ui-skeleton-kicker" /><Skeleton className="ui-skeleton-heading" /><Skeleton className="ui-skeleton-copy" /></div><MetricSkeleton /><div className="ui-skeleton-grid">{Array.from({ length: cards }, (_, index) => <CardSkeleton key={index} />)}</div><span className="sr-only">Đang tải nội dung…</span></main>;
+  return <div className="ui-page-skeleton" role="status" aria-label="Đang tải nội dung" aria-busy="true"><div><Skeleton className="ui-skeleton-kicker" /><Skeleton className="ui-skeleton-heading" /><Skeleton className="ui-skeleton-copy" /></div><MetricSkeleton /><div className="ui-skeleton-grid">{Array.from({ length: cards }, (_, index) => <CardSkeleton key={index} />)}</div><span className="sr-only">Đang tải nội dung…</span></div>;
 }

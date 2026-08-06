@@ -1,15 +1,15 @@
-# Ngày Đôi v0.15.3
+# Ngày Đôi v0.15.4
 
-Current milestone: **Phase 15 — Sprint 15.4 Loading, Empty, Error & Retry States**.
+Current milestone: **Phase 15 — Sprint 15.5 Accessibility & Inclusive UX Audit**.
 
-## Điểm mới trong Sprint 15.4
+## Điểm mới trong Sprint 15.5
 
-- Skeleton loading theo đúng bố cục thay cho spinner toàn trang ở các luồng chính.
-- Empty state có hướng dẫn và CTA tiếp theo.
-- Error state có retry, mã hỗ trợ và đường quay lại an toàn.
-- Lỗi API nội bộ được làm sạch trước khi hiển thị cho người dùng.
-- Permission state thống nhất cho Admin/Partner.
-- Route-level loading cho các khu vực quan trọng.
+- Skip link, main landmark và thông báo chuyển trang cho screen reader.
+- Tab chuẩn dùng được bằng Arrow, Home, End và bàn phím.
+- Dialog, mobile drawer và command palette giữ focus, đóng bằng Escape và trả focus đúng.
+- RSVP, progress bar, icon button, checkbox, camera/video có semantic và nhãn hỗ trợ.
+- Focus contrast, touch target, forced-colors và `prefers-reduced-motion` được chuẩn hóa.
+- Có lệnh `npm run a11y:audit` để kiểm tra accessibility tĩnh trước khi build.
 
 ## Chạy local
 
@@ -24,6 +24,13 @@ Terminal khác:
 npm run dev:web
 ```
 
+## Kiểm tra accessibility
+
+```bash
+npm run a11y:audit
+npm run build
+```
+
 ## Đóng gói source cho sprint tiếp theo
 
 ```bash
@@ -32,4 +39,4 @@ npm run source:pack
 
 File tạo tại `~/Downloads/ngaydoi-current.zip`.
 
-Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_4_RUN_GUIDE.md`.
+Xem `docs/DESIGN_SYSTEM.md` và `docs/SPRINT_15_5_RUN_GUIDE.md`.

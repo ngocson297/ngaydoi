@@ -29,7 +29,7 @@ const plans = [
 
 export default function HomePage() {
   return (
-    <main className="home-page">
+    <main id="main-content" tabIndex={-1} className="home-page">
       <HomeMotion />
       <nav className="nav">
         <div className="container nav-inner">

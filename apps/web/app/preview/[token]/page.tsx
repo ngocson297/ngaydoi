@@ -26,7 +26,7 @@ export default function SecurePreviewPage() {
   }, [token]);
 
   useEffect(() => { void load(); }, [load]);
-  if (loading) return <main className="friendly-error"><PageSkeleton cards={2} /></main>;
-  if (error || !wedding) return <main className="friendly-error"><ErrorState title="Liên kết xem trước không còn hiệu lực" description={error?.message ?? "Bản xem trước không còn khả dụng."} requestId={error?.requestId} onRetry={() => void load()} homeHref="/dashboard" /></main>;
+  if (loading) return <main id="main-content" tabIndex={-1} className="friendly-error"><PageSkeleton cards={2} /></main>;
+  if (error || !wedding) return <main id="main-content" tabIndex={-1} className="friendly-error"><ErrorState title="Liên kết xem trước không còn hiệu lực" description={error?.message ?? "Bản xem trước không còn khả dụng."} requestId={error?.requestId} onRetry={() => void load()} homeHref="/dashboard" /></main>;
   return <PublicInvitation data={wedding} preview />;
 }

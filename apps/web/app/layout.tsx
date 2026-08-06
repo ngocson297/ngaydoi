@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./design-system.css";
+import { SkipLink } from "../components/accessibility";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
-      <body><Providers>{children}</Providers></body>
+      <body><SkipLink /><Providers>{children}</Providers></body>
     </html>
   );
 }

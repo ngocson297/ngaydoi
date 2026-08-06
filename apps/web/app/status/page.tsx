@@ -41,7 +41,7 @@ export default function StatusPage() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  return <main className="status-page">
+  return <main id="main-content" tabIndex={-1} className="status-page">
     <header className="status-nav"><a className="brand" href="/">Ngày <span>Đôi</span></a><a href="/login">Đăng nhập</a></header>
     <section className="status-hero">
       <span className={`status-beacon ${data?.status ?? "unknown"}`} aria-hidden="true" />

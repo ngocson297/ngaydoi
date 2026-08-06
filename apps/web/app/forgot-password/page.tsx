@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  return <main className="auth-shell"><section className="auth-card">
+  return <main id="main-content" tabIndex={-1} className="auth-shell"><section className="auth-card">
     <a className="brand auth-brand" href="/">Ngày <span>Đôi</span></a>
     <div className="eyebrow">Khôi phục tài khoản</div><h1>Quên mật khẩu</h1>
     <p className="auth-lead">Nhập email đã đăng ký. Nếu tài khoản tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.</p>

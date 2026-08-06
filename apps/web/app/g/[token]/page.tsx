@@ -14,7 +14,7 @@ export default async function PersonalizedInvitationPage({ params }: { params: P
     return <PublicInvitation data={wedding} />;
   } catch {
     return (
-      <main className="inv4-state">
+      <main id="main-content" tabIndex={-1} className="inv4-state">
         <div>
           <div className="inv4-state-mark">ND</div>
           <span>Ngày Đôi</span>

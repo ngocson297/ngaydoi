@@ -26,7 +26,7 @@ export default function InvitationPage() {
   }, [slug]);
 
   useEffect(() => { void load(); }, [load]);
-  if (loading) return <main className="friendly-error"><PageSkeleton cards={2} /></main>;
-  if (error || !wedding) return <main className="friendly-error"><ErrorState title="Thiệp chưa sẵn sàng" description="Thiệp có thể đang được chỉnh sửa, tạm khóa hoặc đã hết hạn. Bạn có thể thử lại hoặc quay về trang chủ." requestId={error?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" /></main>;
+  if (loading) return <main id="main-content" tabIndex={-1} className="friendly-error"><PageSkeleton cards={2} /></main>;
+  if (error || !wedding) return <main id="main-content" tabIndex={-1} className="friendly-error"><ErrorState title="Thiệp chưa sẵn sàng" description="Thiệp có thể đang được chỉnh sửa, tạm khóa hoặc đã hết hạn. Bạn có thể thử lại hoặc quay về trang chủ." requestId={error?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" /></main>;
   return <PublicInvitation data={wedding} />;
 }

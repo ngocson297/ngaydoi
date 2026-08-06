@@ -89,3 +89,53 @@ Quy tắc:
 - Không dùng `window.confirm`; dùng `useConfirm` hoặc `ConfirmDialog`.
 - Date/time phải dùng native input chuẩn hoặc `DateTimeField`, không tự format bằng chuỗi không kiểm tra.
 - Upload phải nêu định dạng, dung lượng, số lượng và lỗi cụ thể trước khi gửi.
+
+
+## Sprint 15.5 — Accessibility & Inclusive UX
+
+### Navigation and landmarks
+
+- Mỗi trang độc lập phải có một `main` landmark với `id="main-content"`.
+- `SkipLink` là phần tử focusable đầu tiên và đưa bàn phím thẳng tới nội dung chính.
+- `AccessibilityAnnouncer` thông báo tên trang sau khi route thay đổi.
+- Không lồng nhiều `main` landmark trong cùng một trang.
+
+### Tabs
+
+- Dùng `Tabs` và `tabPanelProps`; không tự tạo nhóm button giả tab.
+- Phím Arrow chuyển tab, Home tới tab đầu và End tới tab cuối.
+- Tab đang chọn có `aria-selected="true"`; panel liên kết bằng `aria-controls` và `aria-labelledby`.
+- Khi tab chứa form chưa lưu, phải kiểm tra unsaved-change guard trước khi đổi tab.
+
+### Dialogs, drawers and command palette
+
+- Dialog nguy hiểm dùng `role="alertdialog"`; dialog thông thường dùng `role="dialog"`.
+- Focus phải bị giữ trong lớp phủ, Escape đóng khi an toàn, body bị khóa cuộn và focus được trả về trigger.
+- Heading/description phải dùng ID duy nhất từ `useId`; không dùng ID cố định khi component có thể xuất hiện nhiều lần.
+- Không dùng `window.alert`, `window.confirm` hoặc `window.prompt`.
+- Nút xác nhận phải bị vô hiệu hóa khi dữ liệu trong dialog chưa hợp lệ.
+
+### Controls and status
+
+- Icon-only button bắt buộc có tên truy cập qua `aria-label` hoặc component `IconButton`.
+- Checkbox/radio cần label mô tả đối tượng cụ thể, không chỉ dựa vào vị trí trong bảng.
+- Thanh tiến độ dùng `role="progressbar"` với `aria-valuemin`, `aria-valuemax` và `aria-valuenow`.
+- Video/camera preview phải có `aria-label` hoặc mô tả tương đương.
+- Trạng thái không chỉ dùng màu; phải có icon, text hoặc pattern bổ sung.
+
+### Motion, contrast and touch
+
+- Touch target tối thiểu 44 × 44 px trên thiết bị coarse pointer.
+- Focus ring phải nhìn rõ trên cả nền sáng và tối.
+- Hỗ trợ `prefers-contrast: more`, `forced-colors: active` và `prefers-reduced-motion: reduce`.
+- Parallax, autoplay/reveal và animation trang trí phải dừng khi tab ẩn hoặc Reduce Motion bật.
+
+### Static audit
+
+Chạy trước mỗi release UI:
+
+```bash
+npm run a11y:audit
+```
+
+Audit hiện kiểm tra browser dialog không an toàn, link mở tab mới thiếu `noreferrer/noopener`, ảnh thiếu `alt`, video thiếu nhãn và một số icon button không có accessible name.

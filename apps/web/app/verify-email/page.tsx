@@ -20,7 +20,7 @@ export default function VerifyEmailPage() {
       .catch((cause: unknown) => { setState("error"); setMessage(cause instanceof ApiError ? cause.message : "Không thể xác minh email"); setRequestId(cause instanceof ApiError ? cause.requestId : undefined); });
   }, []);
 
-  return <main className="auth-shell"><section className="auth-card auth-status">
+  return <main id="main-content" tabIndex={-1} className="auth-shell"><section className="auth-card auth-status">
     <a className="brand auth-brand" href="/">Ngày <span>Đôi</span></a>
     {state === "loading" ? <><Skeleton width={58} height={58} className="status-icon" /><h2>Đang xác minh</h2><p>{message}</p></> : <><div className={`status-icon ${state}`} aria-hidden="true">{state === "success" ? "✓" : "!"}</div><h2>{state === "success" ? "Xác minh thành công" : "Không thể xác minh"}</h2>{state === "error" ? <Alert tone="error" requestId={requestId}>{message}</Alert> : <Alert tone="success">{message}</Alert>}</>}
     <ButtonLink href="/login" fullWidth>Đi đến đăng nhập</ButtonLink>

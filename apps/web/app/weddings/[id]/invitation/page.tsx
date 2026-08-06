@@ -447,7 +447,7 @@ function InvitationEditorContent() {
                 <label className="toggle-row"><span><b>Bật nút phát nhạc</b><small>Chỉ hiện khi có URL nhạc hợp lệ.</small></span><input type="checkbox" checked={design.musicEnabled} disabled={!canEdit} onChange={(event) => updateDesign("musicEnabled", event.target.checked)} /></label>
                 <label>URL file nhạc<input type="url" placeholder="https://.../music.mp3" value={design.musicUrl ?? ""} disabled={!canEdit || !design.musicEnabled} onChange={(event) => updateDesign("musicUrl", event.target.value || null)} /></label>
               </SettingGroup>
-              <SettingGroup title="Đường dẫn công khai"><div className="public-link-box"><span>ngaydoi.vn/i/{data.slug}</span>{data.status === "PUBLISHED" ? <a href={`/i/${data.slug}`} target="_blank">Mở thiệp ↗</a> : <small>Thiệp chỉ truy cập công khai sau khi xuất bản.</small>}</div></SettingGroup>
+              <SettingGroup title="Đường dẫn công khai"><div className="public-link-box"><span>ngaydoi.vn/i/{data.slug}</span>{data.status === "PUBLISHED" ? <a href={`/i/${data.slug}`} target="_blank" rel="noreferrer">Mở thiệp ↗</a> : <small>Thiệp chỉ truy cập công khai sau khi xuất bản.</small>}</div></SettingGroup>
             </div>}
 
             {activeTab === "history" && <div className="editor-form-stack">

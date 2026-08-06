@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.4 — Sprint 15.5 Accessibility & Inclusive UX Audit
+
+- Added a global skip link, route-change screen-reader announcements and consistent main-content landmarks.
+- Added shared keyboard-accessible tabs with Arrow, Home and End navigation, then migrated Admin and core Wedding workspaces.
+- Strengthened dialog, drawer and command-palette focus trapping, Escape handling, scroll locking, focus restoration and unique ARIA IDs.
+- Added semantic radio behavior for RSVP choices, accessible progress bars, and labels for icon buttons, checkboxes, camera/video and media controls.
+- Added higher-contrast focus states, minimum touch targets, forced-colors support and comprehensive reduced-motion behavior.
+- Added `npm run a11y:audit` to catch unsafe browser dialogs, unlabeled media/icons, missing image alternatives and unsafe new-tab links.
+- Removed the remaining `window.prompt` flow and replaced it with validated accessible dialogs.
+- No database schema, migration or runtime dependency changes.
+
 ## 0.15.3 — Sprint 15.4 Loading, Empty, Error & Retry States
 
 - Added centralized user-safe API error normalization that hides internal stack, SQL and framework details.

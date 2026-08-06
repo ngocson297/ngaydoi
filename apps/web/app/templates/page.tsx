@@ -95,7 +95,7 @@ export default function TemplateCatalogPage() {
   }
 
   return (
-    <main className="template-catalog-page">
+    <main id="main-content" tabIndex={-1} className="template-catalog-page">
       <HomeMotion />
       <nav className="nav catalog-nav">
         <div className="container nav-inner">
