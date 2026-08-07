@@ -235,7 +235,7 @@ function PlanningContent() {
           </div>
         </div>
         <div className="planning-search-row">
-          <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm công việc hoặc người phụ trách..." aria-label="Tìm công việc" /></label>
+          <label className="search-field"><span className="planning-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg></span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm công việc hoặc người phụ trách..." aria-label="Tìm công việc" /></label>
           <select value={category} onChange={(event) => setCategory(event.target.value as PlanningTaskCategory | "ALL")} aria-label="Lọc nhóm công việc"><option value="ALL">Tất cả nhóm việc</option>{data.categories.map((item) => <option key={item} value={item}>{categoryLabels[item]}</option>)}</select>
         </div>
 

@@ -1643,3 +1643,158 @@ body { color: var(--color-ink); background: var(--color-canvas); font-size: var(
 @media (prefers-reduced-motion: reduce) {
   .inv10-fireworks { display: none !important; }
 }
+
+
+/* Sprint 15.11 — invitation preview stabilization and visual refinement */
+.preview-scroll,
+.guest-create-preview-scroll { overflow-x: hidden; overscroll-behavior: contain; container-type: inline-size; }
+.preview-browser { max-width: 100%; }
+.inv4 { max-width: 100%; }
+.inv4.is-embedded { position: relative; width: 100%; }
+.inv4.is-embedded .inv4-music { position: absolute; }
+
+/* Family announcement: formal context, couple focal point, then both families. */
+.inv11-family { max-width: 920px; }
+.inv11-family-lead { max-width: 640px; margin: -18px auto 28px; color: color-mix(in srgb, var(--inv-text) 70%, transparent); font-size: 15px; line-height: 1.85; }
+.inv11-family-couple { position: relative; width: min(620px, 100%); display: grid; gap: 9px; justify-items: center; margin: 0 auto 34px; padding: 30px 24px; border-block: 1px solid color-mix(in srgb, var(--inv-primary) 22%, transparent); }
+.inv11-family-couple::before { content: ""; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; border-radius: 50%; background: var(--inv-accent); transform: translateX(-50%); box-shadow: 0 0 0 7px var(--inv-bg); }
+.inv11-family-couple > span { color: var(--inv-primary); font-size: 9px; font-weight: 850; letter-spacing: .18em; text-transform: uppercase; }
+.inv11-family-couple h3 { margin: 0; font-size: clamp(34px, 5vw, 52px); font-weight: 500; line-height: 1.06; }
+.inv11-family-couple h3 i { color: var(--inv-accent); font-size: .72em; font-weight: 400; }
+.inv11-family-couple time { color: var(--inv-text); font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.inv11-family-couple small { color: color-mix(in srgb, var(--inv-text) 62%, transparent); font-size: 12px; }
+.inv11-family .inv4-family-grid { grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); }
+.inv11-family .inv4-family-mark { display: grid; place-items: center; gap: 9px; }
+.inv11-family .inv4-family-mark span { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--inv-accent) 60%, transparent); border-radius: 50%; background: var(--inv-bg); font-size: 17px; }
+.inv11-family .inv4-family-mark i { width: 1px; height: 34px; background: color-mix(in srgb, var(--inv-primary) 18%, transparent); }
+.inv11-family-closing { max-width: 690px; margin: 30px auto 0; color: color-mix(in srgb, var(--inv-text) 66%, transparent); font-size: 13px; line-height: 1.8; }
+
+/* A clearer wedding-day timeline: date rail, milestone, and readable itinerary card. */
+.inv8-events.style-timeline .inv8-event-list { position: relative; gap: 22px; padding: 8px 0; }
+.inv8-events.style-timeline .inv8-event-list::before { content: ""; position: absolute; top: 52px; bottom: 52px; left: 119px; width: 1px; background: linear-gradient(var(--inv-accent), color-mix(in srgb, var(--inv-primary) 16%, transparent)); }
+.inv8-events.style-timeline .inv8-event-list > article { position: relative; grid-template-columns: 88px 40px minmax(0, 1fr); gap: 16px; align-items: start; padding: 0; border: 0; }
+.inv8-events.style-timeline .inv8-event-date { width: 82px; min-height: 88px; border: 0; border-radius: 22px; color: var(--inv-primary); background: color-mix(in srgb, var(--inv-accent) 10%, var(--inv-surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--inv-primary) 14%, transparent); }
+.inv8-events.style-timeline .inv8-event-date strong { font-size: 34px; line-height: .95; }
+.inv8-events.style-timeline .inv8-event-date span { margin-top: 6px; }
+.inv8-events.style-timeline .inv8-event-marker { z-index: 2; grid-template-rows: 46px; padding-top: 21px; }
+.inv8-events.style-timeline .inv8-event-marker span { width: 38px; height: 38px; border: 5px solid var(--inv-bg); box-shadow: 0 0 0 1px color-mix(in srgb, var(--inv-primary) 28%, transparent), 0 8px 22px color-mix(in srgb, var(--inv-primary) 14%, transparent); }
+.inv8-events.style-timeline .inv8-event-marker i { display: none; }
+.inv8-events.style-timeline .inv8-event-content { min-width: 0; padding: 24px 26px; border: 1px solid color-mix(in srgb, var(--inv-primary) 15%, transparent); border-radius: 24px; background: linear-gradient(145deg, var(--inv-surface), color-mix(in srgb, var(--inv-accent) 5%, var(--inv-surface))); box-shadow: 0 22px 65px color-mix(in srgb, var(--inv-primary) 7%, transparent); }
+.inv11-event-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.inv11-event-meta small { color: var(--inv-primary); font-size: 9px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+.inv11-event-meta em { color: color-mix(in srgb, var(--inv-text) 54%, transparent); font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.inv8-event-time { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.inv8-event-time strong { color: var(--inv-primary); font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
+.inv8-event-time span { color: color-mix(in srgb, var(--inv-text) 74%, transparent); font-size: 12px; font-weight: 750; }
+.inv8-event-time i { color: color-mix(in srgb, var(--inv-text) 56%, transparent); font-size: 11px; font-style: normal; }
+
+/* Dashboard monogram and planning search icon are fixed-size and cannot wrap. */
+.couple-monogram { display: inline-flex !important; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; overflow: hidden; line-height: 1; letter-spacing: 0; }
+.couple-monogram b { flex: none; font: inherit; font-weight: 500; }
+.couple-monogram span { flex: none; font-size: .72em; line-height: 1; }
+.search-field .planning-search-icon { width: 24px; height: 24px; display: grid; place-items: center; left: 13px; color: #746962; pointer-events: none; }
+.search-field .planning-search-icon svg { width: 21px; height: 21px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.search-field:focus-within .planning-search-icon { color: var(--wine); }
+.search-field input { padding-left: 46px; }
+.card-footer { overflow-wrap: anywhere; }
+
+/* The editor mobile preview must respond to its 390px frame, not the outer desktop viewport. */
+.inv4.preview-mobile { width: 100%; max-width: 100%; overflow-x: hidden; }
+.inv4.preview-mobile .inv4-hero { min-height: 720px; padding: 64px 16px; }
+.inv4.preview-mobile .inv4-hero::before { inset: 12px; }
+.inv4.preview-mobile .inv4-hero::after { inset: 20px; }
+.inv4.preview-mobile .inv4-hero h1 { font-size: 48px; line-height: .96; overflow-wrap: anywhere; }
+.inv4.preview-mobile .inv4-greeting { font-size: 14px; }
+.inv4.preview-mobile .inv4-date { gap: 15px; }
+.inv4.preview-mobile .inv4-date i { width: 26px; }
+.inv4.preview-mobile .inv4-hero-actions { display: grid; grid-template-columns: 1fr; width: min(280px, 100%); margin-inline: auto; }
+.inv4.preview-mobile .inv4-button { width: 100%; }
+.inv4.preview-mobile .inv4-section { width: calc(100% - 24px); padding: 66px 0; }
+.inv4.preview-mobile .inv4-section-head { margin-bottom: 30px; }
+.inv4.preview-mobile .inv4-section-head h2 { font-size: 38px; overflow-wrap: anywhere; }
+.inv4.preview-mobile .inv8-hero.layout-split,
+.inv4.preview-mobile .inv8-hero.layout-editorial { display: grid; grid-template-columns: 1fr; min-height: auto; }
+.inv4.preview-mobile .inv8-hero.layout-split .inv8-hero-media,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv8-hero-media { position: relative; grid-column: 1; grid-row: 1; min-height: 360px; }
+.inv4.preview-mobile .inv8-hero.layout-split .inv4-hero-inner,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv4-hero-inner { grid-column: 1; grid-row: 2; width: 100%; padding: 58px 20px 70px; text-align: center; }
+.inv4.preview-mobile .inv8-hero.layout-split .inv4-ornament,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv4-ornament,
+.inv4.preview-mobile .inv8-hero.layout-split .inv4-greeting,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv4-greeting { margin-left: auto; }
+.inv4.preview-mobile .inv8-hero.layout-split .inv4-date,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv4-date,
+.inv4.preview-mobile .inv8-hero.layout-split .inv4-hero-actions,
+.inv4.preview-mobile .inv8-hero.layout-editorial .inv4-hero-actions { justify-content: center; }
+.inv4.preview-mobile .inv8-hero.layout-arch { min-height: 740px; }
+.inv4.preview-mobile .inv8-hero.layout-arch .inv8-hero-media { width: calc(100% - 30px); height: 62%; }
+.inv4.preview-mobile .inv8-hero.layout-story { min-height: 760px; }
+.inv4.preview-mobile .inv8-hero-collage figure { border-width: 5px; }
+.inv4.preview-mobile .inv8-hero-collage figure.photo-1 { width: 58%; height: 48%; left: -5%; top: 7%; }
+.inv4.preview-mobile .inv8-hero-collage figure.photo-2 { width: 55%; height: 45%; right: -5%; top: 6%; }
+.inv4.preview-mobile .inv8-hero-collage figure.photo-3 { width: 56%; height: 34%; left: 22%; bottom: 3%; }
+.inv4.preview-mobile .inv8-hero.layout-story .inv4-hero-inner { width: calc(100% - 24px); padding: 30px 18px; }
+.inv4.preview-mobile .inv8-hero.layout-minimal { min-height: 680px; }
+.inv4.preview-mobile .inv8-hero.layout-minimal .inv8-hero-media { width: 170px; height: 170px; top: 48px; }
+.inv4.preview-mobile .inv8-hero.layout-minimal .inv4-hero-inner { padding-top: 220px; }
+.inv4.preview-mobile .inv4-family-grid { grid-template-columns: 1fr; gap: 14px; }
+.inv4.preview-mobile .inv4-family-mark { min-height: 50px; }
+.inv4.preview-mobile .inv11-family .inv4-family-mark i { display: none; }
+.inv4.preview-mobile .inv11-family-couple { padding: 26px 12px; }
+.inv4.preview-mobile .inv11-family-couple h3 { font-size: 35px; }
+.inv4.preview-mobile .inv4-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 170px; }
+.inv4.preview-mobile .inv4-gallery-grid figure.featured { grid-column: span 2; grid-row: span 1; }
+.inv4.preview-mobile .inv8-countdown { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.inv4.preview-mobile .inv8-countdown > div { min-width: 0; min-height: 108px; }
+.inv4.preview-mobile .inv8-countdown strong { font-size: 34px; }
+.inv4.preview-mobile .inv8-countdown.variant-editorial { border: 0; gap: 9px; }
+.inv4.preview-mobile .inv8-countdown.variant-editorial > div { min-height: 108px; border: 1px solid color-mix(in srgb, var(--inv-primary) 18%, transparent); }
+.inv4.preview-mobile .inv8-events.style-cards .inv8-event-list { grid-template-columns: 1fr; }
+.inv4.preview-mobile .inv8-event-list > article,
+.inv4.preview-mobile .inv8-events.style-agenda .inv8-event-list > article,
+.inv4.preview-mobile .inv8-events.style-steps .inv8-event-list > article { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 18px 0; }
+.inv4.preview-mobile .inv8-event-marker { display: none; }
+.inv4.preview-mobile .inv8-event-date { width: 60px; min-height: 64px; }
+.inv4.preview-mobile .inv8-events.style-cards .inv8-event-list > article,
+.inv4.preview-mobile .inv8-events.style-steps .inv8-event-list > article { padding: 16px; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-list::before { left: 73px; top: 34px; bottom: 34px; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-list > article { grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 0; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-marker { display: grid; position: absolute; left: 55px; top: 4px; padding: 0; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-marker span { width: 34px; height: 34px; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-content { grid-column: 2; padding: 18px; border-radius: 18px; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-date { width: 54px; min-height: 62px; border-radius: 15px; }
+.inv4.preview-mobile .inv8-events.style-timeline .inv8-event-date strong { font-size: 26px; }
+.inv4.preview-mobile .inv8-event-content h3 { font-size: 25px; }
+.inv4.preview-mobile .inv11-event-meta { align-items: flex-start; flex-direction: column; gap: 5px; }
+.inv4.preview-mobile .inv8-event-time { align-items: flex-start; flex-direction: column; gap: 3px; }
+.inv4.preview-mobile .inv8-gift-section { width: calc(100% - 20px); padding-inline: 0; }
+.inv4.preview-mobile .inv8-gift-grid,
+.inv4.preview-mobile .inv8-gift-grid.count-1,
+.inv4.preview-mobile .inv8-gift-grid.count-3 { grid-template-columns: minmax(0, 1fr); }
+.inv4.preview-mobile .inv8-gift-card,
+.inv4.preview-mobile .inv8-gift-grid.count-3 .inv8-gift-card { width: 100%; grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 16px; border-radius: 22px; }
+.inv4.preview-mobile .inv8-gift-qr { width: min(220px, 100%); max-width: 220px; margin: 0 auto; }
+.inv4.preview-mobile .inv8-gift-details { width: 100%; text-align: center; }
+.inv4.preview-mobile .inv8-gift-details dl div { grid-template-columns: 1fr; gap: 3px; padding: 7px 0; border-bottom: 1px solid color-mix(in srgb, var(--inv-primary) 10%, transparent); }
+.inv4.preview-mobile .inv8-gift-details dt,
+.inv4.preview-mobile .inv8-gift-details dd { text-align: center; }
+.inv4.preview-mobile .inv8-gift-note { padding-inline: 8px; }
+.inv4.preview-mobile .inv4-footer { padding: 72px 18px; }
+.inv4.preview-mobile .inv4-footer h2 { font-size: 38px; }
+
+@media (max-width: 560px) {
+  .inv11-family-lead { margin-top: -8px; font-size: 14px; }
+  .inv11-family .inv4-family-grid { grid-template-columns: 1fr; gap: 14px; }
+  .inv11-family .inv4-family-mark { min-height: 50px; }
+  .inv11-family .inv4-family-mark i { display: none; }
+  .inv11-family-couple { padding-inline: 12px; }
+  .inv11-family-couple h3 { font-size: 36px; }
+  .inv8-events.style-timeline .inv8-event-list::before { left: 73px; }
+  .inv8-events.style-timeline .inv8-event-list > article { grid-template-columns: 58px minmax(0, 1fr); gap: 18px; }
+  .inv8-events.style-timeline .inv8-event-marker { position: absolute; left: 55px; top: 4px; padding: 0; }
+  .inv8-events.style-timeline .inv8-event-content { grid-column: 2; padding: 18px; border-radius: 18px; }
+  .inv8-events.style-timeline .inv8-event-date { width: 54px; min-height: 62px; border-radius: 15px; }
+  .inv11-event-meta { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .inv8-event-time { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .couple-monogram { width: 82px; height: 82px; }
+}

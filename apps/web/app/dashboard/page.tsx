@@ -81,7 +81,7 @@ function DashboardContent() {
                     <span className={`status-pill ${statusClasses[wedding.status]}`}>{statusLabels[wedding.status]}</span>
                     <div className="wedding-card-chips"><span className="plan-chip">{wedding.activePlan?.name ?? "Khởi đầu"}</span><span className="access-chip">{wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Cộng tác chỉnh sửa" : "Chỉ xem"}</span></div>
                   </div>
-                  <div className="couple-monogram">{wedding.groomName.charAt(0)} <span>&</span> {wedding.brideName.charAt(0)}</div>
+                  <div className="couple-monogram" aria-hidden="true"><b>{wedding.groomName.trim().charAt(0).toUpperCase()}</b><span>&amp;</span><b>{wedding.brideName.trim().charAt(0).toUpperCase()}</b></div>
                   <h3>{wedding.groomName} & {wedding.brideName}</h3>
                   <p>{wedding.title}</p>
                   <div className="wedding-card-meta">
@@ -89,10 +89,10 @@ function DashboardContent() {
                     <span>Sự kiện<strong>{wedding._count.events}</strong></span>
                     <span>Khách<strong>{wedding._count.guests}</strong></span>
                   </div>
-                  <div className="card-footer">ngaydoi.vn/i/{wedding.slug}</div>
+                  <div className="card-footer">ngaydoi.vn/thiep/{wedding.slug}</div>
                 </a>
                 <div className="wedding-card-actions">
-                  {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/i/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp</a>}
+                  {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/thiep/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp</a>}
                   <a className="btn btn-primary" href={`/weddings/${wedding.id}`}>{wedding.access === "OWNER" && !wedding.activePlan ? "Chọn gói" : "Quản lý"} →</a>
                 </div>
               </article>

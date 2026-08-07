@@ -1,3 +1,14 @@
+# v0.15.10 — Sprint 15.11 Self-test Stabilization
+
+- Fixed the Invitation Studio 390px preview by making the embedded invitation reflow independently from the outer desktop viewport.
+- Redesigned the family announcement with a formal introduction, couple focal point, wedding date/venue and balanced parent cards.
+- Rebuilt the timeline programme into milestone cards with clearer time, date, family side, venue and action hierarchy.
+- Fixed dashboard couple monograms so initials never wrap or overflow their circle.
+- Replaced public `/i/:slug` links with the clearer canonical `/thiep/:slug` route while preserving automatic redirects for existing shared links.
+- Replaced the unstable planning search glyph with a properly sized accessible SVG icon.
+- Added `npm run sprint15.11:audit` to the release quality gate.
+- No database schema, migration, API contract or dependency changes.
+
 # v0.15.9 — Sprint 15.10 Template Expansion & Mobile Stabilization
 
 - Fixed gift QR autosave validation for `qrImageUrl`.

@@ -118,7 +118,7 @@ export default function TemplateCatalogPage() {
             <span className="eyebrow">Template Library · 24 lựa chọn</span>
             <h1>Mỗi câu chuyện tình yêu cần một phong cách riêng.</h1>
             <p>Từ lễ cưới Việt truyền thống đến tiệc biển, garden wedding, Art Deco hay editorial hiện đại. Chọn một mẫu, sau đó tùy chỉnh màu, font, ảnh và nội dung trong Invitation Studio.</p>
-            <div className="catalog-hero-actions"><a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a><a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp đang hoạt động</a></div>
+            <div className="catalog-hero-actions"><a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a><a className="btn btn-secondary" href="/thiep/minh-anh">Xem thiệp đang hoạt động</a></div>
           </div>
           <div className="catalog-stack reveal-scale" data-reveal aria-label="Xem trước nhiều phong cách template">
             {templates.slice(0, 3).map((template, index) => <div className={`catalog-stack-card stack-${index + 1}`} key={template.key}><TemplatePreview template={template} /></div>)}

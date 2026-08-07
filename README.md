@@ -1,20 +1,18 @@
-# Ngày Đôi v0.15.8
+# Ngày Đôi v0.15.10
 
-Current milestone: **Phase 15 Extension — Sprint 15.9 Guest-first Creation & UX Refinement**.
+Current milestone: **Phase 15 Extension — Sprint 15.11 Self-test Stabilization**.
 
 ## Current product status
 
-The complete core product and the seven UX-hardening sprints are finished. Sprint 15.8 upgraded invitation layouts and gift-transfer QR; Sprint 15.9 now lets visitors create before registering, upload their bank QR directly, and continue safely after authentication. Phase 16 and Phase 17 remain intentionally paused for self-testing and feedback.
+Core product development and Sprint 15.8–15.10 are complete. Sprint 15.11 fixes the self-test feedback around mobile invitation preview, family announcement, programme timeline, dashboard monogram, public invitation URL and planning search affordance. Phase 16 and Phase 17 remain paused.
 
-## Sprint 15.9 highlights
+## Sprint 15.11 highlights
 
-- Public create-first experience at `/create`.
-- Browser-local invitation draft with safe authenticated import.
-- Uploaded bank QR as the default gift-transfer method; automatic VietQR remains optional.
-- Visible toast feedback for copied links.
-- Refined native select controls and fixed Invitation Studio header positioning.
-- Clear guest invitation sent-state behavior.
-- Focused one-open sidebar accordion.
+- Stable 390px Invitation Studio preview across all 36 templates.
+- Richer two-family announcement and redesigned wedding-day programme timeline.
+- Canonical public URLs at `/thiep/:slug`; legacy `/i/:slug` links continue to work through redirects.
+- Fixed My Weddings monogram and Planning search icon.
+- No migration, seed or dependency update required.
 
 ## Run local
 

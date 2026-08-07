@@ -117,7 +117,7 @@ function NewWeddingContent() {
                 <FormField id="wedding-timezone" label="Múi giờ" required><select value={form.timezone} onChange={(event) => update("timezone", event.target.value)}><option value="Asia/Ho_Chi_Minh">Việt Nam · GMT+7</option><option value="Asia/Singapore">Singapore · GMT+8</option></select></FormField>
                 <div className={`ui-field full ${issues.some((item) => item.fieldId === "wedding-slug") ? "ui-field-error" : ""}`}>
                   <label className="ui-field-label" htmlFor="wedding-slug"><span>Đường dẫn thiệp</span><span className="ui-field-required" aria-label="Bắt buộc">*</span></label>
-                  <div className="slug-input"><span>ngaydoi.vn/i/</span><input id="wedding-slug" className="ui-control" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} placeholder="minh-anh" aria-invalid={issues.some((item) => item.fieldId === "wedding-slug") || undefined} /></div>
+                  <div className="slug-input"><span>ngaydoi.vn/thiep/</span><input id="wedding-slug" className="ui-control" value={form.slug} onChange={(event) => update("slug", slugify(event.target.value))} placeholder="minh-anh" aria-invalid={issues.some((item) => item.fieldId === "wedding-slug") || undefined} /></div>
                   <p className={`slug-state ${slugState}`} aria-live="polite">{slugState === "checking" ? "Đang kiểm tra…" : slugState === "available" ? "✓ Có thể sử dụng" : slugState === "unavailable" ? "⚠ Đường dẫn đã dùng hoặc không hợp lệ" : "Chỉ dùng chữ thường, số và dấu gạch ngang."}</p>
                 </div>
               </div>
@@ -127,7 +127,7 @@ function NewWeddingContent() {
           {step === 3 ? (
             <div className="wizard-step">
               <div className="step-title"><span>03</span><div><h2>Kiểm tra và tạo workspace</h2><p>Workspace mới luôn ở trạng thái bản nháp.</p></div></div>
-              <div className="review-card"><div className="review-monogram">{form.groomName.charAt(0)} <span>&</span> {form.brideName.charAt(0)}</div><h3>{form.groomName} & {form.brideName}</h3><dl><div><dt>Tên nội bộ</dt><dd>{form.title}</dd></div><div><dt>Ngày chính</dt><dd>{new Date(`${form.mainDate}T00:00:00`).toLocaleDateString("vi-VN")}</dd></div><div><dt>Đường dẫn</dt><dd>ngaydoi.vn/i/{form.slug}</dd></div><div><dt>Trạng thái</dt><dd>Bản nháp</dd></div></dl></div>
+              <div className="review-card"><div className="review-monogram">{form.groomName.charAt(0)} <span>&</span> {form.brideName.charAt(0)}</div><h3>{form.groomName} & {form.brideName}</h3><dl><div><dt>Tên nội bộ</dt><dd>{form.title}</dd></div><div><dt>Ngày chính</dt><dd>{new Date(`${form.mainDate}T00:00:00`).toLocaleDateString("vi-VN")}</dd></div><div><dt>Đường dẫn</dt><dd>ngaydoi.vn/thiep/{form.slug}</dd></div><div><dt>Trạng thái</dt><dd>Bản nháp</dd></div></dl></div>
             </div>
           ) : null}
 

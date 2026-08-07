@@ -42,7 +42,7 @@ export default function HomePage() {
             <a href="#features">Tính năng</a>
             <a href="/templates">Kho mẫu thiệp</a>
             <a href="#pricing">Bảng giá</a>
-            <a href="/i/minh-anh">Xem thiệp mẫu</a>
+            <a href="/thiep/minh-anh">Xem thiệp mẫu</a>
             <a href="/contact">Liên hệ</a>
             <a href="/login">Đăng nhập</a>
             <a className="btn btn-primary" href="/create">Bắt đầu tạo thiệp</a>
@@ -61,7 +61,7 @@ export default function HomePage() {
             <p className="hero-copy">Chọn mẫu, thêm ảnh và gửi lời mời ngay trên điện thoại. Khách RSVP, xem chương trình và quét QR mừng cưới trong cùng một thiệp.</p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="/create">Tạo thiệp miễn phí ngay</a>
-              <a className="btn btn-secondary" href="/i/minh-anh">Xem thiệp mẫu →</a>
+              <a className="btn btn-secondary" href="/thiep/minh-anh">Xem thiệp mẫu →</a>
             </div>
             <div className="hero-proof">
               <div><strong>10 phút</strong>Tạo bản nháp</div>
@@ -83,7 +83,7 @@ export default function HomePage() {
                 <button className="btn btn-primary phone-rsvp">Xác nhận tham dự</button>
               </div>
             </div>
-            <div className="floating-card floating-two"><strong>Đã sẵn sàng chia sẻ</strong>ngaydoi.vn/i/minh-anh</div>
+            <div className="floating-card floating-two"><strong>Đã sẵn sàng chia sẻ</strong>ngaydoi.vn/thiep/minh-anh</div>
           </div>
         </div>
       </section>
@@ -198,7 +198,7 @@ export default function HomePage() {
       <section className="home-final-cta">
         <div className="container home-final-card reveal-scale" data-reveal>
           <div><span className="eyebrow">Bắt đầu thật nhẹ nhàng</span><h2>Ngày trọng đại xứng đáng được chuẩn bị bằng một trải nghiệm đẹp.</h2><p>Tạo bản nháp miễn phí, mời người thân cùng chỉnh sửa và hoàn thiện từng bước theo timeline thông minh.</p></div>
-          <div className="home-final-actions"><a className="btn btn-primary" href="/create">Tạo thiệp ngay</a><a className="btn btn-secondary" href="/i/minh-anh">Xem trải nghiệm mẫu</a></div>
+          <div className="home-final-actions"><a className="btn btn-primary" href="/create">Tạo thiệp ngay</a><a className="btn btn-secondary" href="/thiep/minh-anh">Xem trải nghiệm mẫu</a></div>
         </div>
       </section>
 

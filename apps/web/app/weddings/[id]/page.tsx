@@ -282,7 +282,7 @@ function WorkspaceContent() {
           <p>{wedding.title} · {formatDate(wedding.mainDate)} · Quyền: {wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Chỉnh sửa" : "Chỉ xem"}</p>
         </div>
         <div className="dash-actions">
-          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/i/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp ↗</a>}
+          {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/thiep/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp ↗</a>}
           <div className="workspace-primary-actions">{isOwner && <a className="btn btn-secondary" href={`/pricing?weddingId=${weddingId}`}>{wedding.activePlan ? "Nâng cấp gói" : "Chọn gói"}</a>}<a className="btn btn-secondary" href={`/weddings/${weddingId}/planning`}>Kế hoạch cưới</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/guests`}>Khách & RSVP</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/event-operations`}>Phân bàn & check-in</a><a className="btn btn-secondary" href={`/weddings/${weddingId}/memories`}>Album kỷ niệm</a><a className="btn btn-primary" href={`/weddings/${weddingId}/invitation`}>{canEdit ? "Thiết kế thiệp" : "Xem thiết kế"} →</a></div>
         </div>
       </div>
@@ -319,7 +319,7 @@ function WorkspaceContent() {
             <div className="invitation-quick-card"><span>Invitation Studio</span><h3>Biến thông tin thành một thiệp cưới hoàn chỉnh</h3><p>Chọn mẫu, chỉnh màu và nội dung, thêm album rồi xem trước trên điện thoại.</p><a href={`/weddings/${weddingId}/invitation`}>Mở trình tạo thiệp →</a></div>
             <div className="couple-monogram large">{wedding.groomName.charAt(0)} <span>&</span> {wedding.brideName.charAt(0)}</div>
             <h3>{wedding.groomName} & {wedding.brideName}</h3>
-            <dl><div><dt>Ngày chính</dt><dd>{formatDate(wedding.mainDate)}</dd></div><div><dt>Đường dẫn</dt><dd>/i/{wedding.slug}</dd></div><div><dt>Sự kiện</dt><dd>{wedding.events.length}</dd></div><div><dt>Cộng tác viên</dt><dd>{wedding.collaborators.filter((item) => item.status === "ACCEPTED").length}</dd></div></dl>
+            <dl><div><dt>Ngày chính</dt><dd>{formatDate(wedding.mainDate)}</dd></div><div><dt>Đường dẫn</dt><dd>/thiep/{wedding.slug}</dd></div><div><dt>Sự kiện</dt><dd>{wedding.events.length}</dd></div><div><dt>Cộng tác viên</dt><dd>{wedding.collaborators.filter((item) => item.status === "ACCEPTED").length}</dd></div></dl>
           </aside>
         </div>
       )}
@@ -329,7 +329,7 @@ function WorkspaceContent() {
           <div className="panel-head"><div><h2>Thông tin cặp đôi và gia đình</h2><p className="muted-small">Các trường bỏ trống sẽ không hiển thị trên thiệp.</p></div>{!canEdit && <span className="access-chip">Chỉ xem</span>}</div>
           <div className="form-section"><h3>Thông tin cơ bản</h3><div className="form-grid two">
             <label>Tên workspace<input disabled={!canEdit} value={details.title} onChange={(e) => setDetails({ ...details, title: e.target.value })} /></label>
-            <label>Đường dẫn thiệp<div className="slug-input"><span>/i/</span><input disabled={!canEdit} value={details.slug} onChange={(e) => setDetails({ ...details, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></div></label>
+            <label>Đường dẫn thiệp<div className="slug-input"><span>/thiep/</span><input disabled={!canEdit} value={details.slug} onChange={(e) => setDetails({ ...details, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} /></div></label>
             <label>Tên chú rể<input disabled={!canEdit} value={details.groomName} onChange={(e) => setDetails({ ...details, groomName: e.target.value })} /></label>
             <label>Tên cô dâu<input disabled={!canEdit} value={details.brideName} onChange={(e) => setDetails({ ...details, brideName: e.target.value })} /></label>
             <label>Ngày cưới chính<input disabled={!canEdit} type="date" value={details.mainDate} onChange={(e) => setDetails({ ...details, mainDate: e.target.value })} /></label>

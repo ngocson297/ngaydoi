@@ -11,6 +11,7 @@ interface PublicInvitationProps {
   data: PublicInvitationData;
   preview?: boolean;
   embedded?: boolean;
+  previewViewport?: "mobile" | "desktop";
 }
 
 function WeddingFireworks({ invitationId }: { invitationId: string }) {
@@ -234,7 +235,7 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
   );
 }
 
-export function PublicInvitation({ data, preview = false, embedded = false }: PublicInvitationProps) {
+export function PublicInvitation({ data, preview = false, embedded = false, previewViewport }: PublicInvitationProps) {
   const wedding = withDefaultDesign(data);
   const design = wedding.invitationDesign;
   const experience = resolveTemplateExperience(design.templateKey);
@@ -349,12 +350,27 @@ export function PublicInvitation({ data, preview = false, embedded = false }: Pu
       </section>
     ) : null,
     family: design.showFamily && (wedding.showGroomParents || wedding.showBrideParents) ? (
-      <section className="inv4-section inv4-family"><div className="inv4-section-head"><span>Hai gia đình</span><h2>Trân trọng báo tin</h2></div><div className="inv4-family-grid">{wedding.showGroomParents && <article><small>Nhà trai</small><p>{wedding.groomFatherName || "Thông tin đang cập nhật"}</p><p>{wedding.groomMotherName || ""}</p></article>}<div className="inv4-family-mark">♥</div>{wedding.showBrideParents && <article><small>Nhà gái</small><p>{wedding.brideFatherName || "Thông tin đang cập nhật"}</p><p>{wedding.brideMotherName || ""}</p></article>}</div></section>
+      <section className="inv4-section inv4-family inv11-family">
+        <div className="inv4-section-head"><span>Hai gia đình</span><h2>Lời ngỏ từ gia đình</h2></div>
+        <p className="inv11-family-lead">Trong niềm hân hoan và lòng biết ơn, hai gia đình trân trọng báo tin lễ thành hôn của</p>
+        <div className="inv11-family-couple">
+          <span>Lễ thành hôn</span>
+          <h3>{wedding.groomName} <i>&amp;</i> {wedding.brideName}</h3>
+          <time dateTime={wedding.mainDate ?? undefined}>{mainDate ? formatDate(wedding.mainDate) : "Ngày cưới đang cập nhật"}</time>
+          {calendarEvent?.venueName && <small>{calendarEvent.venueName}</small>}
+        </div>
+        <div className="inv4-family-grid">
+          {wedding.showGroomParents && <article><small>Đại diện nhà trai</small><p>{wedding.groomFatherName || "Thông tin đang cập nhật"}</p><p>{wedding.groomMotherName || ""}</p></article>}
+          <div className="inv4-family-mark" aria-hidden="true"><span>♥</span><i /></div>
+          {wedding.showBrideParents && <article><small>Đại diện nhà gái</small><p>{wedding.brideFatherName || "Thông tin đang cập nhật"}</p><p>{wedding.brideMotherName || ""}</p></article>}
+        </div>
+        <p className="inv11-family-closing">Kính mời quý khách cùng hiện diện, chứng kiến và chung vui trong ngày trọng đại của hai con.</p>
+      </section>
     ) : null,
     story: design.showStory && wedding.story ? <section className="inv4-section inv4-story"><div className="inv4-section-head"><span>Câu chuyện của chúng mình</span><h2>{design.storyTitle}</h2></div><p>{wedding.story}</p></section> : null,
     gallery: design.showGallery && gallery.length > 0 ? <section className="inv4-section inv4-gallery"><div className="inv4-section-head"><span>Album cưới</span><h2>{design.galleryTitle}</h2></div><div className={`inv4-gallery-grid count-${Math.min(gallery.length, 6)} layout-${experience.layout}`}>{gallery.slice(0, 9).map((item, index) => <figure key={item.id} className={index === 0 ? "featured" : ""}><img src={resolveMediaUrl(item.publicUrl) ?? ""} alt={item.altText ?? "Ảnh cưới"} loading={index < 2 ? "eager" : "lazy"} /></figure>)}</div></section> : null,
     countdown: design.showCountdown ? <section className="inv4-section inv4-countdown-section inv8-countdown-section"><div className="inv4-section-head"><span>Save the date</span><h2>{design.countdownTitle}</h2></div><Countdown target={wedding.mainDate} variant={experience.countdownStyle} /><button className="inv4-text-button" type="button" onClick={addToCalendar}>+ Thêm vào lịch</button></section> : null,
-    events: design.showEvents ? <section id="invitation-events" className={`inv4-section inv4-events inv8-events style-${experience.eventStyle}`}><div className="inv4-section-head"><span>Chương trình</span><h2>{design.eventsTitle}</h2></div>{wedding.events.length ? <div className="inv8-event-list">{wedding.events.map((event, index) => { const startsAt = new Date(event.startsAt); return <article key={event.id}><div className="inv8-event-date"><strong>{String(startsAt.getDate()).padStart(2, "0")}</strong><span>Tháng {String(startsAt.getMonth() + 1).padStart(2, "0")}</span></div><div className="inv8-event-marker"><span>{eventIcon(event.type)}</span><i /></div><div className="inv8-event-content"><small>{event.side === "BRIDE" ? "Nhà gái" : event.side === "GROOM" ? "Nhà trai" : "Hai gia đình"} · Chương trình {String(index + 1).padStart(2, "0")}</small><h3>{event.title}</h3><p className="inv8-event-time"><strong>{formatDate(event.startsAt, true)}</strong>{event.endsAt ? ` – ${new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.endsAt))}` : ""}</p><p className="inv8-event-place"><b>{event.venueName}</b><span>{event.address}</span></p>{event.dressCode && <p className="inv4-note"><b>Trang phục</b> {event.dressCode}</p>}{event.note && <p className="inv4-note">{event.note}</p>}<div className="inv4-event-actions">{event.mapUrl && <a href={event.mapUrl} target="_blank" rel="noreferrer">Mở bản đồ ↗</a>}{index === 0 && <button type="button" onClick={addToCalendar}>Thêm vào lịch</button>}</div></div></article>; })}</div> : <p className="inv-empty-copy">Chương trình đang được cập nhật.</p>}</section> : null,
+    events: design.showEvents ? <section id="invitation-events" className={`inv4-section inv4-events inv8-events style-${experience.eventStyle}`}><div className="inv4-section-head"><span>Chương trình</span><h2>{design.eventsTitle}</h2></div>{wedding.events.length ? <div className="inv8-event-list">{wedding.events.map((event, index) => { const startsAt = new Date(event.startsAt); return <article key={event.id}><div className="inv8-event-date"><strong>{String(startsAt.getDate()).padStart(2, "0")}</strong><span>Tháng {String(startsAt.getMonth() + 1).padStart(2, "0")}</span></div><div className="inv8-event-marker"><span>{eventIcon(event.type)}</span><i /></div><div className="inv8-event-content"><div className="inv11-event-meta"><small>{event.side === "BRIDE" ? "Nhà gái" : event.side === "GROOM" ? "Nhà trai" : "Hai gia đình"}</small><em>Chặng {String(index + 1).padStart(2, "0")}</em></div><h3>{event.title}</h3><p className="inv8-event-time"><strong>{new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(startsAt)}</strong><span>{formatDate(event.startsAt)}</span>{event.endsAt ? <i>đến {new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.endsAt))}</i> : null}</p><p className="inv8-event-place"><b>{event.venueName}</b><span>{event.address}</span></p>{event.dressCode && <p className="inv4-note"><b>Trang phục</b> {event.dressCode}</p>}{event.note && <p className="inv4-note">{event.note}</p>}<div className="inv4-event-actions">{event.mapUrl && <a href={event.mapUrl} target="_blank" rel="noreferrer">Mở bản đồ ↗</a>}{index === 0 && <button type="button" onClick={addToCalendar}>Thêm vào lịch</button>}</div></div></article>; })}</div> : <p className="inv-empty-copy">Chương trình đang được cập nhật.</p>}</section> : null,
     gift: design.showGift && giftAccounts.length > 0 ? <GiftTransferSection title={design.giftTitle} message={design.giftMessage} accounts={giftAccounts} copiedAccountId={copiedAccountId} onCopy={(account) => void copyGiftAccount(account)} /> : null,
     footer: design.showFooter ? <footer className="inv4-footer"><div className="inv4-ornament small">ND</div><h2>{wedding.groomName} <span>&</span> {wedding.brideName}</h2><p>{design.footerMessage}</p><div className="inv4-footer-actions"><button type="button" onClick={shareInvitation}>{copied ? "Đã sao chép liên kết" : "Chia sẻ ngày vui"}</button>{wedding.memoryAlbum?.publicEnabled && <a href={`/memories/${wedding.memoryAlbum.token}${wedding.personalization ? `?guest=${encodeURIComponent(wedding.personalization.token)}` : ""}`}>Góp ảnh vào album</a>}</div></footer> : null,
   };
@@ -362,7 +378,7 @@ export function PublicInvitation({ data, preview = false, embedded = false }: Pu
   const Root = embedded ? "div" : "main";
 
   return (
-    <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""}`} style={style}>
+    <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""} ${previewViewport ? `preview-${previewViewport}` : ""}`} style={style}>
       {!embedded && !preview && <WeddingFireworks invitationId={wedding.id} />}
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
       {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}

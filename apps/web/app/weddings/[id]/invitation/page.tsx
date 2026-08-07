@@ -629,7 +629,7 @@ function InvitationEditorContent() {
                 <label className="toggle-row"><span><b>Bật nút phát nhạc</b><small>Chỉ hiện khi có URL nhạc hợp lệ.</small></span><input type="checkbox" checked={design.musicEnabled} disabled={!canEdit} onChange={(event) => updateDesign("musicEnabled", event.target.checked)} /></label>
                 <label>URL file nhạc<input type="url" placeholder="https://.../music.mp3" value={design.musicUrl ?? ""} disabled={!canEdit || !design.musicEnabled} onChange={(event) => updateDesign("musicUrl", event.target.value || null)} /></label>
               </SettingGroup>
-              <SettingGroup title="Đường dẫn công khai"><div className="public-link-box"><span>ngaydoi.vn/i/{data.slug}</span>{data.status === "PUBLISHED" ? <a href={`/i/${data.slug}`} target="_blank" rel="noreferrer">Mở thiệp ↗</a> : <small>Thiệp chỉ truy cập công khai sau khi xuất bản.</small>}</div></SettingGroup>
+              <SettingGroup title="Đường dẫn công khai"><div className="public-link-box"><span>ngaydoi.vn/thiep/{data.slug}</span>{data.status === "PUBLISHED" ? <a href={`/thiep/${data.slug}`} target="_blank" rel="noreferrer">Mở thiệp ↗</a> : <small>Thiệp chỉ truy cập công khai sau khi xuất bản.</small>}</div></SettingGroup>
             </div>}
 
             {activeTab === "history" && <div className="editor-form-stack">
@@ -642,7 +642,7 @@ function InvitationEditorContent() {
 
           <section className="editor-preview-area">
             <div className="preview-toolbar"><div className="device-toggle"><button className={device === "mobile" ? "active" : ""} type="button" onClick={() => setDevice("mobile")}>Điện thoại</button><button className={device === "desktop" ? "active" : ""} type="button" onClick={() => setDevice("desktop")}>Máy tính</button></div><span>{device === "mobile" ? "390 px" : "100%"}</span></div>
-            <div className={`preview-stage ${device}`}><div className="preview-browser"><div className="preview-browser-bar"><i /><i /><i /><span>ngaydoi.vn/i/{data.slug}</span></div><div className="preview-scroll">{previewData && <PublicInvitation data={previewData} embedded />}</div></div></div>
+            <div className={`preview-stage ${device}`}><div className="preview-browser"><div className="preview-browser-bar"><i /><i /><i /><span>ngaydoi.vn/thiep/{data.slug}</span></div><div className="preview-scroll">{previewData && <PublicInvitation data={previewData} embedded previewViewport={device} />}</div></div></div>
           </section>
         </div>
       </div>
