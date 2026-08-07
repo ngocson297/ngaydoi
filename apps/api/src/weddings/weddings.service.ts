@@ -259,7 +259,8 @@ export class WeddingsService {
           },
         },
         invitationDesign: true,
-        memoryAlbum: { select: { token: true, publicEnabled: true } },
+        memoryAlbum: { select: { token: true, publicEnabled: true, guestbookEnabled: true } },
+        guestbookEntries: { where: { status: "APPROVED" }, orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }], take: 6, select: { id: true, authorName: true, message: true, approvedAt: true, createdAt: true } },
         mediaAssets: {
           orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
           select: { id: true, type: true, publicUrl: true, mimeType: true, width: true, height: true, isCover: true, altText: true, sortOrder: true },

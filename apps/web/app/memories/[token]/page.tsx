@@ -1,19 +1,37 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, ErrorState, FileUploadField, FormActions, FormField, PageSkeleton, useUnsavedChangesGuard } from "../../../components/ui";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { API_URL, apiRequest, toUiError, type UiError } from "../../../lib/api";
-import type { PublicMemoryAlbum } from "../../../lib/memories";
-import { memoryMediaUrl } from "../../../lib/memories";
+import { Alert, Button, ErrorState, FileUploadField, FormActions, FormField, PageSkeleton, useUnsavedChangesGuard } from "../../../components/ui";
+import { API_URL, ApiError, apiRequest, toUiError, type UiError } from "../../../lib/api";
+import type { CursorPage, GuestbookEntry, MemoryAsset, MemoryComment, PublicMemoryAlbum } from "../../../lib/memories";
+import { memoryDownloadUrl, resolveMemoryMediaUrl } from "../../../lib/memories";
 
 interface UploadItem { file: File; preview: string; status: "READY" | "UPLOADING" | "DONE" | "ERROR"; error?: string }
+interface DirectUploadPreparation { strategy: "DIRECT" | "PROXY"; uploadUrl?: string; headers?: Record<string, string>; uploadTicket?: string }
 const fileKey = (file: File): string => `${file.name}-${file.size}-${file.lastModified}`;
+const formatMb = (bytes: number): string => `${Math.max(1, Math.round(bytes / 1024 / 1024))} MB`;
+
+function ensureViewerKey(): string {
+  const storageKey = "ngaydoi-memory-viewer-key";
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) return existing;
+  const value = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(storageKey, value);
+  return value;
+}
 
 export default function PublicMemoriesPage() {
   const { token } = useParams<{ token: string }>();
+  const [viewerKey, setViewerKey] = useState("");
   const [invitationToken, setInvitationToken] = useState("");
   const [album, setAlbum] = useState<PublicMemoryAlbum | null>(null);
+  const [assets, setAssets] = useState<MemoryAsset[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [guestbook, setGuestbook] = useState<GuestbookEntry[]>([]);
+  const [guestbookCursor, setGuestbookCursor] = useState<string | null>(null);
+  const [guestbookBusy, setGuestbookBusy] = useState(false);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
@@ -22,40 +40,116 @@ export default function PublicMemoriesPage() {
   const [loadError, setLoadError] = useState<UiError | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [expandedComments, setExpandedComments] = useState<string | null>(null);
+  const [comments, setComments] = useState<Record<string, MemoryComment[]>>({});
+  const [commentsCursor, setCommentsCursor] = useState<Record<string, string | null>>({});
+  const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [commentBusy, setCommentBusy] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  async function load(): Promise<void> {
+  const load = useCallback(async (key: string): Promise<void> => {
     setLoading(true);
     setLoadError(null);
-    try { setAlbum(await apiRequest<PublicMemoryAlbum>(`/public/memories/${encodeURIComponent(token)}`)); }
-    catch (reason) { setLoadError(toUiError(reason, "Không thể mở album kỷ niệm.")); }
+    try {
+      const result = await apiRequest<PublicMemoryAlbum>(`/public/memories/${encodeURIComponent(token)}?viewer=${encodeURIComponent(key)}`);
+      setAlbum(result);
+      setAssets(result.assets);
+      setNextCursor(result.assetPageInfo.nextCursor);
+      setGuestbook(result.guestbook ?? []);
+      setGuestbookCursor(result.guestbookPageInfo?.nextCursor ?? null);
+    } catch (reason) { setLoadError(toUiError(reason, "Không thể mở album kỷ niệm.")); }
     finally { setLoading(false); }
-  }
-  useEffect(() => {
-    setInvitationToken(new URLSearchParams(window.location.search).get("guest") ?? "");
-    void load();
   }, [token]);
+
+  useEffect(() => {
+    const key = ensureViewerKey();
+    setViewerKey(key);
+    setInvitationToken(new URLSearchParams(window.location.search).get("guest") ?? "");
+    void load(key);
+  }, [load]);
+
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (!nextCursor || loadingMore || !viewerKey) return;
+    setLoadingMore(true);
+    try {
+      const page = await apiRequest<CursorPage<MemoryAsset>>(`/public/memories/${encodeURIComponent(token)}/assets?cursor=${encodeURIComponent(nextCursor)}&limit=24&viewer=${encodeURIComponent(viewerKey)}`);
+      setAssets((current) => [...current, ...page.items.filter((item) => !current.some((existing) => existing.id === item.id))]);
+      setNextCursor(page.nextCursor);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể tải thêm khoảnh khắc."); }
+    finally { setLoadingMore(false); }
+  }, [loadingMore, nextCursor, token, viewerKey]);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !nextCursor) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+    }, { rootMargin: "500px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore, nextCursor]);
+
   const completed = items.filter((item) => item.status === "DONE").length;
   const uploadDirty = items.some((item) => item.status !== "DONE") || Boolean(name.trim()) || Boolean(message.trim());
   const guard = useUnsavedChangesGuard(uploadDirty && !busy);
-  const gallery = useMemo(() => album?.assets ?? [], [album]);
 
   function choose(files: FileList | null): void {
-    if (!files) return;
-    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"]);
+    if (!files || !album) return;
     const incoming = Array.from(files);
-    const accepted = incoming.filter((file) => allowedTypes.has(file.type) && file.size <= (file.type.startsWith("video/") ? 30 * 1024 * 1024 : 10 * 1024 * 1024));
+    const policy = album.uploadPolicy;
+    const accepted = incoming.filter((file) => {
+      if (!["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"].includes(file.type)) return false;
+      return file.size <= (file.type.startsWith("video/") ? policy.maxVideoBytes : policy.maxImageBytes);
+    });
     const rejected = incoming.length - accepted.length;
     const existing = new Set(items.map((item) => fileKey(item.file)));
-    const available = Math.max(0, 10 - items.length);
+    const available = Math.max(0, Math.min(policy.maxFilesPerBatch, policy.remainingItems) - items.length);
     const unique = accepted.filter((file) => !existing.has(fileKey(file)));
     if (rejected > 0) setError(`${rejected} file không đúng định dạng hoặc vượt giới hạn dung lượng.`);
-    else if (unique.length > available) setError("Mỗi lần chỉ có thể chọn tối đa 10 file.");
+    else if (unique.length > available) setError(`Mỗi lượt chỉ có thể chọn tối đa ${Math.min(policy.maxFilesPerBatch, policy.remainingItems)} file.`);
     else setError("");
     setItems([...items, ...unique.slice(0, available).map((file) => ({ file, preview: URL.createObjectURL(file), status: "READY" as const }))]);
   }
+
   function remove(index: number): void {
-    setItems((current) => { const item = current[index]; if (item) URL.revokeObjectURL(item.preview); return current.filter((_, itemIndex) => itemIndex !== index); });
+    setItems((current) => {
+      const item = current[index];
+      if (item) URL.revokeObjectURL(item.preview);
+      return current.filter((_, itemIndex) => itemIndex !== index);
+    });
   }
+
+  async function uploadOne(file: File): Promise<void> {
+    if (!album) throw new Error("Album chưa sẵn sàng");
+    if (album.uploadPolicy.strategy === "DIRECT") {
+      const prep = await apiRequest<DirectUploadPreparation>(`/public/memories/${encodeURIComponent(token)}/upload/prepare`, {
+        method: "POST",
+        body: JSON.stringify({
+          mimeType: file.type,
+          sizeBytes: file.size,
+          originalName: file.name,
+          uploaderName: name,
+          uploaderMessage: message,
+          invitationToken,
+        }),
+      });
+      if (prep.strategy === "DIRECT" && prep.uploadUrl && prep.uploadTicket) {
+        const response = await fetch(prep.uploadUrl, { method: "PUT", headers: prep.headers, body: file });
+        if (!response.ok) throw new Error(`Storage từ chối upload (${response.status}).`);
+        await apiRequest(`/public/memories/${encodeURIComponent(token)}/upload/complete`, { method: "POST", body: JSON.stringify({ uploadTicket: prep.uploadTicket }) });
+        return;
+      }
+    }
+    const form = new FormData();
+    form.append("file", file);
+    form.append("uploaderName", name);
+    form.append("uploaderMessage", message);
+    if (invitationToken) form.append("invitationToken", invitationToken);
+    const response = await fetch(`${API_URL}/public/memories/${encodeURIComponent(token)}/upload`, { method: "POST", body: form });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(String(body.message || "Upload không thành công"));
+  }
+
   async function upload(event: React.FormEvent): Promise<void> {
     event.preventDefault();
     if (!items.length) { setError("Vui lòng chọn ít nhất một ảnh hoặc video."); return; }
@@ -64,15 +158,8 @@ export default function PublicMemoriesPage() {
     for (let index = 0; index < items.length; index += 1) {
       if (items[index]?.status === "DONE") continue;
       setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, status: "UPLOADING", error: undefined } : item));
-      const form = new FormData();
-      form.append("file", items[index]!.file);
-      form.append("uploaderName", name);
-      form.append("uploaderMessage", message);
-      if (invitationToken) form.append("invitationToken", invitationToken);
       try {
-        const response = await fetch(`${API_URL}/public/memories/${encodeURIComponent(token)}/upload`, { method: "POST", body: form });
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(String(body.message || "Upload không thành công"));
+        await uploadOne(items[index]!.file);
         successCount += 1;
         setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, status: "DONE" } : item));
       } catch (reason) {
@@ -85,40 +172,84 @@ export default function PublicMemoriesPage() {
       setNotice(`Đã gửi ${successCount} khoảnh khắc. Cảm ơn bạn đã góp vào album!`);
       setItems((current) => current.filter((item) => item.status !== "DONE"));
       setName(""); setMessage("");
-      await load();
+      if (viewerKey) await load(viewerKey);
     }
   }
 
+  async function toggleReaction(assetId: string): Promise<void> {
+    if (!viewerKey || !album?.reactionsEnabled) return;
+    try {
+      const result = await apiRequest<{ reacted: boolean; count: number }>(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/reactions/toggle`, { method: "POST", body: JSON.stringify({ actorKey: viewerKey }) });
+      setAssets((current) => current.map((asset) => asset.id === assetId ? { ...asset, viewerReacted: result.reacted, reactionCount: result.count } : asset));
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể cập nhật lượt thích."); }
+  }
+
+  async function loadComments(assetId: string, append = false): Promise<void> {
+    const cursor = append ? commentsCursor[assetId] : null;
+    try {
+      const page = await apiRequest<CursorPage<MemoryComment>>(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/comments?limit=12${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      setComments((current) => ({ ...current, [assetId]: append ? [...(current[assetId] ?? []), ...page.items] : page.items }));
+      setCommentsCursor((current) => ({ ...current, [assetId]: page.nextCursor }));
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể tải bình luận."); }
+  }
+
+  async function toggleComments(assetId: string): Promise<void> {
+    if (expandedComments === assetId) { setExpandedComments(null); return; }
+    setExpandedComments(assetId);
+    if (!comments[assetId]) await loadComments(assetId);
+  }
+
+  async function submitComment(assetId: string): Promise<void> {
+    const body = (commentDraft[assetId] ?? "").trim();
+    if (body.length < 2 || !viewerKey) return;
+    setCommentBusy(assetId);
+    try {
+      const result = await apiRequest<{ status: "PENDING" | "APPROVED"; message: string }>(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ actorKey: viewerKey, authorName: name, body, invitationToken }),
+      });
+      setCommentDraft((current) => ({ ...current, [assetId]: "" }));
+      setNotice(result.message);
+      if (result.status === "APPROVED") {
+        await loadComments(assetId);
+        setAssets((current) => current.map((asset) => asset.id === assetId ? { ...asset, commentCount: (asset.commentCount ?? 0) + 1 } : asset));
+      }
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể gửi bình luận."); }
+    finally { setCommentBusy(null); }
+  }
+
+  async function loadMoreGuestbook(): Promise<void> {
+    if (!guestbookCursor || guestbookBusy) return;
+    setGuestbookBusy(true);
+    try {
+      const page = await apiRequest<CursorPage<GuestbookEntry>>(`/public/memories/${encodeURIComponent(token)}/guestbook?limit=12&cursor=${encodeURIComponent(guestbookCursor)}`);
+      setGuestbook((current) => [...current, ...page.items.filter((item) => !current.some((existing) => existing.id === item.id))]);
+      setGuestbookCursor(page.nextCursor);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể tải thêm lời chúc."); }
+    finally { setGuestbookBusy(false); }
+  }
+
   if (loading && !album) return <main id="main-content" tabIndex={-1} className="friendly-error"><PageSkeleton cards={2} /></main>;
-  if (loadError || !album) return <main id="main-content" tabIndex={-1} className="friendly-error"><ErrorState title="Album chưa sẵn sàng" description={loadError?.message ?? "Album không còn khả dụng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" /></main>;
+  if (loadError || !album) return <main id="main-content" tabIndex={-1} className="friendly-error"><ErrorState title="Album chưa sẵn sàng" description={loadError?.message ?? "Album không còn khả dụng."} requestId={loadError?.requestId} onRetry={() => viewerKey && void load(viewerKey)} homeHref="/" homeLabel="Về trang chủ" /></main>;
 
   return <main id="main-content" tabIndex={-1} className="memory-public">
-    <header className="memory-public-hero"><div className="memory-public-overlay" /><div className="memory-public-copy"><span>Album kỷ niệm ngày cưới</span><h1>{album.wedding.groomName} <i>&</i> {album.wedding.brideName}</h1><h2>{album.title}</h2><p>{album.description}</p><a href="#share-memory" className="btn btn-primary">Chia sẻ khoảnh khắc</a></div></header>
-    <section className="memory-public-section"><div className="memory-public-heading"><span>Cùng lưu giữ</span><h2>{album.thankYouTitle}</h2><p>{album.thankYouMessage}</p></div>{gallery.length ? <div className="memory-public-grid">{gallery.map((asset) => <figure key={asset.id}>{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={memoryMediaUrl(asset.id, album.token)} /> : <img src={memoryMediaUrl(asset.id, album.token)} alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} loading="lazy" />} {(album.showUploaderName && asset.uploaderName || asset.uploaderMessage) && <figcaption>{album.showUploaderName && asset.uploaderName && <strong>{asset.uploaderName}</strong>}{asset.uploaderMessage && <span>{asset.uploaderMessage}</span>}</figcaption>}</figure>)}</div> : <div className="memory-public-empty"><span>♡</span><h3>Hãy là người đầu tiên chia sẻ</h3><p>Những bức ảnh tự nhiên từ bạn bè và gia đình sẽ làm album này thật đặc biệt.</p></div>}</section>
-    <section id="share-memory" className="memory-upload-section"><div className="memory-upload-copy"><span className="eyebrow">Gửi ảnh & video</span><h2>Thêm góc nhìn của bạn</h2><p>Chọn tối đa 10 file mỗi lần. Ảnh tối đa 10 MB, video tối đa 30 MB. Nội dung có thể cần được chủ nhân album duyệt trước khi hiển thị.</p><ul><li>Không cần đăng nhập.</li><li>Không đăng ảnh riêng tư của người khác khi chưa được đồng ý.</li><li>Giữ lại file gốc cho đến khi upload hoàn tất.</li></ul></div>{album.uploadEnabled ? <form className="memory-upload-card" onSubmit={(event) => void upload(event)} noValidate>
-      <FileUploadField
-        id="memory-files"
-        label="Ảnh và video"
-        accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-        multiple
-        disabled={busy}
-        helperText="JPEG, PNG, WebP tối đa 10 MB; MP4, WebM, MOV tối đa 30 MB. Tối đa 10 file mỗi lượt."
-        selectedSummary={items.length ? `Đã chọn ${items.length}/10 file` : undefined}
-        error={error && !items.length ? error : undefined}
-        onFilesSelected={choose}
-      />
+    <header className="memory-public-hero"><div className="memory-public-overlay" /><div className="memory-public-copy"><span>Wedding Space</span><h1>{album.wedding.groomName} <i>&</i> {album.wedding.brideName}</h1><h2>{album.title}</h2><p>{album.description}</p><div className="memory-public-hero-actions"><a href="#moments" className="btn btn-secondary">Xem khoảnh khắc</a><a href="#share-memory" className="btn btn-primary">Chia sẻ ảnh</a></div></div></header>
+    {error ? <div className="memory-floating-notice"><Alert tone="error">{error}</Alert></div> : null}
+    {notice ? <div className="memory-floating-notice"><Alert tone="success">{notice}</Alert></div> : null}
+
+    <section id="moments" className="memory-public-section"><div className="memory-public-heading"><span>Album chung</span><h2>{album.thankYouTitle}</h2><p>{album.thankYouMessage}</p></div>{assets.length ? <div className="memory-public-grid">{assets.map((asset) => <figure className="memory-social-card" key={asset.id}><div className="memory-social-media">{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={resolveMemoryMediaUrl(asset, album.token)} /> : <img src={resolveMemoryMediaUrl(asset, album.token)} alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} loading="lazy" />}</div><figcaption>{(album.showUploaderName && asset.uploaderName || asset.uploaderMessage) && <div className="memory-social-caption">{album.showUploaderName && asset.uploaderName && <strong>{asset.uploaderName}</strong>}{asset.uploaderMessage && <span>{asset.uploaderMessage}</span>}</div>}<div className="memory-social-actions">{album.reactionsEnabled && <button type="button" className={asset.viewerReacted ? "active" : ""} aria-pressed={asset.viewerReacted} onClick={() => void toggleReaction(asset.id)}><span aria-hidden="true">♥</span> {asset.reactionCount ?? 0}</button>}{album.commentsEnabled && <button type="button" onClick={() => void toggleComments(asset.id)}><span aria-hidden="true">◌</span> {asset.commentCount ?? 0} bình luận</button>}{album.downloadsEnabled && <a href={memoryDownloadUrl(asset.id, album.token)} download aria-label="Tải khoảnh khắc này">↓ Tải</a>}</div>{expandedComments === asset.id && <div className="memory-comments"><div className="memory-comment-list">{(comments[asset.id] ?? []).map((comment) => <article key={comment.id}><strong>{comment.authorName}</strong><p>{comment.body}</p><time>{new Date(comment.createdAt).toLocaleString("vi-VN")}</time></article>)}{(comments[asset.id] ?? []).length === 0 && <p className="memory-comment-empty">Chưa có bình luận. Hãy để lại lời nhắn đầu tiên.</p>}{commentsCursor[asset.id] && <button type="button" className="memory-comment-more" onClick={() => void loadComments(asset.id, true)}>Xem thêm bình luận</button>}</div><div className="memory-comment-compose"><input maxLength={600} value={commentDraft[asset.id] ?? ""} onChange={(event) => setCommentDraft((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Viết bình luận…" aria-label="Viết bình luận" /><button type="button" disabled={commentBusy === asset.id || (commentDraft[asset.id] ?? "").trim().length < 2} onClick={() => void submitComment(asset.id)}>{commentBusy === asset.id ? "Đang gửi…" : "Gửi"}</button></div></div>}</figcaption></figure>)}</div> : <div className="memory-public-empty"><span>♡</span><h3>Hãy là người đầu tiên chia sẻ</h3><p>Những bức ảnh tự nhiên từ bạn bè và gia đình sẽ làm album này thật đặc biệt.</p></div>}
+      <div ref={loadMoreRef} className="memory-load-more" aria-live="polite">{loadingMore ? <span>Đang tải thêm khoảnh khắc…</span> : nextCursor ? <button className="btn btn-secondary" type="button" onClick={() => void loadMore()}>Tải thêm</button> : assets.length ? <span>Đã xem hết album.</span> : null}</div>
+    </section>
+
+    {album.guestbookEnabled && <section id="guestbook" className="memory-guestbook-section"><div className="memory-public-heading"><span>Sổ lưu bút</span><h2>Lời chúc từ những người thương</h2><p>Những lời chúc được khách đồng ý công khai và đã qua kiểm duyệt của chủ thiệp.</p></div>{guestbook.length ? <div className="memory-guestbook-grid">{guestbook.map((entry) => <blockquote key={entry.id}><span aria-hidden="true">“</span><p>{entry.message}</p><footer>— {entry.authorName}</footer></blockquote>)}</div> : <div className="memory-public-empty compact"><span>✦</span><h3>Sổ lưu bút đang chờ lời chúc đầu tiên</h3><p>Khách có thiệp cá nhân có thể gửi lời chúc trong phần RSVP.</p></div>}{guestbookCursor && <div className="memory-load-more"><button className="btn btn-secondary" disabled={guestbookBusy} type="button" onClick={() => void loadMoreGuestbook()}>{guestbookBusy ? "Đang tải…" : "Xem thêm lời chúc"}</button></div>}</section>}
+
+    <section id="share-memory" className="memory-upload-section"><div className="memory-upload-copy"><span className="eyebrow">Gửi ảnh & video</span><h2>Thêm góc nhìn của bạn</h2><p>Ảnh/video sẽ đi vào album chung. Khi hệ thống chạy với S3/R2, file được upload thẳng từ thiết bị lên object storage thay vì đi qua API.</p><ul><li>Không cần đăng nhập.</li><li>Tối đa {album.uploadPolicy.maxFilesPerBatch} file mỗi lượt.</li><li>Ảnh tối đa {formatMb(album.uploadPolicy.maxImageBytes)}; video tối đa {formatMb(album.uploadPolicy.maxVideoBytes)}.</li><li>Không đăng ảnh riêng tư của người khác khi chưa được đồng ý.</li></ul><div className="memory-storage-note"><strong>{album.uploadPolicy.strategy === "DIRECT" ? "Direct upload đang bật" : "Local self-test mode"}</strong><span>{album.uploadPolicy.strategy === "DIRECT" ? "Thiết bị → Object Storage → CDN → Album" : "Local hiện vẫn upload qua API; production sẽ tự chuyển sang direct upload khi cấu hình S3/R2."}</span></div></div>{album.uploadEnabled ? <form className="memory-upload-card" onSubmit={(event) => void upload(event)} noValidate>
+      <FileUploadField id="memory-files" label="Ảnh và video" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple disabled={busy} helperText={`Tối đa ${album.uploadPolicy.maxFilesPerBatch} file/lượt. Ảnh ${formatMb(album.uploadPolicy.maxImageBytes)}, video ${formatMb(album.uploadPolicy.maxVideoBytes)}.`} selectedSummary={items.length ? `Đã chọn ${items.length}/${album.uploadPolicy.maxFilesPerBatch} file` : undefined} error={error && !items.length ? error : undefined} onFilesSelected={choose} />
       {items.length > 0 ? <div className="memory-upload-list">{items.map((item, index) => <article key={fileKey(item.file)}><div className="memory-upload-thumb">{item.file.type.startsWith("video/") ? <video aria-label={`Xem trước video ${item.file.name}`} src={item.preview} /> : <img src={item.preview} alt="Xem trước file upload" />}</div><div><strong>{item.file.name}</strong><span>{(item.file.size / 1024 / 1024).toFixed(1)} MB · {{ READY: "Sẵn sàng", UPLOADING: "Đang tải…", DONE: "Đã gửi", ERROR: "Có lỗi" }[item.status]}</span>{item.error ? <small>{item.error}</small> : null}</div><button type="button" aria-label={`Xóa ${item.file.name}`} disabled={busy || item.status === "UPLOADING"} onClick={() => remove(index)}>×</button></article>)}</div> : null}
-      <div className="form-grid two">
-        <FormField id="memory-name" label="Tên của bạn" helperText="Tên sẽ chỉ hiển thị nếu chủ album bật tùy chọn này."><input maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Gia đình Minh Anh" /></FormField>
-        <FormField id="memory-message" label="Lời nhắn" helperText="Một lời chúc hoặc chú thích ngắn cho album."><input maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Chúc hai bạn trăm năm hạnh phúc…" /></FormField>
-      </div>
-      {error ? <Alert tone="error" title="Có file chưa thể gửi">{error}</Alert> : null}
-      {notice ? <Alert tone="success">{notice}</Alert> : null}
-      <FormActions dirty={uploadDirty} saving={busy}>
-        <Button type="submit" fullWidth loading={busy} loadingLabel={`Đang gửi ${completed}/${items.length}…`} disabled={!items.length}>{`Gửi ${items.length || ""} khoảnh khắc`}</Button>
-      </FormActions>
+      <div className="form-grid two"><FormField id="memory-name" label="Tên của bạn" helperText="Tên này cũng được dùng khi bạn bình luận trong album."><input maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ví dụ: Gia đình Minh Anh" /></FormField><FormField id="memory-message" label="Lời nhắn" helperText="Một lời chúc hoặc chú thích ngắn cho album."><input maxLength={500} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Chúc hai bạn trăm năm hạnh phúc…" /></FormField></div>
+      <FormActions dirty={uploadDirty} saving={busy}><Button type="submit" fullWidth loading={busy} loadingLabel={`Đang gửi ${completed}/${items.length}…`} disabled={!items.length}>{`Gửi ${items.length || ""} khoảnh khắc`}</Button></FormActions>
       <small className="memory-privacy">Bằng việc gửi nội dung, bạn xác nhận mình có quyền chia sẻ và đồng ý để cô dâu chú rể lưu trong album kỷ niệm.</small>
-    </form> : <div className="memory-upload-closed"><span>✓</span><h3>Album đã ngừng nhận nội dung mới</h3><p>Bạn vẫn có thể xem những khoảnh khắc đã được chia sẻ.</p></div>}</section>
+    </form> : <div className="memory-upload-closed"><span>✓</span><h3>Album đã ngừng nhận nội dung mới</h3><p>Bạn vẫn có thể xem và tương tác với những khoảnh khắc đã được chia sẻ.</p></div>}</section>
     {guard.dialog}
     <footer className="memory-public-footer"><div className="memory-public-mark small">ND</div><p>Được lưu giữ cùng Ngày Đôi</p><a href="/">Tạo thiệp cưới của bạn</a></footer>
   </main>;

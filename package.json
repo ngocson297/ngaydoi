@@ -1,6 +1,6 @@
 {
   "name": "ngaydoi-mvp",
-  "version": "0.15.10",
+  "version": "0.15.11",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -42,13 +42,14 @@
     "a11y:audit": "node scripts/accessibility-audit.mjs",
     "ux:audit": "node scripts/ux-polish-audit.mjs",
     "regression:audit": "node scripts/regression-audit.mjs",
-    "quality:check": "npm run a11y:audit && npm run ux:audit && npm run regression:audit && npm run invitation-experience:audit && npm run guest-first-ux:audit && npm run sprint15.10:audit && npm run sprint15.11:audit",
+    "quality:check": "npm run a11y:audit && npm run ux:audit && npm run regression:audit && npm run invitation-experience:audit && npm run guest-first-ux:audit && npm run sprint15.10:audit && npm run sprint15.11:audit && npm run sprint15.12:audit",
     "release:check": "npm run quality:check && npm run db:validate && npm run build",
     "smoke:all": "npm run auth:smoke && npm run wedding:smoke && npm run invitation:smoke && npm run guest:smoke && npm run commercial:smoke && npm run operations:smoke && npm run pilot:smoke && npm run growth:smoke && npm run partner:smoke && npm run event-ops:smoke && npm run memories:smoke && npm run planning:smoke && npm run template:smoke",
     "invitation-experience:audit": "node scripts/invitation-experience-audit.mjs",
     "guest-first-ux:audit": "node scripts/guest-first-ux-audit.mjs",
     "sprint15.10:audit": "node scripts/sprint-15-10-audit.mjs",
-    "sprint15.11:audit": "node scripts/sprint-15-11-audit.mjs"
+    "sprint15.11:audit": "node scripts/sprint-15-11-audit.mjs",
+    "sprint15.12:audit": "node scripts/sprint-15-12-audit.mjs"
   },
   "engines": {
     "node": ">=20.9.0"

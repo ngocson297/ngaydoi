@@ -1,3 +1,15 @@
+# v0.15.11 — Sprint 15.12 Wedding Social Experience & Album Scalability
+
+- Added cursor-paginated album feeds with infinite-scroll UX instead of loading the entire wedding album at once.
+- Added wedding-scoped hearts, guest comments and a public Guestbook with owner moderation controls.
+- Added RSVP opt-in so a guest's private RSVP message is only published to the Guestbook when they explicitly allow it.
+- Added upload quotas for image/video size, batch size, album item count and total album bytes.
+- Added S3/R2 presigned direct-upload preparation so production media can bypass the API server while LOCAL self-test keeps the existing proxy upload path.
+- Added owner controls for reactions, comments, downloads, Guestbook visibility and moderation.
+- Expanded the Memories smoke test to cover cursor pagination, reactions, comments and moderation.
+- Added an additive Prisma migration only; no existing wedding, invitation, RSVP or memory data is deleted.
+- Added `npm run sprint15.12:audit` to the release quality gate.
+
 # v0.15.10 — Sprint 15.11 Self-test Stabilization
 
 - Fixed the Invitation Studio 390px preview by making the embedded invitation reflow independently from the outer desktop viewport.

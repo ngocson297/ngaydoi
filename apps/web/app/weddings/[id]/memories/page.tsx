@@ -7,11 +7,11 @@ import { AuthGate } from "../../../../components/auth-gate";
 import { useAuth } from "../../../../components/auth-provider";
 import { Alert, ConfirmDialog, DetailPageSkeleton, ErrorState, FormField, Tabs, tabPanelProps, useConfirm, useToast } from "../../../../components/ui";
 import { API_URL, ApiError, toUiError, type UiError } from "../../../../lib/api";
-import type { MemoryAsset, MemoryOwnerOverview, MemoryStatus } from "../../../../lib/memories";
-import { memoryAlbumUrl, memoryMediaUrl } from "../../../../lib/memories";
+import type { CursorPage, MemoryAsset, MemoryOwnerOverview, MemoryStatus, SocialModerationOverview } from "../../../../lib/memories";
+import { memoryAlbumUrl, resolveMemoryMediaUrl } from "../../../../lib/memories";
 
-type Tab = "gallery" | "moderation" | "settings" | "share";
-const formatBytes = (value: number): string => value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
+type Tab = "gallery" | "moderation" | "social" | "settings" | "share";
+const formatBytes = (value: number): string => value < 1024 * 1024 ? `${Math.max(1, Math.round(value / 1024))} KB` : value < 1024 * 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB` : `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
 const statusLabel: Record<MemoryStatus, string> = { PENDING: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Từ chối", ARCHIVED: "Đã lưu trữ" };
 
 function MemoriesContent() {
@@ -20,6 +20,11 @@ function MemoriesContent() {
   const { id: weddingId } = useParams<{ id: string }>();
   const { authRequest } = useAuth();
   const [data, setData] = useState<MemoryOwnerOverview | null>(null);
+  const [assets, setAssets] = useState<MemoryAsset[]>([]);
+  const [assetCursor, setAssetCursor] = useState<string | null>(null);
+  const [assetLoading, setAssetLoading] = useState(false);
+  const [social, setSocial] = useState<SocialModerationOverview | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("gallery");
   const [filter, setFilter] = useState<MemoryStatus | "ALL">("ALL");
   const [selected, setSelected] = useState<string[]>([]);
@@ -27,61 +32,135 @@ function MemoriesContent() {
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState<UiError | null>(null);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [rejecting, setRejecting] = useState<MemoryAsset | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [settings, setSettings] = useState({ title: "", description: "", thankYouTitle: "", thankYouMessage: "", uploadEnabled: true, publicEnabled: true, moderationRequired: true, showUploaderName: true, closesAt: "" });
+  const [settings, setSettings] = useState({
+    title: "", description: "", thankYouTitle: "", thankYouMessage: "", uploadEnabled: true, publicEnabled: true,
+    moderationRequired: true, showUploaderName: true, reactionsEnabled: true, commentsEnabled: true,
+    commentModerationRequired: true, downloadsEnabled: true, guestbookEnabled: true, guestbookModerationRequired: true, closesAt: "",
+  });
+
+  const applySettings = useCallback((result: MemoryOwnerOverview) => {
+    setSettings({
+      title: result.title, description: result.description, thankYouTitle: result.thankYouTitle, thankYouMessage: result.thankYouMessage,
+      uploadEnabled: result.uploadEnabled, publicEnabled: result.publicEnabled, moderationRequired: result.moderationRequired,
+      showUploaderName: result.showUploaderName, reactionsEnabled: result.reactionsEnabled, commentsEnabled: result.commentsEnabled,
+      commentModerationRequired: result.commentModerationRequired, downloadsEnabled: result.downloadsEnabled, guestbookEnabled: result.guestbookEnabled,
+      guestbookModerationRequired: result.guestbookModerationRequired, closesAt: result.closesAt ? new Date(result.closesAt).toISOString().slice(0, 16) : "",
+    });
+  }, []);
 
   const load = useCallback(async () => {
     try {
       const result = await authRequest<MemoryOwnerOverview>(`/weddings/${weddingId}/memories`);
       setData(result);
-      setSettings({ title: result.title, description: result.description, thankYouTitle: result.thankYouTitle, thankYouMessage: result.thankYouMessage, uploadEnabled: result.uploadEnabled, publicEnabled: result.publicEnabled, moderationRequired: result.moderationRequired, showUploaderName: result.showUploaderName, closesAt: result.closesAt ? new Date(result.closesAt).toISOString().slice(0, 16) : "" });
+      setAssets(result.assets);
+      setAssetCursor(result.assetPageInfo.nextCursor);
+      applySettings(result);
       setLoadError(null);
     } catch (reason) { setLoadError(toUiError(reason, "Không thể tải album kỷ niệm.")); }
     finally { setLoading(false); }
-  }, [authRequest, weddingId]);
+  }, [applySettings, authRequest, weddingId]);
 
   useEffect(() => { void load(); }, [load]);
+
   const canEdit = data?.access === "OWNER" || data?.access === "EDIT";
-  const filtered = useMemo(() => data?.assets.filter((item) => filter === "ALL" || item.status === filter) ?? [], [data, filter]);
+  const activeStatus = tab === "moderation" ? "PENDING" : filter;
   const publicPath = data ? memoryAlbumUrl(data.token) : "";
   const publicUrl = typeof window !== "undefined" && publicPath ? `${window.location.origin}${publicPath}` : publicPath;
+  const socialPending = (data?.socialMetrics.pendingComments ?? 0) + (data?.socialMetrics.pendingGuestbook ?? 0);
+  const visibleAssets = useMemo(() => assets.filter((item) => activeStatus === "ALL" || item.status === activeStatus), [activeStatus, assets]);
 
-  function flash(message: string): void { setSuccess(message); window.setTimeout(() => setSuccess(""), 3500); }
+  const loadAssets = useCallback(async (status: MemoryStatus | "ALL", append = false) => {
+    if (assetLoading) return;
+    setAssetLoading(true);
+    try {
+      const cursor = append ? assetCursor : null;
+      const page = await authRequest<CursorPage<MemoryAsset>>(`/weddings/${weddingId}/memories/assets?limit=36&status=${status}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      setAssets((current) => append ? [...current, ...page.items.filter((item) => !current.some((existing) => existing.id === item.id))] : page.items);
+      setAssetCursor(page.nextCursor);
+      setSelected([]);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tải danh sách album"); }
+    finally { setAssetLoading(false); }
+  }, [assetCursor, assetLoading, authRequest, weddingId]);
+
+  useEffect(() => {
+    if (!data) return;
+    if (tab === "moderation") void loadAssets("PENDING");
+    else if (tab === "gallery") void loadAssets(filter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, filter]);
+
+  const loadSocial = useCallback(async () => {
+    setSocialLoading(true);
+    try { setSocial(await authRequest<SocialModerationOverview>(`/weddings/${weddingId}/memories/social`)); }
+    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tải hàng đợi tương tác"); }
+    finally { setSocialLoading(false); }
+  }, [authRequest, weddingId]);
+
+  useEffect(() => { if (tab === "social") void loadSocial(); }, [loadSocial, tab]);
+
   async function moderate(assetId: string, status: "APPROVED" | "REJECTED" | "ARCHIVED", rejectionReason?: string): Promise<void> {
     setBusy(true); setError("");
-    try { await authRequest(`/weddings/${weddingId}/memories/assets/${assetId}`, { method: "PATCH", body: JSON.stringify({ status, rejectionReason }) }); await load(); flash(status === "APPROVED" ? "Đã đưa nội dung vào album." : status === "REJECTED" ? "Đã từ chối nội dung." : "Đã lưu trữ nội dung."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể cập nhật nội dung"); }
+    try {
+      await authRequest(`/weddings/${weddingId}/memories/assets/${assetId}`, { method: "PATCH", body: JSON.stringify({ status, rejectionReason }) });
+      notify({ tone: "success", title: status === "APPROVED" ? "Đã duyệt nội dung" : status === "REJECTED" ? "Đã từ chối nội dung" : "Đã lưu trữ nội dung" });
+      await Promise.all([load(), loadAssets(activeStatus as MemoryStatus | "ALL")]);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể cập nhật nội dung"); }
     finally { setBusy(false); setRejecting(null); setRejectReason(""); }
   }
+
   async function bulkApprove(): Promise<void> {
     if (!selected.length) return;
     setBusy(true);
-    try { const result = await authRequest<{ updated: number }>(`/weddings/${weddingId}/memories/assets/bulk`, { method: "POST", body: JSON.stringify({ assetIds: selected, status: "APPROVED" }) }); setSelected([]); await load(); flash(`Đã duyệt ${result.updated} nội dung.`); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể duyệt hàng loạt"); }
+    try {
+      const result = await authRequest<{ updated: number }>(`/weddings/${weddingId}/memories/assets/bulk`, { method: "POST", body: JSON.stringify({ assetIds: selected, status: "APPROVED" }) });
+      notify({ tone: "success", title: `Đã duyệt ${result.updated} nội dung` });
+      setSelected([]);
+      await Promise.all([load(), loadAssets("PENDING")]);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể duyệt hàng loạt"); }
     finally { setBusy(false); }
   }
+
   async function remove(asset: MemoryAsset): Promise<void> {
     if (!(await confirm({ title: "Xóa nội dung khỏi album?", description: "Ảnh hoặc video sẽ bị xóa vĩnh viễn khỏi storage và không thể khôi phục.", confirmLabel: "Xóa vĩnh viễn", tone: "danger" }))) return;
     setBusy(true);
-    try { await authRequest(`/weddings/${weddingId}/memories/assets/${asset.id}`, { method: "DELETE" }); await load(); flash("Đã xóa nội dung."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa nội dung"); }
+    try {
+      await authRequest(`/weddings/${weddingId}/memories/assets/${asset.id}`, { method: "DELETE" });
+      notify({ tone: "success", title: "Đã xóa nội dung" });
+      await Promise.all([load(), loadAssets(activeStatus as MemoryStatus | "ALL")]);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xóa nội dung"); }
     finally { setBusy(false); }
   }
+
+  async function moderateSocial(kind: "comment" | "guestbook", id: string, status: "APPROVED" | "HIDDEN"): Promise<void> {
+    setBusy(true);
+    try {
+      await authRequest(`/weddings/${weddingId}/memories/social/${kind}/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      notify({ tone: "success", title: status === "APPROVED" ? "Đã công khai nội dung" : "Đã ẩn nội dung" });
+      await Promise.all([loadSocial(), load()]);
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể kiểm duyệt tương tác"); }
+    finally { setBusy(false); }
+  }
+
   async function saveSettings(event: React.FormEvent): Promise<void> {
     event.preventDefault(); setBusy(true); setError("");
-    try { await authRequest(`/weddings/${weddingId}/memories`, { method: "PATCH", body: JSON.stringify({ ...settings, closesAt: settings.closesAt || null }) }); await load(); flash("Đã lưu cài đặt album."); }
-    catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể lưu cài đặt"); }
+    try {
+      await authRequest(`/weddings/${weddingId}/memories`, { method: "PATCH", body: JSON.stringify({ ...settings, closesAt: settings.closesAt || null }) });
+      await load();
+      notify({ tone: "success", title: "Đã lưu cài đặt album" });
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể lưu cài đặt"); }
     finally { setBusy(false); }
   }
+
   async function regenerate(): Promise<void> {
     if (!(await confirm({ title: "Tạo link album mới?", description: "Link và mã QR hiện tại sẽ ngừng hoạt động ngay sau khi tạo token mới.", confirmLabel: "Tạo link mới", tone: "danger" }))) return;
     setBusy(true);
-    try { await authRequest(`/weddings/${weddingId}/memories/regenerate-token`, { method: "POST" }); await load(); flash("Đã tạo link album mới."); }
+    try { await authRequest(`/weddings/${weddingId}/memories/regenerate-token`, { method: "POST" }); await load(); notify({ tone: "success", title: "Đã tạo link album mới" }); }
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể tạo link mới"); }
     finally { setBusy(false); }
   }
+
   async function copy(value: string): Promise<void> {
     try { await navigator.clipboard.writeText(value); notify({ tone: "success", title: "Đã sao chép liên kết", message: "Liên kết album đã sẵn sàng để gửi cho khách." }); }
     catch { setError("Trình duyệt không cho phép sao chép tự động. Hãy chọn và sao chép liên kết thủ công."); }
@@ -92,49 +171,32 @@ function MemoriesContent() {
 
   return <AppShell active="memories" weddingId={weddingId}>
     <a className="back-link" href={`/weddings/${weddingId}`}>← Về wedding workspace</a>
-    <div className="memory-hero"><div><span className="eyebrow">Post-wedding Experience</span><h1>Album kỷ niệm chung</h1><p>Mời khách chia sẻ ảnh và video, kiểm duyệt nhanh rồi lưu giữ thành một album đẹp sau ngày cưới.</p></div><div className="memory-hero-actions"><a className="btn btn-secondary" href={publicPath} target="_blank" rel="noreferrer">Mở album công khai ↗</a><button className="btn btn-primary" onClick={() => setTab("share")}>Chia sẻ QR</button></div></div>
+    <div className="memory-hero"><div><span className="eyebrow">Wedding Social Space</span><h1>Album kỷ niệm chung</h1><p>Một nơi để khách cùng đăng ảnh, thả tim, bình luận và lưu lời chúc — vẫn nằm trong phạm vi riêng của từng đám cưới.</p></div><div className="memory-hero-actions"><a className="btn btn-secondary" href={publicPath} target="_blank" rel="noreferrer">Mở album công khai ↗</a><button className="btn btn-primary" onClick={() => setTab("share")}>Chia sẻ QR</button></div></div>
     {loadError && <Alert tone="error" title="Dữ liệu chưa được làm mới" requestId={loadError.requestId}>{loadError.message}</Alert>}
-    {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}
-    <div className="metric-grid memory-metrics"><article className="metric"><span>Tổng nội dung</span><strong>{data.metrics.total}</strong></article><article className="metric"><span>Chờ duyệt</span><strong>{data.metrics.pending}</strong></article><article className="metric"><span>Đã công khai</span><strong>{data.metrics.approved}</strong></article><article className="metric"><span>Dung lượng</span><strong className="memory-size">{formatBytes(data.metrics.totalBytes)}</strong></article></div>
-    <Tabs<Tab>
-      id="memory-tabs"
-      label="Khu vực album kỷ niệm"
-      className="workspace-tabs memory-tabs"
-      value={tab}
-      onChange={setTab}
-      items={[
-        { value: "gallery", label: "Album" },
-        { value: "moderation", label: `Kiểm duyệt (${data.metrics.pending})` },
-        { value: "settings", label: "Cài đặt" },
-        { value: "share", label: "Chia sẻ & QR" },
-      ]}
-    />
+    {error && <Alert tone="error">{error}</Alert>}
+    <div className="metric-grid memory-metrics"><article className="metric"><span>Tổng nội dung</span><strong>{data.metrics.total}</strong></article><article className="metric"><span>Chờ duyệt</span><strong>{data.metrics.pending}</strong></article><article className="metric"><span>Tương tác chờ duyệt</span><strong>{socialPending}</strong></article><article className="metric"><span>Dung lượng</span><strong className="memory-size">{formatBytes(data.metrics.totalBytes)}</strong></article></div>
+    <Tabs<Tab> id="memory-tabs" label="Khu vực album kỷ niệm" className="workspace-tabs memory-tabs" value={tab} onChange={setTab} items={[
+      { value: "gallery", label: "Album" },
+      { value: "moderation", label: `Ảnh chờ duyệt (${data.metrics.pending})` },
+      { value: "social", label: `Lời chúc & bình luận (${socialPending})` },
+      { value: "settings", label: "Cài đặt" },
+      { value: "share", label: "Chia sẻ & QR" },
+    ]} />
 
     {(tab === "gallery" || tab === "moderation") && <section className="panel memory-panel" {...tabPanelProps("memory-tabs", tab)}>
-      <div className="memory-toolbar"><div><h2>{tab === "moderation" ? "Hàng đợi kiểm duyệt" : "Tất cả khoảnh khắc"}</h2><p className="muted-small">Ảnh và video được sắp xếp theo thời gian gửi mới nhất.</p></div><div className="memory-toolbar-actions"><select aria-label="Lọc trạng thái" value={tab === "moderation" ? "PENDING" : filter} onChange={(event) => setFilter(event.target.value as MemoryStatus | "ALL")} disabled={tab === "moderation"}><option value="ALL">Tất cả trạng thái</option><option value="PENDING">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option><option value="ARCHIVED">Lưu trữ</option></select>{selected.length > 0 && canEdit && <button className="btn btn-primary" disabled={busy} onClick={() => void bulkApprove()}>Duyệt {selected.length} mục</button>}</div></div>
-      <div className="memory-grid">{(tab === "moderation" ? data.assets.filter((item) => item.status === "PENDING") : filtered).map((asset) => <article className="memory-card" key={asset.id}><div className="memory-preview">{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={memoryMediaUrl(asset.id, data.token)} /> : <img alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} src={memoryMediaUrl(asset.id, data.token)} loading="lazy" />}{canEdit && asset.status === "PENDING" && <label className="memory-select"><input type="checkbox" checked={selected.includes(asset.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, asset.id] : current.filter((id) => id !== asset.id))} /><span>Chọn</span></label>}<span className={`memory-status status-${asset.status?.toLowerCase()}`}>{statusLabel[asset.status ?? "PENDING"]}</span></div><div className="memory-card-body"><div><strong>{asset.uploaderName || asset.invitation?.guest.fullName || "Khách mời"}</strong><span>{new Date(asset.createdAt).toLocaleString("vi-VN")} · {formatBytes(asset.sizeBytes)}</span></div>{asset.uploaderMessage && <p>{asset.uploaderMessage}</p>}{asset.rejectionReason && <p className="memory-reason">Lý do: {asset.rejectionReason}</p>}{canEdit && <div className="memory-actions">{asset.status !== "APPROVED" && <button className="memory-action approve" disabled={busy} onClick={() => void moderate(asset.id, "APPROVED")}>Duyệt</button>}{asset.status === "PENDING" && <button className="memory-action reject" disabled={busy} onClick={() => setRejecting(asset)}>Từ chối</button>}{asset.status === "APPROVED" && <button className="memory-action" disabled={busy} onClick={() => void moderate(asset.id, "ARCHIVED")}>Lưu trữ</button>}<button className="memory-action delete" disabled={busy} onClick={() => void remove(asset)}>Xóa</button></div>}</div></article>)}</div>
-      {(tab === "moderation" ? data.metrics.pending === 0 : filtered.length === 0) && <div className="empty-panel"><div className="empty-icon">♡</div><h3>{tab === "moderation" ? "Không còn nội dung chờ duyệt" : "Chưa có khoảnh khắc phù hợp"}</h3><p>Chia sẻ link hoặc QR để khách gửi ảnh và video.</p></div>}
+      <div className="memory-toolbar"><div><h2>{tab === "moderation" ? "Hàng đợi kiểm duyệt" : "Tất cả khoảnh khắc"}</h2><p className="muted-small">Dữ liệu được phân trang để album lớn vẫn tải nhanh.</p></div><div className="memory-toolbar-actions"><select aria-label="Lọc trạng thái" value={tab === "moderation" ? "PENDING" : filter} onChange={(event) => setFilter(event.target.value as MemoryStatus | "ALL")} disabled={tab === "moderation"}><option value="ALL">Tất cả trạng thái</option><option value="PENDING">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="REJECTED">Từ chối</option><option value="ARCHIVED">Lưu trữ</option></select>{selected.length > 0 && canEdit && <button className="btn btn-primary" disabled={busy} onClick={() => void bulkApprove()}>Duyệt {selected.length} mục</button>}</div></div>
+      <div className="memory-grid">{visibleAssets.map((asset) => <article className="memory-card" key={asset.id}><div className="memory-preview">{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={resolveMemoryMediaUrl(asset, data.token)} /> : <img alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} src={resolveMemoryMediaUrl(asset, data.token)} loading="lazy" />}{canEdit && asset.status === "PENDING" && <label className="memory-select"><input type="checkbox" checked={selected.includes(asset.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, asset.id] : current.filter((id) => id !== asset.id))} /><span>Chọn</span></label>}<span className={`memory-status status-${asset.status?.toLowerCase()}`}>{statusLabel[asset.status ?? "PENDING"]}</span></div><div className="memory-card-body"><div><strong>{asset.uploaderName || asset.invitation?.guest.fullName || "Khách mời"}</strong><span>{new Date(asset.createdAt).toLocaleString("vi-VN")} · {formatBytes(asset.sizeBytes)}</span></div>{asset.uploaderMessage && <p>{asset.uploaderMessage}</p>}<div className="memory-owner-social-counts"><span>♥ {asset.reactionCount ?? 0}</span><span>◌ {asset.commentCount ?? 0}</span></div>{asset.rejectionReason && <p className="memory-reason">Lý do: {asset.rejectionReason}</p>}{canEdit && <div className="memory-actions">{asset.status !== "APPROVED" && <button className="memory-action approve" disabled={busy} onClick={() => void moderate(asset.id, "APPROVED")}>Duyệt</button>}{asset.status === "PENDING" && <button className="memory-action reject" disabled={busy} onClick={() => setRejecting(asset)}>Từ chối</button>}{asset.status === "APPROVED" && <button className="memory-action" disabled={busy} onClick={() => void moderate(asset.id, "ARCHIVED")}>Lưu trữ</button>}<button className="memory-action delete" disabled={busy} onClick={() => void remove(asset)}>Xóa</button></div>}</div></article>)}</div>
+      {visibleAssets.length === 0 && <div className="empty-panel"><div className="empty-icon">♡</div><h3>{tab === "moderation" ? "Không còn nội dung chờ duyệt" : "Chưa có khoảnh khắc phù hợp"}</h3><p>Chia sẻ link hoặc QR để khách gửi ảnh và video.</p></div>}
+      {assetCursor && <div className="memory-owner-load-more"><button type="button" className="btn btn-secondary" disabled={assetLoading} onClick={() => void loadAssets(activeStatus as MemoryStatus | "ALL", true)}>{assetLoading ? "Đang tải…" : "Tải thêm nội dung"}</button></div>}
     </section>}
 
-    {tab === "settings" && <form className="panel memory-settings" {...tabPanelProps("memory-tabs", "settings")} onSubmit={(event) => void saveSettings(event)}><div className="panel-head"><div><h2>Nội dung và quyền riêng tư</h2><p className="muted-small">Tùy chỉnh lời cảm ơn, thời gian nhận ảnh và cách album xuất hiện với khách.</p></div></div><div className="form-grid two"><label>Tiêu đề album<input required maxLength={120} value={settings.title} onChange={(event) => setSettings({ ...settings, title: event.target.value })} /></label><label>Nhận nội dung đến<input type="datetime-local" value={settings.closesAt} onChange={(event) => setSettings({ ...settings, closesAt: event.target.value })} /></label></div><label>Mô tả album<textarea rows={4} maxLength={1000} value={settings.description} onChange={(event) => setSettings({ ...settings, description: event.target.value })} /></label><div className="form-grid two"><label>Tiêu đề lời cảm ơn<input required maxLength={120} value={settings.thankYouTitle} onChange={(event) => setSettings({ ...settings, thankYouTitle: event.target.value })} /></label><label className="memory-switch"><input type="checkbox" checked={settings.showUploaderName} onChange={(event) => setSettings({ ...settings, showUploaderName: event.target.checked })} /><span><strong>Hiển thị tên người gửi</strong><small>Ẩn tên để album riêng tư hơn.</small></span></label></div><label>Lời cảm ơn<textarea rows={4} maxLength={1200} value={settings.thankYouMessage} onChange={(event) => setSettings({ ...settings, thankYouMessage: event.target.value })} /></label><div className="memory-switch-grid"><label className="memory-switch"><input type="checkbox" checked={settings.publicEnabled} onChange={(event) => setSettings({ ...settings, publicEnabled: event.target.checked })} /><span><strong>Mở album công khai</strong><small>Khách có link có thể xem album.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.uploadEnabled} onChange={(event) => setSettings({ ...settings, uploadEnabled: event.target.checked })} /><span><strong>Cho phép upload</strong><small>Tạm tắt khi không muốn nhận thêm nội dung.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.moderationRequired} onChange={(event) => setSettings({ ...settings, moderationRequired: event.target.checked })} /><span><strong>Duyệt trước khi công khai</strong><small>Khuyến nghị bật để kiểm soát nội dung.</small></span></label></div><div className="form-actions"><button className="btn btn-primary" disabled={busy || !canEdit}>{busy ? "Đang lưu..." : "Lưu cài đặt"}</button></div></form>}
+    {tab === "social" && <section className="panel memory-panel" {...tabPanelProps("memory-tabs", "social")}><div className="memory-toolbar"><div><h2>Kiểm duyệt tương tác</h2><p className="muted-small">Duyệt lời chúc và bình luận trước khi chúng xuất hiện với khách khác.</p></div><button type="button" className="btn btn-secondary" disabled={socialLoading} onClick={() => void loadSocial()}>Làm mới</button></div>{socialLoading && !social ? <p>Đang tải…</p> : <div className="memory-social-moderation-grid"><article><h3>Sổ lưu bút <span>{social?.guestbook.length ?? 0}</span></h3>{social?.guestbook.length ? social.guestbook.map((entry) => <div className="memory-moderation-item" key={entry.id}><strong>{entry.authorName}</strong><p>{entry.message}</p><small>{new Date(entry.createdAt).toLocaleString("vi-VN")}</small>{canEdit && <div><button disabled={busy} onClick={() => void moderateSocial("guestbook", entry.id, "APPROVED")}>Duyệt</button><button disabled={busy} onClick={() => void moderateSocial("guestbook", entry.id, "HIDDEN")}>Ẩn</button></div>}</div>) : <p className="muted-small">Không có lời chúc chờ duyệt.</p>}</article><article><h3>Bình luận <span>{social?.comments.length ?? 0}</span></h3>{social?.comments.length ? social.comments.map((comment) => <div className="memory-moderation-item" key={comment.id}><strong>{comment.authorName}</strong><p>{comment.body}</p><small>{new Date(comment.createdAt).toLocaleString("vi-VN")}</small>{canEdit && <div><button disabled={busy} onClick={() => void moderateSocial("comment", comment.id, "APPROVED")}>Duyệt</button><button disabled={busy} onClick={() => void moderateSocial("comment", comment.id, "HIDDEN")}>Ẩn</button></div>}</div>) : <p className="muted-small">Không có bình luận chờ duyệt.</p>}</article></div>}</section>}
 
-    {tab === "share" && <section className="memory-share-layout" {...tabPanelProps("memory-tabs", "share")}><article className="panel memory-share-card"><span className="eyebrow">Link dành cho khách</span><h2>Quét QR để góp ảnh</h2><p>Đặt QR tại bàn tiệc, backdrop hoặc gửi cùng tin nhắn cảm ơn sau cưới.</p><img className="memory-qr" src={`${API_URL}/public/memories/${encodeURIComponent(data.token)}/qr.svg`} alt="QR album kỷ niệm" /><div className="memory-link-row"><input readOnly value={publicUrl} aria-label="Link album kỷ niệm" /><button className="btn btn-primary" onClick={() => void copy(publicUrl)}>Sao chép</button></div><div className="memory-share-actions"><a className="btn btn-secondary" href={`${API_URL}/public/memories/${encodeURIComponent(data.token)}/qr.svg`} download>Tải QR SVG</a><button className="btn btn-secondary" disabled={!canEdit || busy} onClick={() => void regenerate()}>Tạo link mới</button></div></article><article className="panel memory-tips"><span className="eyebrow">Gợi ý sử dụng</span><h2>Thu được nhiều khoảnh khắc hơn</h2><ol><li>Đặt QR ở lối vào và trên mỗi bàn.</li><li>Nhờ MC nhắc khách chia sẻ ảnh trong tiệc.</li><li>Gửi lại link trong lời cảm ơn sau cưới.</li><li>Duyệt nội dung mỗi ngày để album luôn đẹp.</li></ol><div className="memory-note"><strong>Quyền riêng tư</strong><p>Link có token ngẫu nhiên. Tạo link mới ngay khi nghi ngờ link cũ bị chia sẻ ngoài ý muốn.</p></div></article></section>}
+    {tab === "settings" && <form className="panel memory-settings" {...tabPanelProps("memory-tabs", "settings")} onSubmit={(event) => void saveSettings(event)}><div className="panel-head"><div><h2>Nội dung, quyền riêng tư và tương tác</h2><p className="muted-small">Bạn quyết định khách được xem, upload và tương tác đến mức nào.</p></div></div><div className="form-grid two"><label>Tiêu đề album<input required maxLength={120} value={settings.title} onChange={(event) => setSettings({ ...settings, title: event.target.value })} /></label><label>Nhận nội dung đến<input type="datetime-local" value={settings.closesAt} onChange={(event) => setSettings({ ...settings, closesAt: event.target.value })} /></label></div><label>Mô tả album<textarea rows={4} maxLength={1000} value={settings.description} onChange={(event) => setSettings({ ...settings, description: event.target.value })} /></label><div className="form-grid two"><label>Tiêu đề lời cảm ơn<input required maxLength={120} value={settings.thankYouTitle} onChange={(event) => setSettings({ ...settings, thankYouTitle: event.target.value })} /></label><label className="memory-switch"><input type="checkbox" checked={settings.showUploaderName} onChange={(event) => setSettings({ ...settings, showUploaderName: event.target.checked })} /><span><strong>Hiển thị tên người gửi</strong><small>Ẩn tên để album riêng tư hơn.</small></span></label></div><label>Lời cảm ơn<textarea rows={4} maxLength={1200} value={settings.thankYouMessage} onChange={(event) => setSettings({ ...settings, thankYouMessage: event.target.value })} /></label><div className="memory-switch-grid"><label className="memory-switch"><input type="checkbox" checked={settings.publicEnabled} onChange={(event) => setSettings({ ...settings, publicEnabled: event.target.checked })} /><span><strong>Mở Wedding Space</strong><small>Khách có link có thể xem album và sổ lưu bút.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.uploadEnabled} onChange={(event) => setSettings({ ...settings, uploadEnabled: event.target.checked })} /><span><strong>Cho phép upload</strong><small>Tạm tắt khi không muốn nhận thêm nội dung.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.moderationRequired} onChange={(event) => setSettings({ ...settings, moderationRequired: event.target.checked })} /><span><strong>Duyệt ảnh/video trước</strong><small>Khuyến nghị bật trong ngày cưới.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.reactionsEnabled} onChange={(event) => setSettings({ ...settings, reactionsEnabled: event.target.checked })} /><span><strong>Cho phép thả tim</strong><small>Khách có thể tương tác nhẹ với khoảnh khắc.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.commentsEnabled} onChange={(event) => setSettings({ ...settings, commentsEnabled: event.target.checked })} /><span><strong>Cho phép bình luận</strong><small>Bình luận chỉ tồn tại trong wedding này.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.commentModerationRequired} onChange={(event) => setSettings({ ...settings, commentModerationRequired: event.target.checked })} /><span><strong>Duyệt bình luận trước</strong><small>Chặn spam hoặc nội dung không phù hợp.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.guestbookEnabled} onChange={(event) => setSettings({ ...settings, guestbookEnabled: event.target.checked })} /><span><strong>Hiển thị Sổ lưu bút</strong><small>Chỉ lời chúc mà khách đồng ý công khai.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.guestbookModerationRequired} onChange={(event) => setSettings({ ...settings, guestbookModerationRequired: event.target.checked })} /><span><strong>Duyệt lời chúc trước</strong><small>Chủ thiệp quyết định lời chúc nào xuất hiện.</small></span></label><label className="memory-switch"><input type="checkbox" checked={settings.downloadsEnabled} onChange={(event) => setSettings({ ...settings, downloadsEnabled: event.target.checked })} /><span><strong>Cho phép tải file</strong><small>Khách có thể lưu lại ảnh/video công khai.</small></span></label></div><div className="form-actions"><button className="btn btn-primary" disabled={busy || !canEdit}>{busy ? "Đang lưu..." : "Lưu cài đặt"}</button></div></form>}
 
-    <ConfirmDialog
-      open={Boolean(rejecting)}
-      tone="danger"
-      title="Từ chối ảnh hoặc video?"
-      description="Người gửi không nhận thông báo tự động. Lý do giúp đội quản trị hiểu quyết định sau này."
-      confirmLabel="Xác nhận từ chối"
-      loading={busy}
-      confirmDisabled={rejectReason.trim().length < 3}
-      onClose={() => { setRejecting(null); setRejectReason(""); }}
-      onConfirm={() => { if (rejecting) void moderate(rejecting.id, "REJECTED", rejectReason); }}
-    >
-      <FormField id="memory-reject-reason" label="Lý do từ chối" required helperText="Mô tả ngắn gọn để đội quản trị có thể đối chiếu về sau." error={rejectReason.length > 0 && rejectReason.trim().length < 3 ? "Lý do cần có ít nhất 3 ký tự." : undefined}>
-        <textarea rows={4} required value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Ví dụ: ảnh bị mờ, nội dung không phù hợp..." />
-      </FormField>
-    </ConfirmDialog>
+    {tab === "share" && <section className="memory-share-layout" {...tabPanelProps("memory-tabs", "share")}><article className="panel memory-share-card"><span className="eyebrow">Link dành cho khách</span><h2>Quét QR để vào Wedding Space</h2><p>Khách có thể xem album, góp ảnh, thả tim, bình luận và đọc lời chúc đã được duyệt.</p><img className="memory-qr" src={`${API_URL}/public/memories/${encodeURIComponent(data.token)}/qr.svg`} alt="QR album kỷ niệm" /><div className="memory-link-row"><input readOnly value={publicUrl} aria-label="Link album kỷ niệm" /><button className="btn btn-primary" onClick={() => void copy(publicUrl)}>Sao chép</button></div><div className="memory-share-actions"><a className="btn btn-secondary" href={`${API_URL}/public/memories/${encodeURIComponent(data.token)}/qr.svg`} download>Tải QR SVG</a><button className="btn btn-secondary" disabled={!canEdit || busy} onClick={() => void regenerate()}>Tạo link mới</button></div></article><article className="panel memory-tips"><span className="eyebrow">Production architecture</span><h2>Upload không làm nghẽn API</h2><div className="memory-architecture"><code>Điện thoại khách</code><span>↓</span><code>Object Storage (S3 / R2)</code><span>↓</span><code>CDN</code><span>↓</span><code>Album</code></div><p className="muted-small">Ở local, hệ thống tự fallback về upload qua API để self-test. Khi cấu hình S3/R2, client dùng presigned URL và upload trực tiếp.</p></article></section>}
+
+    <ConfirmDialog open={Boolean(rejecting)} tone="danger" title="Từ chối ảnh hoặc video?" description="Người gửi không nhận thông báo tự động. Lý do giúp đội quản trị hiểu quyết định sau này." confirmLabel="Xác nhận từ chối" loading={busy} confirmDisabled={rejectReason.trim().length < 3} onClose={() => { setRejecting(null); setRejectReason(""); }} onConfirm={() => { if (rejecting) void moderate(rejecting.id, "REJECTED", rejectReason); }}><FormField id="memory-reject-reason" label="Lý do từ chối" required helperText="Mô tả ngắn gọn để đội quản trị có thể đối chiếu về sau." error={rejectReason.length > 0 && rejectReason.trim().length < 3 ? "Lý do cần có ít nhất 3 ký tự." : undefined}><textarea rows={4} required value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Ví dụ: ảnh bị mờ, nội dung không phù hợp..." /></FormField></ConfirmDialog>
   </AppShell>;
 }
 

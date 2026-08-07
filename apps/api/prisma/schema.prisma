@@ -319,6 +319,7 @@ model Wedding {
   checkinStations   CheckinStation[]
   checkinRecords    CheckinRecord[]
   memoryAlbum      MemoryAlbum?
+  guestbookEntries GuestbookEntry[]
   planningTasks    PlanningTask[]
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
@@ -428,6 +429,8 @@ model Invitation {
   visibleEvents InvitationEvent[]
   checkinRecords CheckinRecord[]
   memoryAssets  MemoryAsset[]
+  memoryComments MemoryComment[]
+  guestbookEntry GuestbookEntry?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -447,6 +450,7 @@ model Rsvp {
   vegetarianCount Int        @default(0)
   needsTransport  Boolean    @default(false)
   message         String?
+  publishWish     Boolean    @default(false)
   respondedAt     DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   selectedEvents  RsvpEventSelection[]
@@ -1269,6 +1273,16 @@ enum MemoryAssetType {
   VIDEO
 }
 
+enum SocialContentStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+enum MemoryReactionType {
+  HEART
+}
+
 model MemoryAlbum {
   id                 String        @id @default(cuid())
   weddingId          String        @unique
@@ -1282,6 +1296,12 @@ model MemoryAlbum {
   publicEnabled      Boolean       @default(true)
   moderationRequired Boolean       @default(true)
   showUploaderName   Boolean       @default(true)
+  reactionsEnabled   Boolean       @default(true)
+  commentsEnabled    Boolean       @default(true)
+  commentModerationRequired Boolean @default(true)
+  downloadsEnabled   Boolean       @default(true)
+  guestbookEnabled   Boolean       @default(true)
+  guestbookModerationRequired Boolean @default(true)
   closesAt           DateTime?
   assets             MemoryAsset[]
   createdAt          DateTime      @default(now())
@@ -1312,10 +1332,61 @@ model MemoryAsset {
   approvedAt      DateTime?
   rejectedAt      DateTime?
   createdAt       DateTime          @default(now())
+  reactions       MemoryReaction[]
+  comments        MemoryComment[]
   updatedAt       DateTime          @updatedAt
 
+  @@unique([storageKey])
   @@index([albumId, status, createdAt])
   @@index([invitationId, createdAt])
+}
+
+model MemoryReaction {
+  id        String             @id @default(cuid())
+  assetId   String
+  asset     MemoryAsset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  actorHash String
+  type      MemoryReactionType @default(HEART)
+  createdAt DateTime           @default(now())
+
+  @@unique([assetId, actorHash, type])
+  @@index([assetId, type, createdAt])
+}
+
+model MemoryComment {
+  id           String              @id @default(cuid())
+  assetId      String
+  asset        MemoryAsset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  invitationId String?
+  invitation   Invitation?         @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  authorName   String
+  actorHash    String
+  body         String
+  status       SocialContentStatus @default(PENDING)
+  approvedAt   DateTime?
+  hiddenAt     DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([assetId, status, createdAt])
+  @@index([invitationId, createdAt])
+}
+
+model GuestbookEntry {
+  id           String              @id @default(cuid())
+  weddingId    String
+  wedding      Wedding             @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  invitationId String?             @unique
+  invitation   Invitation?         @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  authorName   String
+  message      String
+  status       SocialContentStatus @default(PENDING)
+  approvedAt   DateTime?
+  hiddenAt     DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([weddingId, status, createdAt])
 }
 
 model PlanningTask {

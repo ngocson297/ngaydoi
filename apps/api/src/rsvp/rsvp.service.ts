@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { randomBytes } from "node:crypto";
 import { RateLimitService } from "../auth/rate-limit.service.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
@@ -57,6 +58,7 @@ export class RsvpService {
       vegetarianCount: dto.status === "DECLINED" ? 0 : dto.vegetarianCount,
       needsTransport: dto.status === "DECLINED" ? false : dto.needsTransport,
       message: dto.message?.trim() || null,
+      publishWish: Boolean(dto.publishWish && dto.message?.trim()),
     };
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -72,12 +74,45 @@ export class RsvpService {
       await tx.rsvpHistory.create({
         data: {
           rsvpId: rsvp.id,
-          ...normalized,
+          status: normalized.status,
+          adultCount: normalized.adultCount,
+          childCount: normalized.childCount,
+          vegetarianCount: normalized.vegetarianCount,
+          needsTransport: normalized.needsTransport,
           message: normalized.message,
           selectedEventIds,
           source: "GUEST",
         },
       });
+      if (normalized.publishWish && normalized.message) {
+        const album = await tx.memoryAlbum.upsert({
+          where: { weddingId: invitation.guest.weddingId },
+          update: {},
+          create: { weddingId: invitation.guest.weddingId, token: randomBytes(32).toString("base64url") },
+          select: { guestbookModerationRequired: true },
+        });
+        const wishStatus = album.guestbookModerationRequired ? "PENDING" : "APPROVED";
+        await tx.guestbookEntry.upsert({
+          where: { invitationId: invitation.id },
+          create: {
+            weddingId: invitation.guest.weddingId,
+            invitationId: invitation.id,
+            authorName: invitation.guest.fullName,
+            message: normalized.message,
+            status: wishStatus,
+            approvedAt: wishStatus === "APPROVED" ? now : null,
+          },
+          update: {
+            authorName: invitation.guest.fullName,
+            message: normalized.message,
+            status: wishStatus,
+            approvedAt: wishStatus === "APPROVED" ? now : null,
+            hiddenAt: null,
+          },
+        });
+      } else {
+        await tx.guestbookEntry.deleteMany({ where: { invitationId: invitation.id } });
+      }
       await tx.invitation.update({
         where: { id: invitation.id },
         data: { status: "RESPONDED", revokedAt: null },

@@ -27,4 +27,7 @@ export class CreateRsvpDto {
 
   @IsOptional() @IsString() @MaxLength(1000)
   message?: string;
+
+  @IsOptional() @IsBoolean()
+  publishWish?: boolean;
 }

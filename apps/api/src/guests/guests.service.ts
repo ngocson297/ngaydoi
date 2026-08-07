@@ -556,7 +556,8 @@ export class GuestsService {
               include: {
                 events: { orderBy: [{ sortOrder: "asc" }, { startsAt: "asc" }] },
                 invitationDesign: true,
-                memoryAlbum: { select: { token: true, publicEnabled: true } },
+                memoryAlbum: { select: { token: true, publicEnabled: true, guestbookEnabled: true } },
+                guestbookEntries: { where: { status: "APPROVED" }, orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }], take: 6, select: { id: true, authorName: true, message: true, approvedAt: true, createdAt: true } },
                 mediaAssets: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }] },
               },
             },
@@ -607,6 +608,7 @@ export class GuestsService {
       invitationDesign: wedding.invitationDesign,
       mediaAssets: wedding.mediaAssets,
       memoryAlbum: wedding.memoryAlbum,
+      guestbookEntries: wedding.memoryAlbum?.guestbookEnabled ? wedding.guestbookEntries : [],
       events,
       personalization: {
         token,
@@ -625,6 +627,7 @@ export class GuestsService {
           vegetarianCount: invitation.rsvp.vegetarianCount,
           needsTransport: invitation.rsvp.needsTransport,
           message: invitation.rsvp.message,
+          publishWish: invitation.rsvp.publishWish,
           selectedEventIds: invitation.rsvp.selectedEvents.map((selection) => selection.eventId),
           respondedAt: invitation.rsvp.respondedAt,
           updatedAt: invitation.rsvp.updatedAt,

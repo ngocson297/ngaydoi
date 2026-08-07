@@ -132,6 +132,7 @@ export interface PersonalizedRsvp {
   vegetarianCount: number;
   needsTransport: boolean;
   message: string | null;
+  publishWish: boolean;
   selectedEventIds: string[];
   respondedAt: string;
   updatedAt: string;
@@ -169,7 +170,8 @@ export interface PublicInvitationData {
   invitationDesign: InvitationDesign | null;
   events: WeddingEvent[];
   mediaAssets: InvitationMedia[];
-  memoryAlbum?: { token: string; publicEnabled: boolean } | null;
+  memoryAlbum?: { token: string; publicEnabled: boolean; guestbookEnabled?: boolean } | null;
+  guestbookEntries?: Array<{ id: string; authorName: string; message: string; approvedAt: string | null; createdAt: string }>;
   personalization?: InvitationPersonalization;
 }
 

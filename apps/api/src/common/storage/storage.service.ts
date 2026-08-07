@@ -8,6 +8,17 @@ export interface StoredObject {
   publicUrl: string;
 }
 
+export interface StoredObjectHead {
+  sizeBytes: number;
+  contentType: string | null;
+}
+
+export interface PresignedUpload {
+  uploadUrl: string;
+  headers: Record<string, string>;
+  expiresInSeconds: number;
+}
+
 function sha256(value: string | Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -27,19 +38,73 @@ function encodePath(path: string): string {
 
 @Injectable()
 export class StorageService {
-  private provider(): "LOCAL" | "S3" {
+  provider(): "LOCAL" | "S3" {
     return ["S3", "R2"].includes((process.env.STORAGE_PROVIDER ?? "LOCAL").toUpperCase()) ? "S3" : "LOCAL";
+  }
+
+  publicUrl(storageKey: string): string {
+    if (this.provider() !== "S3") return "";
+    return `${this.require("S3_PUBLIC_BASE_URL").replace(/\/$/, "")}/${encodePath(storageKey)}`;
   }
 
   async put(storageKey: string, body: Buffer, contentType: string): Promise<StoredObject> {
     if (this.provider() === "S3") {
       await this.s3Request("PUT", storageKey, body, contentType);
-      return { storageKey, publicUrl: `${this.require("S3_PUBLIC_BASE_URL").replace(/\/$/, "")}/${encodePath(storageKey)}` };
+      return { storageKey, publicUrl: this.publicUrl(storageKey) };
     }
     const path = this.localPath(storageKey);
     await fs.mkdir(dirname(path), { recursive: true });
     await fs.writeFile(path, body);
     return { storageKey, publicUrl: "" };
+  }
+
+  async presignPut(storageKey: string, contentType: string, expiresInSeconds = 900): Promise<PresignedUpload | null> {
+    if (this.provider() !== "S3") return null;
+    const endpoint = new URL(this.require("S3_ENDPOINT"));
+    const bucket = this.require("S3_BUCKET");
+    const region = process.env.S3_REGION ?? "auto";
+    const accessKey = this.require("S3_ACCESS_KEY_ID");
+    const secretKey = this.require("S3_SECRET_ACCESS_KEY");
+    const now = new Date();
+    const date = amzDate(now);
+    const expires = Math.min(3600, Math.max(60, Math.trunc(expiresInSeconds)));
+    const basePath = endpoint.pathname.replace(/\/$/, "");
+    const objectPath = `/${bucket}/${encodePath(storageKey)}`;
+    const canonicalUri = `${basePath}${objectPath}`.replace(/\/+/g, "/");
+    const scope = `${date.short}/${region}/s3/aws4_request`;
+    const queryEntries = [
+      ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+      ["X-Amz-Credential", `${accessKey}/${scope}`],
+      ["X-Amz-Date", date.full],
+      ["X-Amz-Expires", String(expires)],
+      ["X-Amz-SignedHeaders", "content-type;host"],
+    ] as const;
+    const canonicalQuery = queryEntries
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .sort()
+      .join("&");
+    const canonicalHeaders = `content-type:${contentType}\nhost:${endpoint.host}\n`;
+    const canonicalRequest = ["PUT", canonicalUri, canonicalQuery, canonicalHeaders, "content-type;host", "UNSIGNED-PAYLOAD"].join("\n");
+    const stringToSign = ["AWS4-HMAC-SHA256", date.full, scope, sha256(canonicalRequest)].join("\n");
+    const kDate = hmac(`AWS4${secretKey}`, date.short);
+    const kRegion = hmac(kDate, region);
+    const kService = hmac(kRegion, "s3");
+    const kSigning = hmac(kService, "aws4_request");
+    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
+    const url = new URL(endpoint.toString());
+    url.pathname = canonicalUri;
+    url.search = `${canonicalQuery}&X-Amz-Signature=${signature}`;
+    return { uploadUrl: url.toString(), headers: { "Content-Type": contentType }, expiresInSeconds: expires };
+  }
+
+  async head(storageKey: string): Promise<StoredObjectHead> {
+    if (this.provider() === "S3") {
+      const response = await this.s3Request("HEAD", storageKey, Buffer.alloc(0), "application/octet-stream");
+      const sizeBytes = Number(response.headers.get("content-length") ?? "0");
+      return { sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0, contentType: response.headers.get("content-type") };
+    }
+    const stat = await fs.stat(this.localPath(storageKey));
+    return { sizeBytes: stat.size, contentType: null };
   }
 
   async delete(storageKey: string): Promise<void> {

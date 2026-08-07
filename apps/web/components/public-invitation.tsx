@@ -128,6 +128,7 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
   const [needsTransport, setNeedsTransport] = useState(existing?.needsTransport ?? false);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>(existing?.selectedEventIds ?? events.map((event) => event.id));
   const [message, setMessage] = useState(existing?.message ?? "");
+  const [publishWish, setPublishWish] = useState(existing?.publishWish ?? false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(existing ? "Bạn đã phản hồi và vẫn có thể cập nhật." : "");
   const [error, setError] = useState("");
@@ -168,6 +169,7 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
           needsTransport: status === "DECLINED" ? false : needsTransport,
           selectedEventIds: status === "DECLINED" ? [] : selectedEventIds,
           message,
+          publishWish,
         }),
       });
       setNotice(result.message);
@@ -224,15 +226,25 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
         )}
 
         <label className="inv5-message">Lời nhắn dành cho cô dâu chú rể<textarea rows={4} maxLength={1000} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Gửi một lời chúc thật ấm áp..." /></label>
+        {message.trim() && <label className="inv5-wish-public"><input type="checkbox" checked={publishWish} onChange={(event) => setPublishWish(event.target.checked)} /><span><strong>Cho phép hiển thị lời chúc này trong Sổ lưu bút</strong><small>Chỉ lời chúc bạn đồng ý công khai mới có thể được khách khác nhìn thấy; chủ thiệp có thể duyệt trước khi hiển thị.</small></span></label>}
         {error && <div className="inv5-form-message error" role="alert">{error}</div>}
         {notice && <div className="inv5-form-message success" role="status"><span aria-hidden="true">✓</span> {notice}</div>}
         {missingAttendee && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một người tham dự.</div>}
         {missingEvent && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một chương trình sẽ tham dự.</div>}
         <button className="inv5-submit" type="submit" disabled={busy || missingAttendee || missingEvent}>{busy ? "Đang gửi phản hồi..." : hasResponded ? "Cập nhật phản hồi" : "Gửi xác nhận"}</button>
-        <small className="inv5-privacy-note">Thông tin phản hồi chỉ được chia sẻ với chủ nhân thiệp.</small>
+        <small className="inv5-privacy-note">Thông tin RSVP vẫn riêng tư. Chỉ phần lời chúc được công khai khi bạn chủ động bật tùy chọn phía trên.</small>
       </form>
     </section>
   );
+}
+
+function GuestbookPreviewSection({ entries, albumToken }: { entries: NonNullable<PublicInvitationData["guestbookEntries"]>; albumToken?: string }) {
+  if (!entries.length) return null;
+  return <section className="inv4-section inv-social-guestbook" aria-labelledby="guestbook-preview-title">
+    <div className="inv4-section-head"><span>Sổ lưu bút</span><h2 id="guestbook-preview-title">Lời chúc từ những người thương</h2></div>
+    <div className="inv-social-wish-grid">{entries.slice(0, 6).map((entry) => <blockquote key={entry.id}><span aria-hidden="true">“</span><p>{entry.message}</p><footer>— {entry.authorName}</footer></blockquote>)}</div>
+    {albumToken && <div className="inv-social-guestbook-action"><a className="inv4-button outline" href={`/memories/${encodeURIComponent(albumToken)}#guestbook`}>Xem tất cả lời chúc</a></div>}
+  </section>;
 }
 
 export function PublicInvitation({ data, preview = false, embedded = false, previewViewport }: PublicInvitationProps) {
@@ -382,7 +394,7 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
       {!embedded && !preview && <WeddingFireworks invitationId={wedding.id} />}
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
       {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}
-      {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{sections[key]}</div>)}
+      {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{key === "footer" && wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length ? <GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled && wedding.memoryAlbum.guestbookEnabled !== false ? wedding.memoryAlbum.token : undefined} /> : null}{sections[key]}</div>)}
     </Root>
   );
 }
