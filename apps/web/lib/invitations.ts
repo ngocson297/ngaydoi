@@ -170,7 +170,18 @@ export interface PublicInvitationData {
   invitationDesign: InvitationDesign | null;
   events: WeddingEvent[];
   mediaAssets: InvitationMedia[];
-  memoryAlbum?: { token: string; publicEnabled: boolean; guestbookEnabled?: boolean } | null;
+  memoryAlbum?: {
+    token: string;
+    publicEnabled: boolean;
+    guestbookEnabled?: boolean;
+    memoryModeEnabled?: boolean;
+    thankYouTitle?: string;
+    thankYouMessage?: string;
+    thankYouSignature?: string | null;
+    showCouplePhoto?: boolean;
+    showWeddingDate?: boolean;
+    assets?: Array<{ id: string; type: "IMAGE" | "VIDEO"; publicUrl: string; mimeType: string; featuredOrder: number | null; uploaderMessage: string | null }>;
+  } | null;
   guestbookEntries?: Array<{ id: string; authorName: string; message: string; approvedAt: string | null; createdAt: string }>;
   personalization?: InvitationPersonalization;
 }

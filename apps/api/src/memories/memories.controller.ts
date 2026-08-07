@@ -33,6 +33,16 @@ export class MemoriesController {
     return this.memories.ownerMedia(weddingId, assetId, user);
   }
 
+  @Get("weddings/:weddingId/memories/archive")
+  @UseGuards(JwtAuthGuard)
+  ownerArchive(
+    @Param("weddingId") weddingId: string,
+    @Query("assetIds") assetIds: string | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.memories.ownerArchive(weddingId, user, assetIds);
+  }
+
   @Get("weddings/:weddingId/memories/social")
   @UseGuards(JwtAuthGuard)
   ownerSocial(@Param("weddingId") weddingId: string, @CurrentUser() user: AuthenticatedUser): Promise<unknown> {
@@ -51,6 +61,16 @@ export class MemoriesController {
     return this.memories.moderateSocial(weddingId, kind, id, body, user);
   }
 
+  @Delete("weddings/:weddingId/memories/comments/:commentId")
+  @UseGuards(JwtAuthGuard)
+  deleteOwnerComment(
+    @Param("weddingId") weddingId: string,
+    @Param("commentId") commentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ deleted: true }> {
+    return this.memories.deleteOwnerComment(weddingId, commentId, user);
+  }
+
   @Patch("weddings/:weddingId/memories")
   @UseGuards(JwtAuthGuard)
   updateSettings(@Param("weddingId") weddingId: string, @Body() body: Record<string, unknown>, @CurrentUser() user: AuthenticatedUser): Promise<unknown> {
@@ -61,6 +81,12 @@ export class MemoriesController {
   @UseGuards(JwtAuthGuard)
   regenerateToken(@Param("weddingId") weddingId: string, @CurrentUser() user: AuthenticatedUser): Promise<{ token: string }> {
     return this.memories.regenerateToken(weddingId, user);
+  }
+
+  @Patch("weddings/:weddingId/memories/assets/:assetId/featured")
+  @UseGuards(JwtAuthGuard)
+  setFeatured(@Param("weddingId") weddingId: string, @Param("assetId") assetId: string, @Body() body: Record<string, unknown>, @CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.memories.setFeatured(weddingId, assetId, body, user);
   }
 
   @Patch("weddings/:weddingId/memories/assets/:assetId")
@@ -129,13 +155,29 @@ export class MemoriesController {
     @Param("assetId") assetId: string,
     @Query("cursor") cursor: string | undefined,
     @Query("limit") limit: string | undefined,
+    @Query("viewer") viewer: string | undefined,
   ): Promise<unknown> {
-    return this.memories.comments(token, assetId, cursor, limit);
+    return this.memories.comments(token, assetId, cursor, limit, viewer);
   }
 
   @Post("public/memories/:token/assets/:assetId/comments")
   addComment(@Param("token") token: string, @Param("assetId") assetId: string, @Body() body: Record<string, unknown>): Promise<unknown> {
     return this.memories.addComment(token, assetId, body);
+  }
+
+  @Delete("public/memories/:token/assets/:assetId/comments/:commentId")
+  deleteOwnComment(
+    @Param("token") token: string,
+    @Param("assetId") assetId: string,
+    @Param("commentId") commentId: string,
+    @Body() body: Record<string, unknown>,
+  ): Promise<{ deleted: true }> {
+    return this.memories.deleteOwnComment(token, assetId, commentId, body);
+  }
+
+  @Get("public/memories/:token/archive")
+  publicArchive(@Param("token") token: string, @Query("assetIds") assetIds: string | undefined): Promise<unknown> {
+    return this.memories.publicArchive(token, assetIds);
   }
 
   @Get("public/memories/:token/guestbook")

@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { apiRequest, ApiError } from "../lib/api";
+import { API_URL, apiRequest, ApiError } from "../lib/api";
 import { formatDate } from "../lib/weddings";
 import { giftAccountQrUrl, normalizeGiftAccounts, resolveMediaUrl, resolveTemplateExperience, withDefaultDesign } from "../lib/invitations";
 import type { GiftTransferAccount, InvitationPersonalization, InvitationSectionKey, PublicInvitationData } from "../lib/invitations";
@@ -247,6 +247,39 @@ function GuestbookPreviewSection({ entries, albumToken }: { entries: NonNullable
   </section>;
 }
 
+function PostWeddingRsvpClosedSection({ albumToken }: { albumToken?: string }) {
+  return <section id="rsvp" className="inv4-section inv-memory-rsvp-closed" aria-labelledby="memory-rsvp-closed-title">
+    <div className="inv-memory-heart" aria-hidden="true">♡</div>
+    <div><span>Lời hồi đáp đã khép lại</span><h2 id="memory-rsvp-closed-title">Lễ cưới đã diễn ra</h2><p>Cảm ơn bạn đã đồng hành cùng chúng mình trong ngày đặc biệt này.</p></div>
+    {albumToken && <a className="inv4-button primary" href={`/memories/${encodeURIComponent(albumToken)}`}>Xem những khoảnh khắc</a>}
+  </section>;
+}
+
+function FeaturedMemoriesSection({ album }: { album: NonNullable<PublicInvitationData["memoryAlbum"]> }) {
+  const items = (album.assets ?? []).filter((asset) => asset.featuredOrder != null).slice(0, 12);
+  if (!items.length || !album.publicEnabled) return null;
+  const mediaUrl = (asset: (typeof items)[number]): string => asset.publicUrl?.startsWith("http://") || asset.publicUrl?.startsWith("https://")
+    ? asset.publicUrl
+    : `${API_URL}/memories/assets/${encodeURIComponent(asset.id)}?token=${encodeURIComponent(album.token)}`;
+  return <section className="inv4-section inv-memory-featured" aria-labelledby="featured-memories-title">
+    <div className="inv4-section-head"><span>Những khoảnh khắc đáng nhớ</span><h2 id="featured-memories-title">Ngày ấy, chúng mình đã cùng ở đây</h2></div>
+    <div className={`inv-memory-featured-grid count-${Math.min(items.length, 6)}`}>{items.map((asset, index) => <figure key={asset.id} className={index === 0 ? "featured" : ""}>{asset.type === "VIDEO" ? <video controls preload="metadata" src={mediaUrl(asset)} aria-label={asset.uploaderMessage || "Video kỷ niệm ngày cưới"} /> : <img src={mediaUrl(asset)} alt={asset.uploaderMessage || "Khoảnh khắc kỷ niệm ngày cưới"} loading={index < 2 ? "eager" : "lazy"} />}</figure>)}</div>
+    <div className="inv-memory-featured-action"><a className="inv4-button outline" href={`/memories/${encodeURIComponent(album.token)}`}>Xem toàn bộ album</a></div>
+  </section>;
+}
+
+function MemoryThankYouSection({ data }: { data: PublicInvitationData }) {
+  const album = data.memoryAlbum;
+  if (!album?.memoryModeEnabled) return null;
+  return <section className="inv4-section inv-memory-thank-you" aria-labelledby="memory-thank-you-title">
+    <div className="inv-memory-heart" aria-hidden="true">♥</div>
+    <div className="inv4-section-head"><span>Từ chúng mình</span><h2 id="memory-thank-you-title">{album.thankYouTitle || "Cảm ơn bạn đã chung vui"}</h2></div>
+    <p>{album.thankYouMessage || "Cảm ơn bạn đã trở thành một phần trong ngày đặc biệt của chúng mình."}</p>
+    <strong>{album.thankYouSignature || `${data.groomName} & ${data.brideName}`}</strong>
+    {album.showWeddingDate !== false && data.mainDate && <time dateTime={data.mainDate}>{formatDate(data.mainDate)}</time>}
+  </section>;
+}
+
 export function PublicInvitation({ data, preview = false, embedded = false, previewViewport }: PublicInvitationProps) {
   const wedding = withDefaultDesign(data);
   const design = wedding.invitationDesign;
@@ -264,7 +297,9 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
   const day = mainDate ? String(mainDate.getDate()).padStart(2, "0") : "--";
   const month = mainDate ? String(mainDate.getMonth() + 1).padStart(2, "0") : "--";
   const year = mainDate ? mainDate.getFullYear() : "----";
-  const greeting = wedding.personalization?.greeting || design.greeting;
+  const memoryAlbum = wedding.memoryAlbum;
+  const memoryMode = Boolean(memoryAlbum?.memoryModeEnabled);
+  const greeting = memoryMode ? (memoryAlbum?.thankYouMessage || "Cảm ơn bạn đã trở thành một phần trong ngày đặc biệt của chúng mình.") : (wedding.personalization?.greeting || design.greeting);
 
   const style = {
     "--inv-primary": design.primaryColor,
@@ -308,7 +343,7 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
   }
 
   async function shareInvitation(): Promise<void> {
-    const shareData = { title: wedding.title, text: `${wedding.groomName} & ${wedding.brideName} trân trọng mời bạn đến chung vui.`, url: window.location.href };
+    const shareData = { title: wedding.title, text: memoryMode ? `${wedding.groomName} & ${wedding.brideName} gửi bạn những kỷ niệm từ ngày chung đôi.` : `${wedding.groomName} & ${wedding.brideName} trân trọng mời bạn đến chung vui.`, url: window.location.href };
     if (navigator.share) {
       await navigator.share(shareData).catch(() => undefined);
       return;
@@ -340,23 +375,23 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
 
   const sections: Record<InvitationSectionKey, React.ReactNode> = {
     hero: design.showHero ? (
-      <section className={`inv4-hero inv8-hero template-${design.templateKey} layout-${experience.layout} photo-${experience.photoTreatment}`}>
-        <div className="inv8-hero-media" aria-hidden={!coverUrl}>
-          {experience.layout === "story" && heroImages.length > 1 ? (
+      <section className={`inv4-hero inv8-hero template-${design.templateKey} layout-${experience.layout} photo-${experience.photoTreatment} ${memoryMode ? "inv-memory-mode" : ""}`}>
+        <div className="inv8-hero-media" aria-hidden={memoryMode && memoryAlbum?.showCouplePhoto === false ? true : !coverUrl}>
+          {memoryMode && memoryAlbum?.showCouplePhoto === false ? <div className="inv-memory-photo-off" aria-hidden="true"><span>♡</span><small>Kỷ niệm ngày chung đôi</small></div> : experience.layout === "story" && heroImages.length > 1 ? (
             <div className="inv8-hero-collage">{heroImages.map((item, index) => <figure className={`photo-${index + 1}`} key={item.id}><img src={item.resolvedUrl ?? ""} alt="" loading={index === 0 ? "eager" : "lazy"} /></figure>)}</div>
-          ) : coverUrl ? <img src={coverUrl} alt={cover?.altText ?? `Ảnh cưới của ${wedding.groomName} và ${wedding.brideName}`} loading="eager" /> : <div className="inv8-hero-placeholder"><span>ND</span><small>Thêm ảnh cưới để hoàn thiện mẫu này</small></div>}
+          ) : coverUrl ? <img src={coverUrl} alt={cover?.altText ?? `Ảnh cưới của ${wedding.groomName} và ${wedding.brideName}`} loading="eager" /> : <div className="inv8-hero-placeholder"><span>ND</span><small>{memoryMode ? "Kỷ niệm ngày chung đôi" : "Thêm ảnh cưới để hoàn thiện mẫu này"}</small></div>}
         </div>
         <div className="inv4-hero-inner">
           <div className="inv4-ornament">ND</div>
-          <div className="inv4-kicker">{design.heroEyebrow}</div>
-          {wedding.personalization && <div className="inv5-guest-badge"><span>Thiệp trân trọng gửi</span><strong>{wedding.personalization.displayName}</strong></div>}
+          <div className="inv4-kicker">{memoryMode ? "Kỷ niệm ngày chung đôi" : design.heroEyebrow}</div>
+          {wedding.personalization && <div className="inv5-guest-badge"><span>{memoryMode ? "Cảm ơn" : "Thiệp trân trọng gửi"}</span><strong>{wedding.personalization.displayName}</strong></div>}
           <h1>{wedding.groomName}<span>&</span>{wedding.brideName}</h1>
           <p className="inv4-greeting">{greeting}</p>
-          <div className="inv4-date"><div><span>Ngày</span><strong>{day}</strong></div><i /><div><span>Tháng {month}</span><strong>{year}</strong></div></div>
+          {(!memoryMode || memoryAlbum?.showWeddingDate !== false) && <div className="inv4-date"><div><span>Ngày</span><strong>{day}</strong></div><i /><div><span>Tháng {month}</span><strong>{year}</strong></div></div>}
           <div className="inv4-hero-actions">
-            {design.showEvents && wedding.events.length > 0 && <a className="inv4-button primary" href="#invitation-events">Xem chương trình</a>}
-            {wedding.personalization && !preview && <a className="inv4-button glass" href="#rsvp">Xác nhận tham dự</a>}
-            <button className="inv4-button glass" type="button" onClick={shareInvitation}>{copied ? "Đã sao chép" : "Chia sẻ thiệp"}</button>
+            {memoryMode && memoryAlbum?.publicEnabled ? <a className="inv4-button primary" href={`/memories/${encodeURIComponent(memoryAlbum.token)}`}>Xem album kỷ niệm</a> : design.showEvents && wedding.events.length > 0 ? <a className="inv4-button primary" href="#invitation-events">Xem chương trình</a> : null}
+            {!memoryMode && wedding.personalization && !preview && <a className="inv4-button glass" href="#rsvp">Xác nhận tham dự</a>}
+            <button className="inv4-button glass" type="button" onClick={shareInvitation}>{copied ? "Đã sao chép" : memoryMode ? "Chia sẻ kỷ niệm" : "Chia sẻ thiệp"}</button>
           </div>
         </div>
       </section>
@@ -381,20 +416,20 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
     ) : null,
     story: design.showStory && wedding.story ? <section className="inv4-section inv4-story"><div className="inv4-section-head"><span>Câu chuyện của chúng mình</span><h2>{design.storyTitle}</h2></div><p>{wedding.story}</p></section> : null,
     gallery: design.showGallery && gallery.length > 0 ? <section className="inv4-section inv4-gallery"><div className="inv4-section-head"><span>Album cưới</span><h2>{design.galleryTitle}</h2></div><div className={`inv4-gallery-grid count-${Math.min(gallery.length, 6)} layout-${experience.layout}`}>{gallery.slice(0, 9).map((item, index) => <figure key={item.id} className={index === 0 ? "featured" : ""}><img src={resolveMediaUrl(item.publicUrl) ?? ""} alt={item.altText ?? "Ảnh cưới"} loading={index < 2 ? "eager" : "lazy"} /></figure>)}</div></section> : null,
-    countdown: design.showCountdown ? <section className="inv4-section inv4-countdown-section inv8-countdown-section"><div className="inv4-section-head"><span>Save the date</span><h2>{design.countdownTitle}</h2></div><Countdown target={wedding.mainDate} variant={experience.countdownStyle} /><button className="inv4-text-button" type="button" onClick={addToCalendar}>+ Thêm vào lịch</button></section> : null,
+    countdown: !memoryMode && design.showCountdown ? <section className="inv4-section inv4-countdown-section inv8-countdown-section"><div className="inv4-section-head"><span>Save the date</span><h2>{design.countdownTitle}</h2></div><Countdown target={wedding.mainDate} variant={experience.countdownStyle} /><button className="inv4-text-button" type="button" onClick={addToCalendar}>+ Thêm vào lịch</button></section> : null,
     events: design.showEvents ? <section id="invitation-events" className={`inv4-section inv4-events inv8-events style-${experience.eventStyle}`}><div className="inv4-section-head"><span>Chương trình</span><h2>{design.eventsTitle}</h2></div>{wedding.events.length ? <div className="inv8-event-list">{wedding.events.map((event, index) => { const startsAt = new Date(event.startsAt); return <article key={event.id}><div className="inv8-event-date"><strong>{String(startsAt.getDate()).padStart(2, "0")}</strong><span>Tháng {String(startsAt.getMonth() + 1).padStart(2, "0")}</span></div><div className="inv8-event-marker"><span>{eventIcon(event.type)}</span><i /></div><div className="inv8-event-content"><div className="inv11-event-meta"><small>{event.side === "BRIDE" ? "Nhà gái" : event.side === "GROOM" ? "Nhà trai" : "Hai gia đình"}</small><em>Chặng {String(index + 1).padStart(2, "0")}</em></div><h3>{event.title}</h3><p className="inv8-event-time"><strong>{new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(startsAt)}</strong><span>{formatDate(event.startsAt)}</span>{event.endsAt ? <i>đến {new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.endsAt))}</i> : null}</p><p className="inv8-event-place"><b>{event.venueName}</b><span>{event.address}</span></p>{event.dressCode && <p className="inv4-note"><b>Trang phục</b> {event.dressCode}</p>}{event.note && <p className="inv4-note">{event.note}</p>}<div className="inv4-event-actions">{event.mapUrl && <a href={event.mapUrl} target="_blank" rel="noreferrer">Mở bản đồ ↗</a>}{index === 0 && <button type="button" onClick={addToCalendar}>Thêm vào lịch</button>}</div></div></article>; })}</div> : <p className="inv-empty-copy">Chương trình đang được cập nhật.</p>}</section> : null,
     gift: design.showGift && giftAccounts.length > 0 ? <GiftTransferSection title={design.giftTitle} message={design.giftMessage} accounts={giftAccounts} copiedAccountId={copiedAccountId} onCopy={(account) => void copyGiftAccount(account)} /> : null,
-    footer: design.showFooter ? <footer className="inv4-footer"><div className="inv4-ornament small">ND</div><h2>{wedding.groomName} <span>&</span> {wedding.brideName}</h2><p>{design.footerMessage}</p><div className="inv4-footer-actions"><button type="button" onClick={shareInvitation}>{copied ? "Đã sao chép liên kết" : "Chia sẻ ngày vui"}</button>{wedding.memoryAlbum?.publicEnabled && <a href={`/memories/${wedding.memoryAlbum.token}${wedding.personalization ? `?guest=${encodeURIComponent(wedding.personalization.token)}` : ""}`}>Góp ảnh vào album</a>}</div></footer> : null,
+    footer: design.showFooter ? <footer className="inv4-footer"><div className="inv4-ornament small">ND</div><h2>{wedding.groomName} <span>&</span> {wedding.brideName}</h2><p>{design.footerMessage}</p><div className="inv4-footer-actions"><button type="button" onClick={shareInvitation}>{copied ? "Đã sao chép liên kết" : memoryMode ? "Chia sẻ kỷ niệm" : "Chia sẻ ngày vui"}</button>{wedding.memoryAlbum?.publicEnabled && <a href={`/memories/${wedding.memoryAlbum.token}${wedding.personalization ? `?guest=${encodeURIComponent(wedding.personalization.token)}` : ""}`}>{memoryMode ? "Xem album kỷ niệm" : "Góp ảnh vào album"}</a>}</div></footer> : null,
   };
 
   const Root = embedded ? "div" : "main";
 
   return (
     <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""} ${previewViewport ? `preview-${previewViewport}` : ""}`} style={style}>
-      {!embedded && !preview && <WeddingFireworks invitationId={wedding.id} />}
+      {!embedded && !preview && !memoryMode && <WeddingFireworks invitationId={wedding.id} />}
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
       {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}
-      {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{key === "footer" && wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length ? <GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled && wedding.memoryAlbum.guestbookEnabled !== false ? wedding.memoryAlbum.token : undefined} /> : null}{sections[key]}</div>)}
+      {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && memoryMode && <><PostWeddingRsvpClosedSection albumToken={memoryAlbum?.publicEnabled ? memoryAlbum.token : undefined} /><MemoryThankYouSection data={wedding} />{memoryAlbum && <FeaturedMemoriesSection album={memoryAlbum} />}</>}{key === "footer" && !memoryMode && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{key === "footer" && wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length ? <GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled && wedding.memoryAlbum.guestbookEnabled !== false ? wedding.memoryAlbum.token : undefined} /> : null}{sections[key]}</div>)}
     </Root>
   );
 }

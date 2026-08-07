@@ -1298,10 +1298,14 @@ model MemoryAlbum {
   showUploaderName   Boolean       @default(true)
   reactionsEnabled   Boolean       @default(true)
   commentsEnabled    Boolean       @default(true)
-  commentModerationRequired Boolean @default(true)
+  commentModerationRequired Boolean @default(false)
   downloadsEnabled   Boolean       @default(true)
   guestbookEnabled   Boolean       @default(true)
   guestbookModerationRequired Boolean @default(true)
+  memoryModeEnabled  Boolean       @default(false)
+  thankYouSignature  String?
+  showCouplePhoto    Boolean       @default(true)
+  showWeddingDate    Boolean       @default(true)
   closesAt           DateTime?
   assets             MemoryAsset[]
   createdAt          DateTime      @default(now())
@@ -1329,6 +1333,8 @@ model MemoryAsset {
   height          Int?
   rejectionReason String?
   moderationNote  String?
+  featuredOrder   Int?
+  featuredAt      DateTime?
   approvedAt      DateTime?
   rejectedAt      DateTime?
   createdAt       DateTime          @default(now())
@@ -1338,6 +1344,7 @@ model MemoryAsset {
 
   @@unique([storageKey])
   @@index([albumId, status, createdAt])
+  @@index([albumId, status, featuredOrder])
   @@index([invitationId, createdAt])
 }
 

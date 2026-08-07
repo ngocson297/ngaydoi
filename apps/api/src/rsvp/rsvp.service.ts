@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { RateLimitService } from "../auth/rate-limit.service.js";
 import type { Prisma } from "../generated/prisma/client.js";
@@ -19,7 +19,7 @@ export class RsvpService {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token },
       include: {
-        guest: { include: { wedding: { select: { id: true, ownerId: true, status: true, expiresAt: true } } } },
+        guest: { include: { wedding: { select: { id: true, ownerId: true, status: true, expiresAt: true, memoryAlbum: { select: { memoryModeEnabled: true } } } } } },
         visibleEvents: { select: { eventId: true } },
         rsvp: { include: { selectedEvents: { select: { eventId: true } } } },
       },
@@ -30,6 +30,9 @@ export class RsvpService {
     }
     if (invitation.guest.wedding.status !== "PUBLISHED" || (invitation.guest.wedding.expiresAt && invitation.guest.wedding.expiresAt <= now)) {
       throw new NotFoundException("Invitation not found");
+    }
+    if (invitation.guest.wedding.memoryAlbum?.memoryModeEnabled) {
+      throw new ForbiddenException("Lễ cưới đã diễn ra. RSVP hiện đã đóng.");
     }
 
     const total = dto.status === "DECLINED" ? 0 : dto.adultCount + dto.childCount;

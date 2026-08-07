@@ -1,3 +1,26 @@
+# v0.15.13 — Sprint 15.14 Album Control, Download & Archive
+
+- Comments now publish immediately by default; owners can still opt back into pre-moderation.
+- Guests can delete comments created by their own browser interaction identity; owners can remove any recent comment from the Wedding Space dashboard.
+- Comment deletion uses a hidden moderation state instead of destructive database deletion.
+- Public albums support selecting up to 200 loaded memories and downloading them as a ZIP.
+- Public albums and owners can download all approved album memories as a ZIP, with server-side item/byte safety limits.
+- ZIP generation streams one stored object at a time and does not buffer the full archive in memory.
+- Album storage usage and remaining quota are exposed in owner/public album data and surfaced in the owner dashboard.
+- Existing upload-close date remains the album intake expiration control.
+- Added additive migration to make instant comments the default and migrate existing albums to that behavior.
+- Expanded `memories:smoke` and added `npm run sprint15.14:audit` to the quality gate.
+
+# v0.15.12 — Sprint 15.13 Post-Wedding Memory & Thank-you Experience
+
+- Added same-link post-wedding Memory Mode for existing `/thiep/:slug` invitation URLs.
+- Added thank-you title/message/signature controls plus optional couple photo and wedding date.
+- Closed RSVP in both public UI and API while Memory Mode is enabled without deleting historical responses.
+- Added up to 12 owner-selected featured memories from the approved Shared Memories album.
+- Reused the existing scalable album and Guestbook from Sprint 15.12 instead of creating duplicate post-wedding data.
+- Added an additive Prisma migration only; no destructive reset/drop.
+- Expanded `memories:smoke` and added `npm run sprint15.13:audit` to the release quality gate.
+
 # v0.15.11 — Sprint 15.12 Wedding Social Experience & Album Scalability
 
 - Added cursor-paginated album feeds with infinite-scroll UX instead of loading the entire wedding album at once.

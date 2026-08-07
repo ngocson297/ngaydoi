@@ -16,7 +16,9 @@ async function main(): Promise<void> {
   const wedding = weddings.find((item) => item.slug === "minh-anh") ?? weddings[0];
   if (!wedding) throw new Error("No wedding available");
 
-  const album = await json<{ token: string; metrics: { total: number } }>(`/weddings/${wedding.id}/memories`, { headers });
+  const album = await json<{ token: string; metrics: { total: number }; commentModerationRequired: boolean }>(`/weddings/${wedding.id}/memories`, { headers });
+  const originalCommentModeration = album.commentModerationRequired;
+  await json(`/weddings/${wedding.id}/memories`, { method: "PATCH", headers, body: JSON.stringify({ commentModerationRequired: false }) });
   const viewerKey = `smoke-${Date.now()}`;
   const publicAlbum = await json<{ title: string; assetPageInfo: { pageSize: number }; uploadPolicy: { strategy: string } }>(`/public/memories/${album.token}?viewer=${encodeURIComponent(viewerKey)}`);
   if (!publicAlbum.title || publicAlbum.assetPageInfo.pageSize < 1) throw new Error("Public memory album pagination is not available");
@@ -40,20 +42,44 @@ async function main(): Promise<void> {
   });
   if (!reaction.reacted || reaction.count < 1) throw new Error("Memory reaction toggle failed");
 
-  const comment = await json<{ id: string; status: string }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments`, {
+  const comment = await json<{ id: string; status: string; canDelete?: boolean }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments`, {
     method: "POST",
     body: JSON.stringify({ actorKey: viewerKey, authorName: "Smoke Test", body: "Một khoảnh khắc thật đẹp!" }),
   });
   if (!comment.id) throw new Error("Memory comment did not return an ID");
-  if (comment.status === "PENDING") {
-    await json(`/weddings/${wedding.id}/memories/social/comment/${comment.id}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ status: "APPROVED" }),
-    });
-  }
-  const comments = await json<{ items: Array<{ id: string }> }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments`);
-  if (!comments.items.some((item) => item.id === comment.id)) throw new Error("Approved memory comment is not visible publicly");
+  if (comment.status !== "APPROVED") throw new Error("Memory comment should be visible immediately when moderation is disabled");
+  const comments = await json<{ items: Array<{ id: string; canDelete?: boolean }> }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments?viewer=${encodeURIComponent(viewerKey)}`);
+  const ownComment = comments.items.find((item) => item.id === comment.id);
+  if (!ownComment) throw new Error("Approved memory comment is not visible publicly");
+  if (!ownComment.canDelete) throw new Error("Comment ownership is not exposed to its author");
+
+  const archiveResponse = await fetch(`${API}/public/memories/${album.token}/archive?assetIds=${encodeURIComponent(uploaded.id)}`);
+  if (!archiveResponse.ok) throw new Error(`Memory archive download failed (${archiveResponse.status})`);
+  const archive = Buffer.from(await archiveResponse.arrayBuffer());
+  if (archive.length < 4 || archive.readUInt32LE(0) !== 0x04034b50) throw new Error("Memory archive is not a valid ZIP stream");
+
+  await json(`/public/memories/${album.token}/assets/${uploaded.id}/comments/${comment.id}`, {
+    method: "DELETE", body: JSON.stringify({ actorKey: viewerKey }),
+  });
+  const afterDelete = await json<{ items: Array<{ id: string }> }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments?viewer=${encodeURIComponent(viewerKey)}`);
+  if (afterDelete.items.some((item) => item.id === comment.id)) throw new Error("Deleted memory comment is still visible publicly");
+
+  const ownerDeleteComment = await json<{ id: string; status: string }>(`/public/memories/${album.token}/assets/${uploaded.id}/comments`, {
+    method: "POST", body: JSON.stringify({ actorKey: `${viewerKey}-owner-delete`, authorName: "Smoke Test", body: "Owner delete coverage" }),
+  });
+  await json(`/weddings/${wedding.id}/memories/comments/${ownerDeleteComment.id}`, { method: "DELETE", headers });
+
+  await json(`/weddings/${wedding.id}/memories/assets/${uploaded.id}/featured`, {
+    method: "PATCH", headers, body: JSON.stringify({ featured: true }),
+  });
+  await json(`/weddings/${wedding.id}/memories`, {
+    method: "PATCH", headers, body: JSON.stringify({ memoryModeEnabled: true, thankYouSignature: "Smoke Couple", showWeddingDate: true, showCouplePhoto: true }),
+  });
+  const postWedding = await json<{ memoryAlbum?: { memoryModeEnabled?: boolean; thankYouSignature?: string | null; assets?: Array<{ id: string }> } | null }>(`/weddings/public/${encodeURIComponent(wedding.slug)}`);
+  if (!postWedding.memoryAlbum?.memoryModeEnabled) throw new Error("Post-wedding memory mode is not exposed on the existing public invitation URL");
+  if (postWedding.memoryAlbum.thankYouSignature !== "Smoke Couple") throw new Error("Post-wedding thank-you signature is missing");
+  if (!postWedding.memoryAlbum.assets?.some((item) => item.id === uploaded.id)) throw new Error("Featured memory is not exposed on the post-wedding invitation");
+  await json(`/weddings/${wedding.id}/memories`, { method: "PATCH", headers, body: JSON.stringify({ memoryModeEnabled: false, thankYouSignature: null, commentModerationRequired: originalCommentModeration }) });
 
   await json(`/public/memories/${album.token}/assets/${uploaded.id}/reactions/toggle`, {
     method: "POST",

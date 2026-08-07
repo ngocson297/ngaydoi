@@ -219,7 +219,7 @@ export class WeddingsService {
       where: {
         slug: this.normalizeSlug(slug),
         status: "PUBLISHED",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }, { memoryAlbum: { is: { memoryModeEnabled: true } } }],
       },
       select: {
         id: true,
@@ -259,7 +259,16 @@ export class WeddingsService {
           },
         },
         invitationDesign: true,
-        memoryAlbum: { select: { token: true, publicEnabled: true, guestbookEnabled: true } },
+        memoryAlbum: { select: {
+          token: true, publicEnabled: true, guestbookEnabled: true, memoryModeEnabled: true, thankYouTitle: true, thankYouMessage: true,
+          thankYouSignature: true, showCouplePhoto: true, showWeddingDate: true,
+          assets: {
+            where: { status: "APPROVED", featuredOrder: { not: null } },
+            orderBy: [{ featuredOrder: "asc" }, { featuredAt: "asc" }],
+            take: 12,
+            select: { id: true, type: true, publicUrl: true, mimeType: true, featuredOrder: true, uploaderMessage: true },
+          },
+        } },
         guestbookEntries: { where: { status: "APPROVED" }, orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }], take: 6, select: { id: true, authorName: true, message: true, approvedAt: true, createdAt: true } },
         mediaAssets: {
           orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],

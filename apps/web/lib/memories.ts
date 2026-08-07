@@ -15,6 +15,8 @@ export interface MemoryAsset {
   uploaderMessage: string | null;
   rejectionReason?: string | null;
   moderationNote?: string | null;
+  featuredOrder?: number | null;
+  featuredAt?: string | null;
   approvedAt?: string | null;
   rejectedAt?: string | null;
   createdAt: string;
@@ -31,6 +33,7 @@ export interface MemoryComment {
   body: string;
   createdAt: string;
   status?: SocialContentStatus;
+  canDelete?: boolean;
 }
 
 export interface GuestbookEntry {
@@ -65,12 +68,17 @@ export interface MemoryOwnerOverview {
   downloadsEnabled: boolean;
   guestbookEnabled: boolean;
   guestbookModerationRequired: boolean;
+  memoryModeEnabled: boolean;
+  thankYouSignature: string | null;
+  showCouplePhoto: boolean;
+  showWeddingDate: boolean;
   closesAt: string | null;
   access: "OWNER" | "EDIT" | "VIEW";
   wedding: { id: string; title: string; brideName: string; groomName: string; mainDate: string | null; slug: string };
   assets: MemoryAsset[];
   assetPageInfo: { nextCursor: string | null; pageSize: number };
   metrics: { total: number; pending: number; approved: number; rejected: number; archived: number; totalBytes: number };
+  storagePolicy: { maxItems: number; maxBytes: number; remainingItems: number; remainingBytes: number };
   socialMetrics: { pendingComments: number; pendingGuestbook: number };
 }
 
@@ -87,6 +95,10 @@ export interface PublicMemoryAlbum {
   commentsEnabled: boolean;
   downloadsEnabled: boolean;
   guestbookEnabled: boolean;
+  memoryModeEnabled: boolean;
+  thankYouSignature: string | null;
+  showCouplePhoto: boolean;
+  showWeddingDate: boolean;
   closesAt: string | null;
   wedding: { title: string; brideName: string; groomName: string; mainDate: string | null; coverImageUrl: string | null };
   assets: MemoryAsset[];
@@ -98,13 +110,17 @@ export interface PublicMemoryAlbum {
     maxImageBytes: number;
     maxVideoBytes: number;
     maxFilesPerBatch: number;
+    maxItems: number;
+    maxBytes: number;
+    totalItems: number;
+    totalBytes: number;
     remainingItems: number;
     remainingBytes: number;
   };
 }
 
 export interface SocialModerationOverview {
-  comments: Array<{ id: string; authorName: string; body: string; createdAt: string; asset: { id: string; type: MemoryType; uploaderName: string | null } }>;
+  comments: Array<{ id: string; authorName: string; body: string; status: SocialContentStatus; createdAt: string; asset: { id: string; type: MemoryType; uploaderName: string | null } }>;
   guestbook: GuestbookEntry[];
 }
 

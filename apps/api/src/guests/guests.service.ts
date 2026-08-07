@@ -556,7 +556,16 @@ export class GuestsService {
               include: {
                 events: { orderBy: [{ sortOrder: "asc" }, { startsAt: "asc" }] },
                 invitationDesign: true,
-                memoryAlbum: { select: { token: true, publicEnabled: true, guestbookEnabled: true } },
+                memoryAlbum: { select: {
+          token: true, publicEnabled: true, guestbookEnabled: true, memoryModeEnabled: true, thankYouTitle: true, thankYouMessage: true,
+          thankYouSignature: true, showCouplePhoto: true, showWeddingDate: true,
+          assets: {
+            where: { status: "APPROVED", featuredOrder: { not: null } },
+            orderBy: [{ featuredOrder: "asc" }, { featuredAt: "asc" }],
+            take: 12,
+            select: { id: true, type: true, publicUrl: true, mimeType: true, featuredOrder: true, uploaderMessage: true },
+          },
+        } },
                 guestbookEntries: { where: { status: "APPROVED" }, orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }], take: 6, select: { id: true, authorName: true, message: true, approvedAt: true, createdAt: true } },
                 mediaAssets: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }] },
               },
@@ -572,7 +581,7 @@ export class GuestsService {
       throw new NotFoundException("Personalized invitation not found");
     }
     const wedding = invitation.guest.wedding;
-    if (wedding.status !== "PUBLISHED" || (wedding.expiresAt && wedding.expiresAt <= now)) {
+    if (wedding.status !== "PUBLISHED" || (wedding.expiresAt && wedding.expiresAt <= now && !wedding.memoryAlbum?.memoryModeEnabled)) {
       throw new NotFoundException("Personalized invitation not found");
     }
     const updated = await this.prisma.invitation.update({

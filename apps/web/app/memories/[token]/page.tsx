@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Alert, Button, ErrorState, FileUploadField, FormActions, FormField, PageSkeleton, useUnsavedChangesGuard } from "../../../components/ui";
+import { Alert, Button, ErrorState, FileUploadField, FormActions, FormField, PageSkeleton, useConfirm, useUnsavedChangesGuard } from "../../../components/ui";
 import { API_URL, ApiError, apiRequest, toUiError, type UiError } from "../../../lib/api";
 import type { CursorPage, GuestbookEntry, MemoryAsset, MemoryComment, PublicMemoryAlbum } from "../../../lib/memories";
 import { memoryDownloadUrl, resolveMemoryMediaUrl } from "../../../lib/memories";
@@ -23,6 +23,7 @@ function ensureViewerKey(): string {
 
 export default function PublicMemoriesPage() {
   const { token } = useParams<{ token: string }>();
+  const { confirm } = useConfirm();
   const [viewerKey, setViewerKey] = useState("");
   const [invitationToken, setInvitationToken] = useState("");
   const [album, setAlbum] = useState<PublicMemoryAlbum | null>(null);
@@ -45,6 +46,9 @@ export default function PublicMemoriesPage() {
   const [commentsCursor, setCommentsCursor] = useState<Record<string, string | null>>({});
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [commentBusy, setCommentBusy] = useState<string | null>(null);
+  const [downloadMode, setDownloadMode] = useState(false);
+  const [downloadSelected, setDownloadSelected] = useState<string[]>([]);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async (key: string): Promise<void> => {
@@ -187,7 +191,7 @@ export default function PublicMemoriesPage() {
   async function loadComments(assetId: string, append = false): Promise<void> {
     const cursor = append ? commentsCursor[assetId] : null;
     try {
-      const page = await apiRequest<CursorPage<MemoryComment>>(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/comments?limit=12${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      const page = await apiRequest<CursorPage<MemoryComment>>(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/comments?limit=12${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}${viewerKey ? `&viewer=${encodeURIComponent(viewerKey)}` : ""}`);
       setComments((current) => ({ ...current, [assetId]: append ? [...(current[assetId] ?? []), ...page.items] : page.items }));
       setCommentsCursor((current) => ({ ...current, [assetId]: page.nextCursor }));
     } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể tải bình luận."); }
@@ -218,6 +222,49 @@ export default function PublicMemoriesPage() {
     finally { setCommentBusy(null); }
   }
 
+  async function deleteComment(assetId: string, commentId: string): Promise<void> {
+    if (!viewerKey) return;
+    if (!(await confirm({ title: "Xóa bình luận này?", description: "Bình luận sẽ biến mất khỏi album ngay lập tức.", confirmLabel: "Xóa bình luận", tone: "danger" }))) return;
+    setCommentBusy(assetId);
+    setError("");
+    try {
+      await apiRequest(`/public/memories/${encodeURIComponent(token)}/assets/${assetId}/comments/${commentId}`, { method: "DELETE", body: JSON.stringify({ actorKey: viewerKey }) });
+      setComments((current) => ({ ...current, [assetId]: (current[assetId] ?? []).filter((comment) => comment.id !== commentId) }));
+      setAssets((current) => current.map((asset) => asset.id === assetId ? { ...asset, commentCount: Math.max(0, (asset.commentCount ?? 0) - 1) } : asset));
+      setNotice("Đã xóa bình luận.");
+    } catch (reason) { setError(reason instanceof ApiError ? reason.message : "Chưa thể xóa bình luận."); }
+    finally { setCommentBusy(null); }
+  }
+
+  function toggleDownloadAsset(assetId: string): void {
+    setDownloadSelected((current) => current.includes(assetId) ? current.filter((id) => id !== assetId) : [...current, assetId]);
+  }
+
+  async function downloadArchive(assetIds?: string[]): Promise<void> {
+    if (!album?.downloadsEnabled || archiveBusy) return;
+    if (assetIds && !assetIds.length) { setError("Vui lòng chọn ít nhất một ảnh hoặc video."); return; }
+    setArchiveBusy(true); setError(""); setNotice("");
+    try {
+      const query = assetIds?.length ? `?assetIds=${encodeURIComponent(assetIds.join(","))}` : "";
+      const response = await fetch(`${API_URL}/public/memories/${encodeURIComponent(token)}/archive${query}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(String(body.message || "Không thể tạo file ZIP."));
+      }
+      const blob = await response.blob();
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = assetIds?.length ? "ngaydoi-memories-selected.zip" : "ngaydoi-memories.zip";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+      setNotice(assetIds?.length ? `Đã chuẩn bị ${assetIds.length} khoảnh khắc để tải.` : "Đã chuẩn bị album ZIP để tải.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Không thể tải album ZIP."); }
+    finally { setArchiveBusy(false); }
+  }
+
   async function loadMoreGuestbook(): Promise<void> {
     if (!guestbookCursor || guestbookBusy) return;
     setGuestbookBusy(true);
@@ -237,7 +284,7 @@ export default function PublicMemoriesPage() {
     {error ? <div className="memory-floating-notice"><Alert tone="error">{error}</Alert></div> : null}
     {notice ? <div className="memory-floating-notice"><Alert tone="success">{notice}</Alert></div> : null}
 
-    <section id="moments" className="memory-public-section"><div className="memory-public-heading"><span>Album chung</span><h2>{album.thankYouTitle}</h2><p>{album.thankYouMessage}</p></div>{assets.length ? <div className="memory-public-grid">{assets.map((asset) => <figure className="memory-social-card" key={asset.id}><div className="memory-social-media">{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={resolveMemoryMediaUrl(asset, album.token)} /> : <img src={resolveMemoryMediaUrl(asset, album.token)} alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} loading="lazy" />}</div><figcaption>{(album.showUploaderName && asset.uploaderName || asset.uploaderMessage) && <div className="memory-social-caption">{album.showUploaderName && asset.uploaderName && <strong>{asset.uploaderName}</strong>}{asset.uploaderMessage && <span>{asset.uploaderMessage}</span>}</div>}<div className="memory-social-actions">{album.reactionsEnabled && <button type="button" className={asset.viewerReacted ? "active" : ""} aria-pressed={asset.viewerReacted} onClick={() => void toggleReaction(asset.id)}><span aria-hidden="true">♥</span> {asset.reactionCount ?? 0}</button>}{album.commentsEnabled && <button type="button" onClick={() => void toggleComments(asset.id)}><span aria-hidden="true">◌</span> {asset.commentCount ?? 0} bình luận</button>}{album.downloadsEnabled && <a href={memoryDownloadUrl(asset.id, album.token)} download aria-label="Tải khoảnh khắc này">↓ Tải</a>}</div>{expandedComments === asset.id && <div className="memory-comments"><div className="memory-comment-list">{(comments[asset.id] ?? []).map((comment) => <article key={comment.id}><strong>{comment.authorName}</strong><p>{comment.body}</p><time>{new Date(comment.createdAt).toLocaleString("vi-VN")}</time></article>)}{(comments[asset.id] ?? []).length === 0 && <p className="memory-comment-empty">Chưa có bình luận. Hãy để lại lời nhắn đầu tiên.</p>}{commentsCursor[asset.id] && <button type="button" className="memory-comment-more" onClick={() => void loadComments(asset.id, true)}>Xem thêm bình luận</button>}</div><div className="memory-comment-compose"><input maxLength={600} value={commentDraft[asset.id] ?? ""} onChange={(event) => setCommentDraft((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Viết bình luận…" aria-label="Viết bình luận" /><button type="button" disabled={commentBusy === asset.id || (commentDraft[asset.id] ?? "").trim().length < 2} onClick={() => void submitComment(asset.id)}>{commentBusy === asset.id ? "Đang gửi…" : "Gửi"}</button></div></div>}</figcaption></figure>)}</div> : <div className="memory-public-empty"><span>♡</span><h3>Hãy là người đầu tiên chia sẻ</h3><p>Những bức ảnh tự nhiên từ bạn bè và gia đình sẽ làm album này thật đặc biệt.</p></div>}
+    <section id="moments" className="memory-public-section"><div className="memory-public-heading"><span>Album chung</span><h2>{album.thankYouTitle}</h2><p>{album.thankYouMessage}</p></div>{album.downloadsEnabled && assets.length ? <div className="memory-download-toolbar"><div><strong>Tải kỷ niệm</strong><span>{album.uploadPolicy.totalItems} nội dung · {formatMb(album.uploadPolicy.totalBytes)} đã lưu</span></div><div><button type="button" className="btn btn-secondary" disabled={archiveBusy} onClick={() => { setDownloadMode((current) => !current); setDownloadSelected([]); }}>{downloadMode ? "Hủy chọn" : "Chọn để tải"}</button>{downloadMode ? <button type="button" className="btn btn-primary" disabled={archiveBusy || !downloadSelected.length} onClick={() => void downloadArchive(downloadSelected)}>{archiveBusy ? "Đang chuẩn bị…" : `Tải ${downloadSelected.length} mục (.ZIP)`}</button> : <button type="button" className="btn btn-primary" disabled={archiveBusy} onClick={() => void downloadArchive()}>{archiveBusy ? "Đang chuẩn bị…" : "Tải toàn bộ (.ZIP)"}</button>}</div></div> : null}{assets.length ? <div className="memory-public-grid">{assets.map((asset) => <figure className={`memory-social-card ${downloadSelected.includes(asset.id) ? "is-selected" : ""}`} key={asset.id}><div className="memory-social-media">{downloadMode && <label className="memory-download-select"><input type="checkbox" checked={downloadSelected.includes(asset.id)} onChange={() => toggleDownloadAsset(asset.id)} /><span>{downloadSelected.includes(asset.id) ? "Đã chọn" : "Chọn"}</span></label>}{asset.type === "VIDEO" ? <video aria-label={asset.uploaderMessage || "Video khoảnh khắc ngày cưới"} controls preload="metadata" src={resolveMemoryMediaUrl(asset, album.token)} /> : <img src={resolveMemoryMediaUrl(asset, album.token)} alt={asset.uploaderMessage || "Khoảnh khắc ngày cưới"} loading="lazy" />}</div><figcaption>{(album.showUploaderName && asset.uploaderName || asset.uploaderMessage) && <div className="memory-social-caption">{album.showUploaderName && asset.uploaderName && <strong>{asset.uploaderName}</strong>}{asset.uploaderMessage && <span>{asset.uploaderMessage}</span>}</div>}<div className="memory-social-actions">{album.reactionsEnabled && <button type="button" className={asset.viewerReacted ? "active" : ""} aria-pressed={asset.viewerReacted} onClick={() => void toggleReaction(asset.id)}><span aria-hidden="true">♥</span> {asset.reactionCount ?? 0}</button>}{album.commentsEnabled && <button type="button" onClick={() => void toggleComments(asset.id)}><span aria-hidden="true">◌</span> {asset.commentCount ?? 0} bình luận</button>}{album.downloadsEnabled && <a href={memoryDownloadUrl(asset.id, album.token)} download aria-label="Tải khoảnh khắc này">↓ Tải</a>}</div>{expandedComments === asset.id && <div className="memory-comments"><div className="memory-comment-list">{(comments[asset.id] ?? []).map((comment) => <article key={comment.id}><div className="memory-comment-head"><strong>{comment.authorName}</strong>{comment.canDelete && <button type="button" disabled={commentBusy === asset.id} onClick={() => void deleteComment(asset.id, comment.id)}>Xóa</button>}</div><p>{comment.body}</p><time>{new Date(comment.createdAt).toLocaleString("vi-VN")}</time></article>)}{(comments[asset.id] ?? []).length === 0 && <p className="memory-comment-empty">Chưa có bình luận. Hãy để lại lời nhắn đầu tiên.</p>}{commentsCursor[asset.id] && <button type="button" className="memory-comment-more" onClick={() => void loadComments(asset.id, true)}>Xem thêm bình luận</button>}</div><div className="memory-comment-compose"><input maxLength={600} value={commentDraft[asset.id] ?? ""} onChange={(event) => setCommentDraft((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Viết bình luận…" aria-label="Viết bình luận" /><button type="button" disabled={commentBusy === asset.id || (commentDraft[asset.id] ?? "").trim().length < 2} onClick={() => void submitComment(asset.id)}>{commentBusy === asset.id ? "Đang gửi…" : "Gửi"}</button></div></div>}</figcaption></figure>)}</div> : <div className="memory-public-empty"><span>♡</span><h3>Hãy là người đầu tiên chia sẻ</h3><p>Những bức ảnh tự nhiên từ bạn bè và gia đình sẽ làm album này thật đặc biệt.</p></div>}
       <div ref={loadMoreRef} className="memory-load-more" aria-live="polite">{loadingMore ? <span>Đang tải thêm khoảnh khắc…</span> : nextCursor ? <button className="btn btn-secondary" type="button" onClick={() => void loadMore()}>Tải thêm</button> : assets.length ? <span>Đã xem hết album.</span> : null}</div>
     </section>
 

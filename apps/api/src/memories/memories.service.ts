@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, StreamableFile } from "@nestjs/common";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { extname } from "node:path";
+import { Readable } from "node:stream";
 import QRCode from "qrcode";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import { RateLimitService } from "../auth/rate-limit.service.js";
@@ -22,6 +23,31 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "video/webm": ".webm",
   "video/quicktime": ".mov",
 };
+
+const CRC32_TABLE = Array.from({ length: 256 }, (_, value) => {
+  let crc = value;
+  for (let bit = 0; bit < 8; bit += 1) crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+  return crc >>> 0;
+});
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) crc = CRC32_TABLE[(crc ^ byte) & 0xff]! ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function zipDosDateTime(date = new Date()): { date: number; time: number } {
+  const year = Math.max(1980, date.getFullYear());
+  return {
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+  };
+}
+
+function safeArchiveName(value: string, fallback: string): string {
+  const cleaned = value.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\s+/g, " ").trim().slice(0, 140);
+  return cleaned || fallback;
+}
 
 interface UploadTicketPayload {
   albumId: string;
@@ -224,6 +250,8 @@ export class MemoriesService {
     ]);
     const counts = new Map(groups.map((item) => [item.status, item._count._all]));
     const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
+    const limits = this.uploadLimits();
+    const totalBytes = bytes._sum.sizeBytes ?? 0;
     return {
       ...album,
       access,
@@ -235,7 +263,13 @@ export class MemoriesService {
         approved: counts.get("APPROVED") ?? 0,
         rejected: counts.get("REJECTED") ?? 0,
         archived: counts.get("ARCHIVED") ?? 0,
-        totalBytes: bytes._sum.sizeBytes ?? 0,
+        totalBytes,
+      },
+      storagePolicy: {
+        maxItems: limits.maxItems,
+        maxBytes: limits.maxBytes,
+        remainingItems: Math.max(0, limits.maxItems - total),
+        remainingBytes: Math.max(0, limits.maxBytes - totalBytes),
       },
       socialMetrics: { pendingComments, pendingGuestbook },
     };
@@ -250,7 +284,7 @@ export class MemoriesService {
       cursor: cursor ? { id: cursor } : undefined,
       skip: cursor ? 1 : 0,
       take: limit + 1,
-      include: { invitation: { select: { guest: { select: { fullName: true } } } }, _count: { select: { reactions: true, comments: true } } },
+      include: { invitation: { select: { guest: { select: { fullName: true } } } }, _count: { select: { reactions: true, comments: { where: { status: "APPROVED" } } } } },
     });
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit).map((asset) => ({
@@ -296,6 +330,10 @@ export class MemoriesService {
       commentsEnabled: album.commentsEnabled,
       downloadsEnabled: album.downloadsEnabled,
       guestbookEnabled: album.guestbookEnabled,
+      memoryModeEnabled: album.memoryModeEnabled,
+      thankYouSignature: album.thankYouSignature,
+      showCouplePhoto: album.showCouplePhoto,
+      showWeddingDate: album.showWeddingDate,
       closesAt: album.closesAt,
       wedding: album.wedding,
       assets: assets.items,
@@ -307,6 +345,10 @@ export class MemoriesService {
         maxImageBytes: limits.imageBytes,
         maxVideoBytes: direct ? limits.videoBytes : limits.proxyVideoBytes,
         maxFilesPerBatch: limits.batchFiles,
+        maxItems: limits.maxItems,
+        maxBytes: limits.maxBytes,
+        totalItems: usage.count,
+        totalBytes: usage.bytes,
         remainingItems: Math.max(0, limits.maxItems - usage.count),
         remainingBytes: Math.max(0, limits.maxBytes - usage.bytes),
       },
@@ -341,6 +383,10 @@ export class MemoriesService {
         downloadsEnabled: body.downloadsEnabled === undefined ? undefined : Boolean(body.downloadsEnabled),
         guestbookEnabled: body.guestbookEnabled === undefined ? undefined : Boolean(body.guestbookEnabled),
         guestbookModerationRequired: body.guestbookModerationRequired === undefined ? undefined : Boolean(body.guestbookModerationRequired),
+        memoryModeEnabled: body.memoryModeEnabled === undefined ? undefined : Boolean(body.memoryModeEnabled),
+        thankYouSignature: body.thankYouSignature === undefined ? undefined : cleanText(body.thankYouSignature, 160) || null,
+        showCouplePhoto: body.showCouplePhoto === undefined ? undefined : Boolean(body.showCouplePhoto),
+        showWeddingDate: body.showWeddingDate === undefined ? undefined : Boolean(body.showWeddingDate),
         closesAt,
       },
     });
@@ -471,6 +517,116 @@ export class MemoriesService {
     }
   }
 
+  private parseArchiveAssetIds(value: unknown): string[] | undefined {
+    const raw = cleanText(value, 12000);
+    if (!raw) return undefined;
+    const ids = [...new Set(raw.split(",").map((item) => cleanText(item, 100)).filter(Boolean))];
+    if (!ids.length) return undefined;
+    if (ids.length > 200) throw new BadRequestException("Mỗi lượt chỉ có thể tải tối đa 200 nội dung đã chọn.");
+    return ids;
+  }
+
+  private async approvedArchiveAssets(albumId: string, assetIds?: string[]): Promise<Array<{ id: string; storageKey: string; originalName: string; sizeBytes: number; createdAt: Date }>> {
+    const rows = await this.prisma.memoryAsset.findMany({
+      where: { albumId, status: "APPROVED", ...(assetIds ? { id: { in: assetIds } } : {}) },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, storageKey: true, originalName: true, sizeBytes: true, createdAt: true },
+    });
+    if (!rows.length) throw new BadRequestException("Không có ảnh hoặc video đã duyệt để tải.");
+    const maxEntries = Math.max(1, Number(process.env.MEMORY_ARCHIVE_MAX_ITEMS ?? 1000));
+    const maxBytes = Math.min(3_500_000_000, Math.max(100 * 1024 * 1024, Number(process.env.MEMORY_ARCHIVE_MAX_BYTES ?? 2 * 1024 * 1024 * 1024)));
+    const totalBytes = rows.reduce((sum, item) => sum + item.sizeBytes, 0);
+    if (rows.length > maxEntries || totalBytes > maxBytes) {
+      throw new BadRequestException(`Album quá lớn để tạo ZIP trong một lượt. Hãy chọn tối đa ${maxEntries} file và dưới ${Math.round(maxBytes / 1024 / 1024 / 1024)} GB.`);
+    }
+    return rows;
+  }
+
+  private archiveStream(entries: Array<{ id: string; storageKey: string; originalName: string; createdAt: Date }>): Readable {
+    const storage = this.storage;
+    async function* generate(): AsyncGenerator<Buffer> {
+      const central: Buffer[] = [];
+      let offset = 0;
+      let index = 0;
+      for (const entry of entries) {
+        index += 1;
+        const body = await storage.read(entry.storageKey);
+        const checksum = crc32(body);
+        const extension = extname(entry.storageKey) || extname(entry.originalName);
+        const baseName = safeArchiveName(entry.originalName, `memory-${index}${extension}`);
+        const fileName = Buffer.from(`${String(index).padStart(4, "0")}-${baseName}`, "utf8");
+        const stamp = zipDosDateTime(entry.createdAt);
+        const local = Buffer.alloc(30 + fileName.length);
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(0x0800, 6);
+        local.writeUInt16LE(0, 8);
+        local.writeUInt16LE(stamp.time, 10);
+        local.writeUInt16LE(stamp.date, 12);
+        local.writeUInt32LE(checksum, 14);
+        local.writeUInt32LE(body.length, 18);
+        local.writeUInt32LE(body.length, 22);
+        local.writeUInt16LE(fileName.length, 26);
+        local.writeUInt16LE(0, 28);
+        fileName.copy(local, 30);
+
+        const directory = Buffer.alloc(46 + fileName.length);
+        directory.writeUInt32LE(0x02014b50, 0);
+        directory.writeUInt16LE(20, 4);
+        directory.writeUInt16LE(20, 6);
+        directory.writeUInt16LE(0x0800, 8);
+        directory.writeUInt16LE(0, 10);
+        directory.writeUInt16LE(stamp.time, 12);
+        directory.writeUInt16LE(stamp.date, 14);
+        directory.writeUInt32LE(checksum, 16);
+        directory.writeUInt32LE(body.length, 20);
+        directory.writeUInt32LE(body.length, 24);
+        directory.writeUInt16LE(fileName.length, 28);
+        directory.writeUInt16LE(0, 30);
+        directory.writeUInt16LE(0, 32);
+        directory.writeUInt16LE(0, 34);
+        directory.writeUInt16LE(0, 36);
+        directory.writeUInt32LE(0, 38);
+        directory.writeUInt32LE(offset, 42);
+        fileName.copy(directory, 46);
+        central.push(directory);
+
+        offset += local.length + body.length;
+        yield local;
+        yield body;
+      }
+      const centralOffset = offset;
+      for (const item of central) { offset += item.length; yield item; }
+      const end = Buffer.alloc(22);
+      end.writeUInt32LE(0x06054b50, 0);
+      end.writeUInt16LE(0, 4);
+      end.writeUInt16LE(0, 6);
+      end.writeUInt16LE(central.length, 8);
+      end.writeUInt16LE(central.length, 10);
+      end.writeUInt32LE(offset - centralOffset, 12);
+      end.writeUInt32LE(centralOffset, 16);
+      end.writeUInt16LE(0, 20);
+      yield end;
+    }
+    return Readable.from(generate());
+  }
+
+  async publicArchive(token: string, assetIdsValue?: unknown): Promise<StreamableFile> {
+    const album = await this.prisma.memoryAlbum.findUnique({ where: { token }, select: { id: true, publicEnabled: true, downloadsEnabled: true } });
+    if (!album?.publicEnabled) throw new NotFoundException("Album chưa được mở công khai");
+    if (!album.downloadsEnabled) throw new ForbiddenException("Album đang tắt tải file");
+    const entries = await this.approvedArchiveAssets(album.id, this.parseArchiveAssetIds(assetIdsValue));
+    return new StreamableFile(this.archiveStream(entries), { type: "application/zip", disposition: 'attachment; filename="ngaydoi-memories.zip"' });
+  }
+
+  async ownerArchive(weddingId: string, user: AuthenticatedUser, assetIdsValue?: unknown): Promise<StreamableFile> {
+    await this.access(weddingId, user);
+    const album = await this.prisma.memoryAlbum.findUnique({ where: { weddingId }, select: { id: true } });
+    if (!album) throw new NotFoundException("Không tìm thấy album");
+    const entries = await this.approvedArchiveAssets(album.id, this.parseArchiveAssetIds(assetIdsValue));
+    return new StreamableFile(this.archiveStream(entries), { type: "application/zip", disposition: 'attachment; filename="ngaydoi-memories.zip"' });
+  }
+
   async toggleReaction(token: string, assetId: string, body: Record<string, unknown>): Promise<{ reacted: boolean; count: number }> {
     const album = await this.prisma.memoryAlbum.findUnique({ where: { token }, select: { id: true, publicEnabled: true, reactionsEnabled: true } });
     if (!album?.publicEnabled) throw new NotFoundException("Album chưa được mở công khai");
@@ -486,20 +642,24 @@ export class MemoriesService {
     return { reacted: !existing, count };
   }
 
-  async comments(token: string, assetId: string, cursor?: string, limitValue?: unknown): Promise<unknown> {
+  async comments(token: string, assetId: string, cursor?: string, limitValue?: unknown, viewerKey?: unknown): Promise<unknown> {
     const album = await this.prisma.memoryAlbum.findUnique({ where: { token }, select: { id: true, publicEnabled: true, commentsEnabled: true } });
     if (!album?.publicEnabled) throw new NotFoundException("Album chưa được mở công khai");
     if (!album.commentsEnabled) return { items: [], nextCursor: null };
     const asset = await this.prisma.memoryAsset.findFirst({ where: { id: assetId, albumId: album.id, status: "APPROVED" }, select: { id: true } });
     if (!asset) throw new NotFoundException("Không tìm thấy khoảnh khắc");
     const limit = clampLimit(limitValue, 12, 30);
+    let viewerHash: string | null = null;
+    if (cleanText(viewerKey, 160)) {
+      try { viewerHash = this.actorHash(token, viewerKey); } catch { viewerHash = null; }
+    }
     const rows = await this.prisma.memoryComment.findMany({
       where: { assetId, status: "APPROVED" }, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       cursor: cursor ? { id: cleanText(cursor, 100) } : undefined, skip: cursor ? 1 : 0, take: limit + 1,
-      select: { id: true, authorName: true, body: true, createdAt: true },
+      select: { id: true, authorName: true, body: true, createdAt: true, actorHash: true },
     });
     const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit);
+    const items = rows.slice(0, limit).map(({ actorHash, ...comment }) => ({ ...comment, canDelete: Boolean(viewerHash && actorHash === viewerHash) }));
     return { items, nextCursor: hasMore ? items.at(-1)?.id ?? null : null };
   }
 
@@ -520,7 +680,21 @@ export class MemoriesService {
       data: { assetId, invitationId: invitation?.id ?? null, authorName, actorHash: hash, body: text, status, approvedAt: status === "APPROVED" ? new Date() : null },
       select: { id: true, authorName: true, body: true, status: true, createdAt: true },
     });
-    return { ...comment, message: status === "PENDING" ? "Bình luận đã gửi và đang chờ duyệt." : "Bình luận đã được đăng." };
+    return { ...comment, canDelete: status === "APPROVED", message: status === "PENDING" ? "Bình luận đã gửi và đang chờ duyệt." : "Bình luận đã được đăng ngay." };
+  }
+
+  async deleteOwnComment(token: string, assetId: string, commentId: string, body: Record<string, unknown>): Promise<{ deleted: true }> {
+    const album = await this.prisma.memoryAlbum.findUnique({ where: { token }, select: { id: true, publicEnabled: true, commentsEnabled: true } });
+    if (!album?.publicEnabled) throw new NotFoundException("Album chưa được mở công khai");
+    if (!album.commentsEnabled) throw new ForbiddenException("Album đang tắt bình luận");
+    const hash = this.actorHash(token, body.actorKey);
+    const comment = await this.prisma.memoryComment.findFirst({
+      where: { id: commentId, assetId, actorHash: hash, asset: { albumId: album.id } },
+      select: { id: true, status: true },
+    });
+    if (!comment || comment.status === "HIDDEN") throw new NotFoundException("Không tìm thấy bình luận của bạn");
+    await this.prisma.memoryComment.update({ where: { id: comment.id }, data: { status: "HIDDEN", hiddenAt: new Date(), approvedAt: null } });
+    return { deleted: true };
   }
 
   private async publicGuestbookPage(weddingId: string, cursor: string | undefined, limit: number): Promise<{ items: Array<any>; nextCursor: string | null }> {
@@ -545,8 +719,8 @@ export class MemoriesService {
     await this.access(weddingId, user);
     const [comments, guestbook] = await Promise.all([
       this.prisma.memoryComment.findMany({
-        where: { asset: { album: { weddingId } }, status: "PENDING" }, orderBy: { createdAt: "desc" }, take: 50,
-        select: { id: true, authorName: true, body: true, createdAt: true, asset: { select: { id: true, type: true, uploaderName: true } } },
+        where: { asset: { album: { weddingId } }, status: { in: ["PENDING", "APPROVED"] } }, orderBy: { createdAt: "desc" }, take: 100,
+        select: { id: true, authorName: true, body: true, status: true, createdAt: true, asset: { select: { id: true, type: true, uploaderName: true } } },
       }),
       this.prisma.guestbookEntry.findMany({
         where: { weddingId, status: "PENDING" }, orderBy: { createdAt: "desc" }, take: 50,
@@ -574,6 +748,14 @@ export class MemoriesService {
     throw new BadRequestException("Loại nội dung không hợp lệ");
   }
 
+  async deleteOwnerComment(weddingId: string, commentId: string, user: AuthenticatedUser): Promise<{ deleted: true }> {
+    await this.access(weddingId, user, true);
+    const comment = await this.prisma.memoryComment.findFirst({ where: { id: commentId, asset: { album: { weddingId } } }, select: { id: true, status: true } });
+    if (!comment || comment.status === "HIDDEN") throw new NotFoundException("Không tìm thấy bình luận");
+    await this.prisma.memoryComment.update({ where: { id: comment.id }, data: { status: "HIDDEN", hiddenAt: new Date(), approvedAt: null } });
+    return { deleted: true };
+  }
+
   async moderate(weddingId: string, assetId: string, body: Record<string, unknown>, user: AuthenticatedUser): Promise<unknown> {
     await this.access(weddingId, user, true);
     const asset = await this.prisma.memoryAsset.findFirst({ where: { id: assetId, album: { weddingId } } });
@@ -587,9 +769,34 @@ export class MemoriesService {
         status: status as never,
         moderationNote: body.moderationNote === undefined ? undefined : cleanText(body.moderationNote, 500) || null,
         rejectionReason: status === "REJECTED" ? cleanText(body.rejectionReason, 300) || "Không phù hợp với album" : null,
+        featuredOrder: status === "APPROVED" ? undefined : null,
+        featuredAt: status === "APPROVED" ? undefined : null,
         approvedAt: status === "APPROVED" ? now : null,
         rejectedAt: status === "REJECTED" ? now : null,
       },
+    });
+  }
+
+  async setFeatured(weddingId: string, assetId: string, body: Record<string, unknown>, user: AuthenticatedUser): Promise<unknown> {
+    await this.access(weddingId, user, true);
+    const album = await this.prisma.memoryAlbum.findUnique({ where: { weddingId }, select: { id: true } });
+    if (!album) throw new NotFoundException("Không tìm thấy album");
+    const asset = await this.prisma.memoryAsset.findFirst({ where: { id: assetId, albumId: album.id } });
+    if (!asset) throw new NotFoundException("Không tìm thấy nội dung");
+    const featured = Boolean(body.featured);
+    if (!featured) {
+      return this.prisma.memoryAsset.update({ where: { id: assetId }, data: { featuredOrder: null, featuredAt: null } });
+    }
+    if (asset.status !== "APPROVED") throw new BadRequestException("Chỉ ảnh/video đã duyệt mới có thể đặt làm khoảnh khắc nổi bật");
+    if (asset.featuredOrder !== null) return asset;
+    const [count, maxOrder] = await Promise.all([
+      this.prisma.memoryAsset.count({ where: { albumId: album.id, status: "APPROVED", featuredOrder: { not: null } } }),
+      this.prisma.memoryAsset.aggregate({ where: { albumId: album.id, status: "APPROVED", featuredOrder: { not: null } }, _max: { featuredOrder: true } }),
+    ]);
+    if (count >= 12) throw new BadRequestException("Trang kỷ niệm chỉ hỗ trợ tối đa 12 khoảnh khắc nổi bật");
+    return this.prisma.memoryAsset.update({
+      where: { id: assetId },
+      data: { featuredOrder: (maxOrder._max.featuredOrder ?? 0) + 1, featuredAt: new Date() },
     });
   }
 
@@ -604,7 +811,7 @@ export class MemoriesService {
     const now = new Date();
     const result = await this.prisma.memoryAsset.updateMany({
       where: { id: { in: ids }, albumId: album.id },
-      data: { status: status as never, rejectionReason: status === "REJECTED" ? cleanText(body.rejectionReason, 300) || "Không phù hợp với album" : null, approvedAt: status === "APPROVED" ? now : null, rejectedAt: status === "REJECTED" ? now : null },
+      data: { status: status as never, rejectionReason: status === "REJECTED" ? cleanText(body.rejectionReason, 300) || "Không phù hợp với album" : null, featuredOrder: status === "APPROVED" ? undefined : null, featuredAt: status === "APPROVED" ? undefined : null, approvedAt: status === "APPROVED" ? now : null, rejectedAt: status === "REJECTED" ? now : null },
     });
     return { updated: result.count };
   }
