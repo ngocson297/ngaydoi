@@ -6,6 +6,7 @@ export type ActiveNavKey =
   | "billing"
   | "account"
   | "admin"
+  | "couponsAdmin"
   | "system"
   | "pilot"
   | "growth"
@@ -58,14 +59,15 @@ const labels: Record<ActiveNavKey, string> = {
   billing: "Gói & thanh toán",
   account: "Tài khoản",
   admin: "Vận hành",
+  couponsAdmin: "Mã giảm giá",
   system: "Hệ thống",
-  pilot: "Pilot launch",
+  pilot: "Pilot & UAT",
   growth: "Growth Hub",
-  growthAdmin: "Growth operations",
+  growthAdmin: "Tăng trưởng & CSKH",
   onboarding: "Bắt đầu nhanh",
   support: "Hỗ trợ",
   partner: "Đối tác",
-  partnersAdmin: "Partner operations",
+  partnersAdmin: "Đối tác & hoa hồng",
   eventOps: "Phân bàn & check-in",
   memories: "Album kỷ niệm",
   planning: "Kế hoạch cưới",
@@ -163,7 +165,8 @@ export function buildNavigation(role: NavigationRole | undefined, weddingId?: st
       label: "Quản trị",
       description: "Vận hành, giám sát và kiểm soát launch",
       items: [
-        item("admin", "/admin", "⚙", "Tổng quan vận hành và đơn hàng.", ["admin", "vận hành", "operations"]),
+        item("admin", "/admin", "⚙", "Tổng quan toàn hệ thống, đơn hàng và kiểm duyệt.", ["admin", "vận hành", "operations"]),
+        item("couponsAdmin", "/admin?tab=coupons", "%", "Tạo, sửa, bật/tắt và theo dõi mã giảm giá.", ["coupon", "mã giảm giá", "khuyến mãi", "voucher"]),
         item("system", "/admin/system", "◉", "Health, email outbox, webhook và backup.", ["system", "health", "webhook", "email"], "Ops"),
         item("pilot", "/admin/pilot", "◫", "Checklist go-live và UAT blocker.", ["pilot", "uat", "launch"], "UAT"),
         item("growthAdmin", "/admin/growth", "↗", "Funnel, support inbox và custom domain.", ["growth admin", "funnel", "support"]),
@@ -200,7 +203,7 @@ export function buildBreadcrumbs(active: ActiveNavKey, weddingId?: string): Brea
       { label: current },
     ];
   }
-  const adminKeys = new Set<ActiveNavKey>(["admin", "system", "pilot", "growthAdmin", "partnersAdmin"]);
+  const adminKeys = new Set<ActiveNavKey>(["admin", "couponsAdmin", "system", "pilot", "growthAdmin", "partnersAdmin"]);
   if (adminKeys.has(active)) {
     return [
       { label: "Tổng quan", href: "/dashboard" },

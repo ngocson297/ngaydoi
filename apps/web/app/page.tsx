@@ -207,7 +207,7 @@ export default function HomePage() {
       <footer className="footer section-white">
         <div className="container footer-inner">
           <div className="brand">Ngày <span>Đôi</span></div>
-          <nav className="home-footer-links" aria-label="Liên kết cuối trang"><a href="/templates">Kho mẫu</a><a href="/contact">Liên hệ</a><a href="/login">Đăng nhập</a></nav>
+          <nav className="home-footer-links" aria-label="Liên kết cuối trang"><a href="/templates">Kho mẫu</a><a href="/privacy">Bảo mật</a><a href="/terms">Điều khoản</a><a href="/contact">Liên hệ</a><a href="/login">Đăng nhập</a></nav>
           <div>Working brand — cần kiểm tra tên miền và nhãn hiệu trước khi ra mắt.</div>
         </div>
       </footer>

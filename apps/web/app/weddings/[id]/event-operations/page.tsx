@@ -12,6 +12,9 @@ import { occupiedSeats } from "../../../../lib/event-operations";
 
 const eventLabel = (data: EventOpsOverview | null, eventId: string): string => !eventId ? "Toàn bộ đám cưới" : data?.events.find((item) => item.id === eventId)?.title ?? "Sự kiện";
 const download = (content: string, filename: string): void => { const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" })); const a = document.createElement("a"); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); };
+const guestQrUrl = (guest: GuestOperation): string => guest.invitation?.token ? `${API_URL}/checkin/guest-qr/${encodeURIComponent(guest.invitation.token)}.svg` : `${API_URL}/checkin/guest-id-qr/${encodeURIComponent(guest.id)}.svg`;
+const HTML_ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
+const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (character) => HTML_ENTITIES[character] ?? character);
 
 type Tab = "tables" | "guests" | "checkin" | "print";
 
@@ -32,6 +35,7 @@ function EventOperationsContent() {
   const [stationName, setStationName] = useState("Bàn đón khách chính");
   const [editingCapacity, setEditingCapacity] = useState<SeatingTable | null>(null);
   const [capacityDraft, setCapacityDraft] = useState(10);
+  const [printing, setPrinting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +53,7 @@ function EventOperationsContent() {
     return data.guests.filter((guest) => !q || [guest.fullName, guest.groupName, guest.phone, guest.email].some((value) => value?.toLowerCase().includes(q)));
   }, [data, query]);
   const unassigned = filteredGuests.filter((guest) => !guest.assignment);
+  const qrGuests = useMemo(() => data?.guests ?? [], [data]);
 
   function flash(message: string): void { setSuccess(message); window.setTimeout(() => setSuccess(""), 3200); }
   async function createTable(event: React.FormEvent): Promise<void> {
@@ -100,6 +105,91 @@ function EventOperationsContent() {
     catch (reason) { setError(reason instanceof ApiError ? reason.message : "Không thể xuất CSV"); }
   }
 
+  async function printQrCards(): Promise<void> {
+    if (!qrGuests.length || printing) return;
+    const printWindow = window.open("", "ngaydoi-qr-print", "width=1100,height=820");
+    if (!printWindow) {
+      setError("Trình duyệt đang chặn cửa sổ in. Hãy cho phép pop-up cho localhost rồi thử lại.");
+      return;
+    }
+
+    setPrinting(true);
+    setError("");
+    try {
+      printWindow.document.open();
+      printWindow.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Đang chuẩn bị thẻ QR…</title></head><body style="font-family:Arial,sans-serif;padding:32px;color:#3f342f">Đang chuẩn bị ${qrGuests.length} thẻ QR…</body></html>`);
+      printWindow.document.close();
+
+      const cards = qrGuests.map((guest) => {
+        const table = data.tables.find((item) => item.assignments.some((assignment) => assignment.guestId === guest.id));
+        const tableLabel = table ? `${table.name}${table.zone ? ` · ${table.zone}` : ""}` : "Chưa phân bàn";
+        return `<article class="qr-card"><div class="qr-copy"><span>NGÀY ĐÔI · CHECK-IN</span><h2>${escapeHtml(guest.fullName)}</h2><p>${escapeHtml(eventLabel(data, eventId))}</p><strong>${escapeHtml(tableLabel)}</strong></div><div class="qr-image"><img src="${escapeHtml(guestQrUrl(guest))}" alt="QR check-in"><small>Mã dành riêng cho khách này</small></div></article>`;
+      }).join("");
+
+      const documentHtml = `<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Thẻ QR check-in · Ngày Đôi</title>
+<style>
+  @page { size: A4; margin: 10mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #302724; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin:0 0 8mm; padding-bottom:5mm; border-bottom:1px solid #e7ddd5; }
+  .print-head span { color:#8d3040; font-size:10px; font-weight:800; letter-spacing:.12em; }
+  .print-head h1 { margin:4px 0 0; font-family:Georgia,serif; font-size:24px; }
+  .print-head p { margin:0; color:#756a64; font-size:11px; text-align:right; }
+  .qr-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7mm; align-items:start; }
+  .qr-card { min-height:64mm; display:grid; grid-template-columns:minmax(0,1fr) 34mm; gap:6mm; align-items:center; padding:6mm; border:1px solid #d8cbc2; border-radius:5mm; break-inside:avoid; page-break-inside:avoid; background:#fff; }
+  .qr-copy { min-width:0; }
+  .qr-copy > span { display:block; color:#8d3040; font-size:8px; font-weight:850; letter-spacing:.1em; }
+  .qr-copy h2 { margin:3mm 0 2mm; font-family:Georgia,serif; font-size:17px; line-height:1.2; overflow-wrap:anywhere; }
+  .qr-copy p { margin:0 0 2.5mm; color:#766b65; font-size:10px; line-height:1.35; }
+  .qr-copy strong { display:block; font-size:11px; line-height:1.35; }
+  .qr-image { display:grid; justify-items:center; gap:2mm; }
+  .qr-image img { width:32mm; height:32mm; display:block; object-fit:contain; }
+  .qr-image small { color:#8b7d75; font-size:7px; text-align:center; line-height:1.25; }
+  @media screen { body { width:210mm; min-height:297mm; margin:0 auto; padding:10mm; box-shadow:0 10px 40px rgba(0,0,0,.12); } }
+  @media print { .print-head { margin-top:0; } }
+</style>
+</head>
+<body>
+  <header class="print-head"><div><span>NGÀY ĐÔI</span><h1>Thẻ QR check-in</h1></div><p>${escapeHtml(eventLabel(data, eventId))}<br>${qrGuests.length} khách</p></header>
+  <main class="qr-grid">${cards}</main>
+<script>
+  window.addEventListener('afterprint', () => window.close());
+</script>
+</body>
+</html>`;
+
+      printWindow.document.open();
+      printWindow.document.write(documentHtml);
+      printWindow.document.close();
+
+      await new Promise<void>((resolve) => {
+        const deadline = window.setTimeout(resolve, 4500);
+        const waitForImages = (): void => {
+          if (printWindow.closed) { window.clearTimeout(deadline); resolve(); return; }
+          const images = Array.from(printWindow.document.images);
+          if (!images.length || images.every((image) => image.complete)) { window.clearTimeout(deadline); resolve(); return; }
+          window.setTimeout(waitForImages, 80);
+        };
+        waitForImages();
+      });
+
+      if (!printWindow.closed) {
+        printWindow.focus();
+        printWindow.print();
+      }
+    } catch {
+      if (!printWindow.closed) printWindow.close();
+      setError("Không thể chuẩn bị bản in QR. Vui lòng thử lại.");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
   if (loading && !data) return <AppShell active="eventOps" weddingId={weddingId}><DetailPageSkeleton /></AppShell>;
   if (!data) return <AppShell active="eventOps" weddingId={weddingId}><ErrorState title="Không thể mở khu vực vận hành" description={loadError?.message ?? "Dữ liệu vận hành chưa sẵn sàng."} requestId={loadError?.requestId} onRetry={() => void load()} homeHref={`/weddings/${weddingId}`} homeLabel="Về wedding workspace" /></AppShell>;
 
@@ -136,7 +226,7 @@ function EventOperationsContent() {
 
     {tab === "checkin" && <div className="ops-layout" {...tabPanelProps("event-operations-tabs", "checkin")}><section className="panel"><div className="panel-head"><div><h2>Trạm check-in</h2><p className="muted-small">Mỗi trạm có một link riêng. Mở link trên điện thoại hoặc máy tính bảng của nhân viên đón khách.</p></div></div><div className="station-list">{data.stations.length ? data.stations.map((station) => <article key={station.id}><div><span className={`mini-status ${station.status === "ACTIVE" ? "accepted" : "revoked"}`}>{station.status === "ACTIVE" ? "Đang hoạt động" : "Đã tắt"}</span><h3>{station.name}</h3><p>Lần sử dụng gần nhất: {station.lastUsedAt ? new Date(station.lastUsedAt).toLocaleString("vi-VN") : "Chưa sử dụng"}</p></div><div><a className="btn btn-primary" target="_blank" rel="noreferrer" href={`/checkin/${station.token}`}>Mở trạm ↗</a>{canEdit && <button className="btn btn-secondary" disabled={busy} onClick={() => void toggleStation(station.id, station.status)}>{station.status === "ACTIVE" ? "Tạm dừng" : "Bật lại"}</button>}</div></article>) : <div className="empty-panel"><h3>Chưa có trạm check-in</h3><p>Tạo một trạm cho quầy đón khách chính.</p></div>}</div></section>{canEdit && <form className="panel ops-form" onSubmit={(e) => void createStation(e)}><span className="eyebrow">Thiết bị mới</span><h2>Tạo trạm check-in</h2><label>Tên trạm<input required value={stationName} onChange={(e) => setStationName(e.target.value)} /></label><p className="form-note">Gợi ý: “Quầy đón khách chính”, “Sảnh A” hoặc “Cửa VIP”.</p><button className="btn btn-primary full-button" disabled={busy}>Tạo trạm</button></form>}</div>}
 
-    {tab === "print" && <section className="panel qr-print-section" {...tabPanelProps("event-operations-tabs", "print")}><div className="panel-head ops-panel-head"><div><h2>Thẻ QR check-in</h2><p className="muted-small">In hoặc lưu các thẻ này. Nhân viên quét mã tại trạm check-in để tìm đúng khách.</p></div><button type="button" className="btn btn-primary no-print" onClick={() => window.print()}>In thẻ QR</button></div><div className="qr-card-grid">{data.guests.filter((guest) => guest.invitation?.token).map((guest) => { const table = data.tables.find((item) => item.assignments.some((assignment) => assignment.guestId === guest.id)); return <article className="qr-guest-card" key={guest.id}><div><span>NGÀY ĐÔI · CHECK-IN</span><h3>{guest.fullName}</h3><p>{eventLabel(data, eventId)}</p><strong>{table ? `${table.name}${table.zone ? ` · ${table.zone}` : ""}` : "Chưa phân bàn"}</strong></div><img alt={`QR check-in của ${guest.fullName}`} src={`${API_URL}/checkin/guest-qr/${guest.invitation?.token}.svg`} /></article>; })}</div></section>}
+    {tab === "print" && <section className="panel qr-print-section" {...tabPanelProps("event-operations-tabs", "print")}><div className="panel-head ops-panel-head"><div><h2>Thẻ QR check-in</h2><p className="muted-small">In hoặc lưu các thẻ này. Nhân viên quét mã tại trạm check-in để tìm đúng khách.</p><span className="qr-print-count">{qrGuests.length} khách sẵn sàng in QR</span></div><button type="button" className="btn btn-primary no-print" disabled={!qrGuests.length || printing} onClick={() => void printQrCards()}>{printing ? "Đang chuẩn bị…" : "In thẻ QR"}</button></div>{qrGuests.length ? <div className="qr-card-grid">{qrGuests.map((guest) => { const table = data.tables.find((item) => item.assignments.some((assignment) => assignment.guestId === guest.id)); return <article className="qr-guest-card" key={guest.id}><div><span>NGÀY ĐÔI · CHECK-IN</span><h3>{guest.fullName}</h3><p>{eventLabel(data, eventId)}</p><strong>{table ? `${table.name}${table.zone ? ` · ${table.zone}` : ""}` : "Chưa phân bàn"}</strong></div><img alt={`QR check-in của ${guest.fullName}`} src={guestQrUrl(guest)} loading="eager" /></article>; })}</div> : <div className="empty-panel qr-print-empty"><div className="empty-icon">QR</div><h3>Chưa có thẻ QR để in</h3><p>Wedding hiện chưa có khách để tạo thẻ QR. Hãy thêm khách vào danh sách, sau đó quay lại đây.</p><a className="btn btn-secondary no-print" href={`/weddings/${weddingId}/guests`}>Mở danh sách khách</a></div>}</section>}
 
 
     <ConfirmDialog

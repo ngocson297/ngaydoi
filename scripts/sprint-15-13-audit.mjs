@@ -14,7 +14,7 @@ const requirePattern = (file, pattern, message) => {
 };
 
 const pkg = JSON.parse(read("package.json") || "{}");
-if (!["0.15.12", "0.15.13"].includes(pkg.version)) failures.push(`package.json: expected 0.15.12+ compatible release, found ${pkg.version}`);
+if (!["0.15.12", "0.15.13", "0.15.14"].includes(pkg.version)) failures.push(`package.json: expected 0.15.12+ compatible release, found ${pkg.version}`);
 requirePattern("apps/api/prisma/schema.prisma", /memoryModeEnabled\s+Boolean\s+@default\(false\)/, "post-wedding mode field missing");
 requirePattern("apps/api/prisma/schema.prisma", /thankYouSignature\s+String\?/, "thank-you signature field missing");
 requirePattern("apps/api/prisma/schema.prisma", /featuredOrder\s+Int\?/, "featured memory ordering missing");

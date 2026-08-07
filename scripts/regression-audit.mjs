@@ -62,7 +62,7 @@ const webPackage = JSON.parse(read("apps/web/package.json") || "{}");
 const lockPackage = JSON.parse(read("package-lock.json") || "{}");
 const versions = [rootPackage.version, apiPackage.version, webPackage.version, lockPackage.version, lockPackage.packages?.[""]?.version, lockPackage.packages?.["apps/api"]?.version, lockPackage.packages?.["apps/web"]?.version];
 if (new Set(versions).size !== 1) fail(`package versions are not aligned: ${versions.join(" / ")}`);
-if (rootPackage.version !== "0.15.13") fail(`root package version must be 0.15.13 for Sprint 15.14, found ${rootPackage.version ?? "missing"}`);
+if (!["0.15.13", "0.15.14"].includes(rootPackage.version)) fail(`root package version must be 0.15.13 or 0.15.14 for Sprint 15.14+, found ${rootPackage.version ?? "missing"}`);
 
 for (const script of ["a11y:audit", "ux:audit", "regression:audit", "invitation-experience:audit", "guest-first-ux:audit", "quality:check", "release:check", "source:pack"]) {
   if (!rootPackage.scripts?.[script]) fail(`package.json: missing ${script} script`);

@@ -120,7 +120,7 @@ export class WebhookService implements OnModuleInit, OnModuleDestroy {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "user-agent": `NgayDoi-Webhooks/${process.env.APP_VERSION ?? "0.7.0"}`,
+            "user-agent": `NgayDoi-Webhooks/${process.env.APP_VERSION ?? "0.15.14"}`,
             "x-ngaydoi-event": row.eventType,
             "x-ngaydoi-delivery": row.id,
             "x-ngaydoi-timestamp": timestamp,

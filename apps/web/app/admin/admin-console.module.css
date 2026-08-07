@@ -1,0 +1,651 @@
+.consolePage {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.consoleHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 6px 0 2px;
+}
+
+.consoleHeader > div:first-child {
+  min-width: 0;
+}
+
+.consoleHeader h1 {
+  margin: 5px 0 8px;
+}
+
+.consoleHeader p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.consoleTabs {
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sectionHead h2,
+.sectionHead p {
+  margin-top: 0;
+}
+
+.sectionHead p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compactButton {
+  min-height: 38px !important;
+  padding: 8px 12px !important;
+  border-radius: 11px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.dangerButton {
+  color: #9a2f3f !important;
+  border-color: rgba(154, 47, 63, .22) !important;
+  background: #fff8f8 !important;
+}
+
+.compactSelect {
+  min-width: 160px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 8px 34px 8px 11px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.compactSelect:focus-visible {
+  outline: none;
+  border-color: var(--wine);
+  box-shadow: 0 0 0 4px rgba(124, 45, 59, .09);
+}
+
+.commandGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.commandCard {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(64, 42, 31, .04);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.commandCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 45, 59, .28);
+  box-shadow: 0 10px 28px rgba(64, 42, 31, .08);
+}
+
+.commandIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--wine);
+  background: #f7ece9;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.commandCard > div {
+  min-width: 0;
+}
+
+.commandCard strong,
+.commandCard small {
+  display: block;
+}
+
+.commandCard strong {
+  font-size: 14px;
+}
+
+.commandCard small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.commandValue {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.commandValue b,
+.commandValue span {
+  display: block;
+}
+
+.commandValue b {
+  font-size: 20px;
+}
+
+.commandValue span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.roleScope {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 13px 15px;
+  border: 1px solid #eaded9;
+  border-radius: 14px;
+  background: #fffaf7;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.roleScope strong {
+  color: var(--ink);
+}
+
+@media (max-width: 1120px) {
+  .commandGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .consoleHeader { align-items: stretch; flex-direction: column; }
+  .headerActions, .actionRow { justify-content: flex-start; }
+  .commandGrid { grid-template-columns: 1fr; }
+  .commandValue { text-align: left; }
+  .commandCard { grid-template-columns: 42px minmax(0, 1fr); }
+  .commandValue { grid-column: 2; }
+  .compactSelect { width: 100%; }
+}
+
+/* Coupon management lives inside the Operations console but is also reachable from the sidebar. */
+:global(.coupon-admin-layout) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr);
+  gap: 16px;
+  align-items: start;
+}
+
+:global(.coupon-admin-list),
+:global(.coupon-admin-form) { min-width: 0; }
+
+:global(.coupon-admin-rows) { display: grid; }
+
+:global(.coupon-admin-rows article) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(120px, .55fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 4px;
+  border-top: 1px solid #eee7e1;
+}
+
+:global(.coupon-admin-rows article.inactive) { opacity: .62; }
+:global(.coupon-admin-rows article > div) { min-width: 0; }
+:global(.coupon-admin-rows strong),
+:global(.coupon-admin-rows small) { display: block; }
+:global(.coupon-code) {
+  display: inline-flex;
+  width: max-content;
+  margin-bottom: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--wine);
+  background: #f8ece8;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+:global(.coupon-admin-rows strong) { font-size: 13px; }
+:global(.coupon-admin-rows small) { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+:global(.coupon-admin-rows b) { font-size: 12px; }
+:global(.coupon-admin-actions) { display: flex; gap: 7px; justify-content: flex-end; flex-wrap: wrap; }
+
+:global(.coupon-admin-form) {
+  display: grid;
+  gap: 13px;
+  position: sticky;
+  top: 88px;
+}
+
+:global(.coupon-admin-form > label),
+:global(.coupon-admin-form .form-grid label) {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+:global(.coupon-admin-form input),
+:global(.coupon-admin-form select) {
+  width: 100%;
+  min-height: 43px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px 12px;
+  background: white;
+  color: var(--ink);
+}
+
+:global(.coupon-admin-form input:focus),
+:global(.coupon-admin-form select:focus) {
+  outline: none;
+  border-color: var(--wine);
+  box-shadow: 0 0 0 4px rgba(124, 45, 59, .09);
+}
+
+:global(.coupon-plan-fieldset) {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+:global(.coupon-plan-fieldset legend) {
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+:global(.coupon-plan-fieldset label),
+:global(.coupon-admin-form .check-inline) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+:global(.coupon-plan-fieldset input),
+:global(.coupon-admin-form .check-inline input) {
+  width: 16px;
+  min-height: 16px;
+}
+
+@media (max-width: 980px) {
+  :global(.coupon-admin-layout) { grid-template-columns: 1fr; }
+  :global(.coupon-admin-form) { position: static; }
+}
+
+@media (max-width: 620px) {
+  :global(.coupon-admin-rows article) { grid-template-columns: 1fr; }
+  :global(.coupon-admin-actions) { justify-content: flex-start; }
+}
+
+/* 2026-08 UI review hotfix — professional admin console */
+.consolePage {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+  gap: 20px;
+}
+
+.consoleHeader {
+  align-items: flex-start;
+  padding: 2px 0 0;
+}
+
+.consoleHeader h1 {
+  max-width: 980px;
+  margin: 7px 0 9px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(34px, 4vw, 48px) !important;
+  line-height: 1.04;
+  letter-spacing: -.045em;
+  text-wrap: balance;
+}
+
+.consoleHeader p {
+  max-width: 820px;
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+/* Shared admin tabs: remove native browser-button appearance. */
+.consolePage :global(.studio-tabs) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+  border: 1px solid #e5dbd3;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 8px 28px rgba(65, 43, 31, .05);
+  scrollbar-width: thin;
+}
+
+.consolePage :global(.studio-tabs [role="tab"]) {
+  appearance: none;
+  min-height: 42px;
+  border: 0 !important;
+  border-radius: 11px;
+  padding: 9px 14px;
+  background: transparent;
+  color: #71665f;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.consolePage :global(.studio-tabs [role="tab"]:hover:not(:disabled)) {
+  background: #f8f1ed;
+  color: #5d2732;
+}
+
+.consolePage :global(.studio-tabs [role="tab"].active) {
+  background: var(--wine);
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(124, 45, 59, .18);
+}
+
+.consolePage :global(.studio-tabs [role="tab"]:disabled) {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/* Calm cards and readable density across System / Pilot / Growth / Partner. */
+.consolePage :global(.panel) {
+  min-width: 0;
+  border-color: #e7ddd5;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(64, 42, 31, .045);
+}
+
+.consolePage :global(.panel h2) {
+  margin-bottom: 8px;
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.consolePage :global(.panel p) {
+  color: var(--muted);
+}
+
+/* System center: legacy Phase-7 styles were too tiny. */
+.consolePage :global(.system-kpis) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 2px;
+}
+
+.consolePage :global(.system-kpis article) {
+  min-width: 0;
+  padding: 18px 19px;
+  border-radius: 18px;
+  border-color: #e7ddd5;
+  box-shadow: 0 7px 24px rgba(64, 42, 31, .035);
+}
+
+.consolePage :global(.system-kpis span) {
+  color: #83756c;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.consolePage :global(.system-kpis strong) {
+  margin: 9px 0 5px;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.consolePage :global(.system-kpis small) {
+  color: #81756e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.consolePage :global(.system-grid),
+.consolePage :global(.webhook-layout) {
+  gap: 16px;
+}
+
+.consolePage :global(.system-checks .panel-head),
+.consolePage :global(.operations-panel > .panel-head),
+.consolePage :global(.webhook-list > .panel-head) {
+  padding: 20px 22px;
+}
+
+.consolePage :global(.system-checks > article) {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 13px;
+  padding: 15px 21px;
+}
+
+.consolePage :global(.system-checks strong) { font-size: 13px; }
+.consolePage :global(.system-checks p) { margin-top: 4px; font-size: 12px; line-height: 1.5; }
+.consolePage :global(.system-checks em) { font-size: 10px; letter-spacing: .06em; }
+
+.consolePage :global(.runtime-card) { padding: 21px; }
+.consolePage :global(.runtime-card h2) { font-size: 20px; }
+.consolePage :global(.runtime-card dt),
+.consolePage :global(.runtime-card dd) { font-size: 12px; }
+.consolePage :global(.runtime-card dl > div) { padding: 11px 0; }
+
+.consolePage :global(.mini-kpis span) { padding: 14px 16px; font-size: 11px; }
+.consolePage :global(.mini-kpis b) { margin-top: 5px; font-size: 17px; }
+.consolePage :global(.ops-table article) { padding: 15px 20px; }
+.consolePage :global(.ops-table strong) { font-size: 13px; }
+.consolePage :global(.ops-table span),
+.consolePage :global(.ops-table small) { font-size: 11px; line-height: 1.45; }
+.consolePage :global(.delivery-state) { padding: 5px 8px; font-size: 10px; }
+
+.consolePage :global(.webhook-create) { padding: 20px; }
+.consolePage :global(.webhook-create h2) { font-size: 20px; }
+.consolePage :global(.webhook-create > p),
+.consolePage :global(.webhook-create label),
+.consolePage :global(.webhook-main span),
+.consolePage :global(.webhook-main small),
+.consolePage :global(.webhook-list aside em) { font-size: 11px; }
+.consolePage :global(.webhook-main strong) { font-size: 13px; }
+.consolePage :global(.webhook-create input) { min-height: 44px; font-size: 13px; }
+.consolePage :global(.webhook-list > article) { padding: 15px 20px; }
+.consolePage :global(.webhook-list button) { min-height: 38px; padding: 8px 11px; border-radius: 10px; font-size: 11px; }
+
+/* Pilot / Growth cards and controls. */
+.consolePage :global(.go-live-badge) {
+  min-width: 170px;
+  padding: 15px 18px;
+  border-radius: 18px;
+  box-shadow: 0 7px 24px rgba(64, 42, 31, .04);
+}
+.consolePage :global(.go-live-badge span) { font-size: 11px; }
+.consolePage :global(.go-live-badge strong) { font-size: 31px; line-height: 1.15; }
+
+.consolePage :global(.pilot-kpis) { gap: 14px; margin: 0; }
+.consolePage :global(.pilot-kpis article) { padding: 18px 19px; border-radius: 18px; box-shadow: 0 7px 24px rgba(64,42,31,.03); }
+.consolePage :global(.pilot-kpis span) { font-size: 12px; }
+.consolePage :global(.pilot-kpis strong) { display: block; margin-top: 5px; font-size: 28px; }
+.consolePage :global(.pilot-check),
+.consolePage :global(.pilot-issue) { padding: 15px 0; }
+.consolePage :global(.pilot-check code) { font-size: 11px; }
+.consolePage :global(.pilot-check strong),
+.consolePage :global(.pilot-issue strong) { font-size: 14px; }
+.consolePage :global(.pilot-check p),
+.consolePage :global(.pilot-issue p) { font-size: 12.5px; line-height: 1.5; }
+
+.consolePage :global(.funnel-grid) { gap: 12px; }
+.consolePage :global(.funnel-grid article) {
+  min-width: 0;
+  padding: 17px;
+  border-radius: 17px;
+  background: #fff;
+}
+.consolePage :global(.funnel-grid article > span) { width: 30px; height: 30px; flex: 0 0 auto; }
+.consolePage :global(.funnel-grid small) { font-size: 12px; }
+.consolePage :global(.funnel-grid strong) { margin-top: 2px; font-size: 25px; }
+.consolePage :global(.ops-row) { padding: 15px 1px; }
+.consolePage :global(.ops-row strong) { font-size: 14px; }
+.consolePage :global(.ops-row p) { margin: 4px 0 0; font-size: 12px; line-height: 1.5; }
+
+/* Coupon screen: prevent the two-column form from widening the whole document. */
+.consolePage :global(.coupon-admin-layout) {
+  width: 100%;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, 430px);
+  gap: 18px;
+}
+.consolePage :global(.coupon-admin-layout > *),
+.consolePage :global(.coupon-admin-form),
+.consolePage :global(.coupon-admin-form .form-grid),
+.consolePage :global(.coupon-admin-form .form-grid > label) { min-width: 0; }
+.consolePage :global(.coupon-admin-form .form-grid.two) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.consolePage :global(.coupon-admin-form input),
+.consolePage :global(.coupon-admin-form select) { min-width: 0; max-width: 100%; }
+.consolePage :global(.coupon-admin-form .full-button) { min-height: 46px; border-radius: 13px; }
+.consolePage :global(.coupon-admin-rows article) { grid-template-columns: minmax(0, 1.3fr) minmax(115px, .55fr) auto; }
+
+/* Consistent compact controls instead of browser-native selects. */
+.compactSelect {
+  appearance: none;
+  min-height: 42px;
+  border-radius: 12px;
+  background-color: #fff;
+  background-image: linear-gradient(45deg, transparent 50%, #7b6e66 50%), linear-gradient(135deg, #7b6e66 50%, transparent 50%);
+  background-position: calc(100% - 16px) 18px, calc(100% - 11px) 18px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  font-size: 12.5px;
+}
+
+@media (max-width: 1180px) {
+  .consolePage :global(.coupon-admin-layout) { grid-template-columns: 1fr; }
+  .consolePage :global(.coupon-admin-form) { position: static; }
+}
+
+@media (max-width: 980px) {
+  .consolePage :global(.system-kpis),
+  .consolePage :global(.pilot-kpis) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .consoleHeader h1 { font-size: clamp(31px, 6vw, 42px) !important; }
+}
+
+@media (max-width: 680px) {
+  .consolePage :global(.system-kpis),
+  .consolePage :global(.pilot-kpis) { grid-template-columns: 1fr; }
+  .consolePage :global(.coupon-admin-form .form-grid.two) { grid-template-columns: 1fr; }
+  .consolePage :global(.studio-tabs) { border-radius: 14px; }
+  .consolePage :global(.studio-tabs [role="tab"]) { min-height: 40px; padding: 8px 12px; font-size: 12.5px; }
+}
+
+/* Operations page itself still carried old tiny Phase-6 typography. */
+.consolePage :global(.admin-tabs) {
+  display: flex;
+  gap: 5px;
+  width: 100%;
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+  border: 1px solid #e5dbd3;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(65,43,31,.045);
+}
+.consolePage :global(.admin-tabs button) {
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  padding: 9px 14px;
+  background: transparent;
+  color: #71665f;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 780;
+  white-space: nowrap;
+}
+.consolePage :global(.admin-tabs button.active) { background: var(--wine); color: #fff; box-shadow: 0 7px 18px rgba(124,45,59,.17); }
+
+.consolePage :global(.admin-metrics) { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 0; }
+.consolePage :global(.admin-metrics article) { min-width: 0; min-height: 126px; padding: 18px; border-radius: 18px; box-shadow: 0 7px 24px rgba(64,42,31,.035); }
+.consolePage :global(.admin-metrics span) { font-size: 11.5px; line-height: 1.4; }
+.consolePage :global(.admin-metrics strong) { margin-top: 12px; font-size: 26px; line-height: 1.12; }
+.consolePage :global(.admin-metrics small) { margin-top: 7px; font-size: 11.5px; line-height: 1.4; }
+.consolePage :global(.admin-overview-grid) { gap: 16px; }
+.consolePage :global(.admin-queue-card),
+.consolePage :global(.admin-process-card),
+.consolePage :global(.admin-order-list),
+.consolePage :global(.admin-order-detail),
+.consolePage :global(.admin-directory) { border-radius: 18px; border-color: #e7ddd5; }
+.consolePage :global(.admin-mini-list strong) { font-size: 13px; }
+.consolePage :global(.admin-mini-list span) { font-size: 11.5px; line-height: 1.45; }
+.consolePage :global(.admin-mini-list em) { font-size: 10px; }
+.consolePage :global(.admin-process-card) { padding: 23px; border: 0; }
+.consolePage :global(.admin-process-card > small) { font-size: 10px; }
+.consolePage :global(.admin-process-card h2) { font-size: 21px; }
+.consolePage :global(.admin-process-card strong) { font-size: 12px; }
+.consolePage :global(.admin-process-card span) { font-size: 10.5px; }
+.consolePage :global(.admin-empty strong),
+.consolePage :global(.admin-empty h3) { font-size: 15px; }
+.consolePage :global(.admin-empty p) { font-size: 12px; }
+
+@media (max-width: 980px) {
+  .consolePage :global(.admin-metrics) { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 620px) {
+  .consolePage :global(.admin-metrics) { grid-template-columns: 1fr; }
+}

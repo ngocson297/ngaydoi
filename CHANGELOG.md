@@ -1,3 +1,14 @@
+# v0.15.14 — Sprint 15.15 Production Pilot Readiness & Hardening
+
+- Added strict production configuration checks, R2/S3 + CDN requirements, release SHA, HTTPS/cookie/email-verification and secret-isolation gates.
+- Added security headers, backup restore drill, performance smoke test and `npm run production:check`.
+- Added pilot Privacy Policy and Terms surfaces plus media-upload/public-invitation disclosures.
+- Fixed QR-card printing so all guests have printable/scannable check-in QR data, including guests without invitation tokens.
+- Fixed Invitation Studio “Mừng cưới” preview data shape and embedded mobile/desktop layout.
+- Added Admin coupon management so discount codes can be created/edited/activated without modifying seed code.
+- No Prisma migration is required for this sprint.
+- Added `npm run sprint15.15:audit` to the quality gate.
+
 # v0.15.13 — Sprint 15.14 Album Control, Download & Archive
 
 - Comments now publish immediately by default; owners can still opt back into pre-moderation.

@@ -75,6 +75,12 @@ export class EventOperationsController {
     return this.service.guestQr(invitationToken);
   }
 
+  @Get("checkin/guest-id-qr/:guestId.svg")
+  @Header("Content-Type", "image/svg+xml")
+  guestIdQr(@Param("guestId") guestId: string): Promise<string> {
+    return this.service.guestIdQr(guestId);
+  }
+
   @Get("checkin/stations/:token")
   station(@Param("token") token: string): Promise<unknown> { return this.service.stationOverview(token); }
 

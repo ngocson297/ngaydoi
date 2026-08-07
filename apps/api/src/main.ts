@@ -17,7 +17,7 @@ async function bootstrap(): Promise<void> {
   instance.set?.("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 1));
   const port = Number(process.env.API_PORT ?? 4000);
   await app.listen(port, "0.0.0.0");
-  Logger.log(JSON.stringify({ type: "service_started", service: "ngaydoi-api", port, version: process.env.APP_VERSION ?? "0.7.0", environment: process.env.NODE_ENV ?? "development" }), "Bootstrap");
+  Logger.log(JSON.stringify({ type: "service_started", service: "ngaydoi-api", port, version: process.env.APP_VERSION ?? "0.15.14", environment: process.env.NODE_ENV ?? "development" }), "Bootstrap");
 }
 
 void bootstrap();

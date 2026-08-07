@@ -168,18 +168,26 @@ export class EventOperationsService {
   async checkIn(token: string, body: Record<string, unknown>): Promise<unknown> {
     const station = await this.activeStation(token);
     const invitationToken = textValue(body.invitationToken, 120).replace(/^NDG:/, "");
+    const qrGuestId = textValue(body.qrGuestId, 100).replace(/^NDGUEST:/, "");
     const guestIdInput = textValue(body.guestId, 80);
     const invitation = invitationToken ? await this.prisma.invitation.findUnique({ where: { token: invitationToken }, include: { guest: true, rsvp: true } }) : null;
-    const guest = invitation?.guest ?? (guestIdInput ? await this.prisma.guest.findFirst({ where: { id: guestIdInput, weddingId: station.weddingId } }) : null);
+    const directGuestId = qrGuestId || guestIdInput;
+    const directGuest = !invitation && directGuestId ? await this.prisma.guest.findFirst({
+      where: { id: directGuestId, weddingId: station.weddingId, archivedAt: null },
+      include: { invitations: { orderBy: { createdAt: "desc" }, take: 1, include: { rsvp: true } } },
+    }) : null;
+    const guest = invitation?.guest ?? directGuest;
     if (!guest || guest.weddingId !== station.weddingId) throw new NotFoundException("Không tìm thấy khách trong đám cưới này");
     const existing = await this.prisma.checkinRecord.findUnique({ where: { guestId_eventKey: { guestId: guest.id, eventKey: station.eventKey } } });
     if (existing && !existing.checkedOutAt) throw new ConflictException("Khách đã check-in trước đó");
-    const defaultAdults = invitation?.rsvp?.status === "ATTENDING" ? invitation.rsvp.adultCount : 1;
-    const defaultChildren = invitation?.rsvp?.status === "ATTENDING" ? invitation.rsvp.childCount : 0;
+    const rsvp = invitation?.rsvp ?? directGuest?.invitations[0]?.rsvp ?? null;
+    const defaultAdults = rsvp?.status === "ATTENDING" ? rsvp.adultCount : 1;
+    const defaultChildren = rsvp?.status === "ATTENDING" ? rsvp.childCount : 0;
     const adultCount = Math.min(20, Math.max(0, numberValue(body.adultCount, defaultAdults)));
     const childCount = Math.min(20, Math.max(0, numberValue(body.childCount, defaultChildren)));
     if (adultCount + childCount < 1) throw new BadRequestException("Số người check-in phải lớn hơn 0");
-    return this.prisma.checkinRecord.upsert({ where: { guestId_eventKey: { guestId: guest.id, eventKey: station.eventKey } }, update: { stationId: station.id, invitationId: invitation?.id ?? null, eventId: station.eventId, method: invitationToken ? "QR" : "SEARCH", adultCount, childCount, note: textValue(body.note, 200) || null, checkedInAt: new Date(), checkedOutAt: null }, create: { weddingId: station.weddingId, eventId: station.eventId, eventKey: station.eventKey, guestId: guest.id, invitationId: invitation?.id ?? null, stationId: station.id, method: invitationToken ? "QR" : "SEARCH", adultCount, childCount, note: textValue(body.note, 200) || null } });
+    const method = invitationToken || qrGuestId ? "QR" : "SEARCH";
+    return this.prisma.checkinRecord.upsert({ where: { guestId_eventKey: { guestId: guest.id, eventKey: station.eventKey } }, update: { stationId: station.id, invitationId: invitation?.id ?? directGuest?.invitations[0]?.id ?? null, eventId: station.eventId, method, adultCount, childCount, note: textValue(body.note, 200) || null, checkedInAt: new Date(), checkedOutAt: null }, create: { weddingId: station.weddingId, eventId: station.eventId, eventKey: station.eventKey, guestId: guest.id, invitationId: invitation?.id ?? directGuest?.invitations[0]?.id ?? null, stationId: station.id, method, adultCount, childCount, note: textValue(body.note, 200) || null } });
   }
 
   async checkOut(token: string, body: Record<string, unknown>): Promise<unknown> {
@@ -195,6 +203,13 @@ export class EventOperationsService {
     const invitation = await this.prisma.invitation.findUnique({ where: { token }, select: { token: true, revokedAt: true } });
     if (!invitation || invitation.revokedAt) throw new NotFoundException("Mã QR không còn hiệu lực");
     return QRCode.toString(`NDG:${invitation.token}`, { type: "svg", margin: 1, width: 320, errorCorrectionLevel: "M", color: { dark: "#321D25", light: "#FFFFFF" } });
+  }
+
+  async guestIdQr(guestId: string): Promise<string> {
+    const id = textValue(guestId, 100);
+    const guest = await this.prisma.guest.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+    if (!guest) throw new NotFoundException("Khách không còn khả dụng");
+    return QRCode.toString(`NDGUEST:${guest.id}`, { type: "svg", margin: 1, width: 320, errorCorrectionLevel: "M", color: { dark: "#321D25", light: "#FFFFFF" } });
   }
 
   async exportCsv(weddingId: string, eventId: string | undefined, user: AuthenticatedUser): Promise<string> {

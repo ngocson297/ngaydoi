@@ -19,7 +19,7 @@ export class SystemHealthService {
     return {
       status: "ok",
       service: "ngaydoi-api",
-      version: process.env.APP_VERSION ?? "0.7.0",
+      version: process.env.APP_VERSION ?? "0.15.14",
       release: process.env.RELEASE_SHA ?? "development",
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),

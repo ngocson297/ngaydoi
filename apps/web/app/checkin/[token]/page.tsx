@@ -8,6 +8,15 @@ import { ApiError, apiRequest, toUiError, type UiError } from "../../../lib/api"
 type SearchGuest = { id: string; fullName: string; salutation: string | null; groupName: string | null; phone: string | null; invitationToken: string | null; rsvp: { status: string; adultCount: number; childCount: number } | null; assignment: { table: { name: string; code: string; zone: string | null }; seatCount: number } | null; checkin: { adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null } | null };
 type StationData = { station: { id: string; name: string }; wedding: { title: string; brideName: string; groomName: string }; event: { title: string; startsAt: string; venueName: string } | null; recent: Array<{ id: string; guestId: string; adultCount: number; childCount: number; checkedInAt: string; checkedOutAt: string | null; guest: { fullName: string }; station: { name: string } | null }>; metrics: { guests: number; people: number } };
 
+function scanPayload(raw: string): Record<string, string> {
+  const value = raw.trim();
+  const guestMatch = value.match(/NDGUEST:([A-Za-z0-9_-]+)/i);
+  if (guestMatch?.[1]) return { qrGuestId: guestMatch[1] };
+  const invitationMatch = value.match(/NDG:([A-Za-z0-9_-]+)/i);
+  if (invitationMatch?.[1]) return { invitationToken: `NDG:${invitationMatch[1]}` };
+  return { invitationToken: value };
+}
+
 export default function CheckinPage() {
   const { confirm } = useConfirm();
   const { token } = useParams<{ token: string }>();
@@ -61,7 +70,7 @@ export default function CheckinPage() {
           const value = codes[0]?.rawValue;
           if (value) {
             stream.getTracks().forEach((track) => track.stop()); streamRef.current = null; setCameraActive(false); setScanValue(value);
-            await checkIn({ invitationToken: value.replace(/^.*NDG:/, "NDG:") });
+            await checkIn(scanPayload(value));
             return;
           }
         } catch { /* keep scanning; manual fallback remains available */ }
@@ -74,7 +83,7 @@ export default function CheckinPage() {
   }
   function stopCamera(): void { streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setCameraActive(false); }
 
-  function submitScan(event: React.FormEvent): void { event.preventDefault(); const value = scanValue.trim(); if (!value) return; setSelected(null); setCounts({ adults: 1, children: 0 }); void checkIn({ invitationToken: value.replace(/^.*NDG:/, "NDG:") }); }
+  function submitScan(event: React.FormEvent): void { event.preventDefault(); const value = scanValue.trim(); if (!value) return; setSelected(null); setCounts({ adults: 1, children: 0 }); void checkIn(scanPayload(value)); }
 
   if (loading && !data) return <main id="main-content" tabIndex={-1} className="checkin-shell"><PageSkeleton cards={2} /></main>;
   if (stationError || !data) return <main id="main-content" tabIndex={-1} className="checkin-shell"><section className="checkin-card"><ErrorState title="Không thể mở trạm check-in" description={stationError?.message ?? "Trạm check-in không còn khả dụng."} requestId={stationError?.requestId} onRetry={() => void load()} homeHref="/" homeLabel="Về trang chủ" compact /></section></main>;
@@ -83,7 +92,7 @@ export default function CheckinPage() {
     <div className="checkin-layout">
       <section className="checkin-card checkin-main-card"><div className="checkin-tabs"><strong>Quét QR hoặc tìm khách</strong><span>Luôn có thể nhập tên nếu camera không hoạt động</span></div>
         {error ? <Alert tone="error">{error}</Alert> : null}{success ? <Alert tone="success">{success}</Alert> : null}
-        <div className="camera-actions"><button className="btn btn-secondary" type="button" onClick={() => cameraActive ? stopCamera() : void startCamera()}>{cameraActive ? "Tắt camera" : "Bật camera quét QR"}</button><span>Hoạt động trên trình duyệt có hỗ trợ BarcodeDetector; luôn có phương án tìm thủ công.</span></div>{cameraActive && <div className="camera-preview"><video aria-label="Hình ảnh camera quét mã QR" muted playsInline ref={videoRef} /><div>Đưa mã QR vào giữa khung hình</div></div>}<form className="scan-form" onSubmit={submitScan}><label>Mã QR / mã khách<input autoFocus ref={scanInput} value={scanValue} onChange={(e) => setScanValue(e.target.value)} placeholder="Quét mã QR hoặc dán mã NDG:..." /></label><button className="btn btn-primary" disabled={busy || !scanValue.trim()}>Check-in bằng mã</button></form>
+        <div className="camera-actions"><button className="btn btn-secondary" type="button" onClick={() => cameraActive ? stopCamera() : void startCamera()}>{cameraActive ? "Tắt camera" : "Bật camera quét QR"}</button><span>Hoạt động trên trình duyệt có hỗ trợ BarcodeDetector; luôn có phương án tìm thủ công.</span></div>{cameraActive && <div className="camera-preview"><video aria-label="Hình ảnh camera quét mã QR" muted playsInline ref={videoRef} /><div>Đưa mã QR vào giữa khung hình</div></div>}<form className="scan-form" onSubmit={submitScan}><label>Mã QR / mã khách<input autoFocus ref={scanInput} value={scanValue} onChange={(e) => setScanValue(e.target.value)} placeholder="Quét mã QR hoặc dán mã NDG:/NDGUEST:..." /></label><button className="btn btn-primary" disabled={busy || !scanValue.trim()}>Check-in bằng mã</button></form>
         <div className="checkin-divider"><span>hoặc tìm thủ công</span></div>
         <label className="guest-search-label">Tên, số điện thoại hoặc email<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nhập ít nhất 2 ký tự..." /></label>
         <div className="station-search-results">{guests.map((guest) => <button key={guest.id} className={selected?.id === guest.id ? "selected" : ""} onClick={() => choose(guest)}><span className="guest-avatar">{guest.fullName.charAt(0)}</span><div><strong>{guest.fullName}</strong><small>{guest.groupName || "Chưa phân nhóm"}{guest.assignment ? ` · ${guest.assignment.table.name}` : " · Chưa có bàn"}</small></div>{guest.checkin && !guest.checkin.checkedOutAt ? <em>Đã đến</em> : <i>Chọn</i>}</button>)}</div>

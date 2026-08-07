@@ -14,7 +14,7 @@ const requirePattern = (file, pattern, message) => {
 };
 
 const pkg = JSON.parse(read("package.json") || "{}");
-if (!["0.15.11", "0.15.12", "0.15.13"].includes(pkg.version)) failures.push(`package.json: expected Sprint 15.12+ version, found ${pkg.version}`);
+if (!["0.15.11", "0.15.12", "0.15.13", "0.15.14"].includes(pkg.version)) failures.push(`package.json: expected Sprint 15.12+ version, found ${pkg.version}`);
 requirePattern("apps/api/prisma/schema.prisma", /model MemoryReaction[\s\S]*?actorHash/, "MemoryReaction model missing");
 requirePattern("apps/api/prisma/schema.prisma", /model MemoryComment[\s\S]*?SocialContentStatus/, "MemoryComment model missing");
 requirePattern("apps/api/prisma/schema.prisma", /model GuestbookEntry[\s\S]*?invitationId/, "GuestbookEntry model missing");

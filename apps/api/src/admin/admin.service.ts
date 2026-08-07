@@ -8,6 +8,7 @@ import { WebhookService } from "../operations/webhook.service.js";
 import { AddOrderNoteDto } from "./dto/add-order-note.dto.js";
 import { PublishReviewDto } from "./dto/publish-review.dto.js";
 import { ReviewPaymentDto } from "./dto/review-payment.dto.js";
+import { UpsertCouponDto } from "./dto/upsert-coupon.dto.js";
 
 @Injectable()
 export class AdminService {
@@ -20,7 +21,10 @@ export class AdminService {
   ) {}
 
   async overview() {
-    const [users, weddings, awaitingPayment, paymentReview, paidOrders, revenue, publishQueue] = await Promise.all([
+    const [
+      users, weddings, awaitingPayment, paymentReview, paidOrders, revenue, publishQueue,
+      activeCoupons, openSupportTickets, pendingDomains, pilotBlockers, pendingPartners, pendingPayouts,
+    ] = await Promise.all([
       this.prisma.user.count({ where: { deletedAt: null } }),
       this.prisma.wedding.count(),
       this.prisma.order.count({ where: { status: "AWAITING_PAYMENT" } }),
@@ -28,6 +32,12 @@ export class AdminService {
       this.prisma.order.count({ where: { paymentStatus: "CONFIRMED" } }),
       this.prisma.order.aggregate({ where: { paymentStatus: "CONFIRMED" }, _sum: { totalAmount: true } }),
       this.prisma.wedding.count({ where: { publishReviewStatus: { in: ["REQUESTED", "IN_REVIEW"] } } }),
+      this.prisma.coupon.count({ where: { active: true } }),
+      this.prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] } } }),
+      this.prisma.customDomain.count({ where: { status: { in: ["PENDING_DNS", "VERIFYING", "VERIFIED"] } } }),
+      this.prisma.pilotIssue.count({ where: { severity: { in: ["HIGH", "CRITICAL"] }, status: { in: ["OPEN", "INVESTIGATING"] } } }),
+      this.prisma.partnerOrganization.count({ where: { status: "PENDING" } }),
+      this.prisma.partnerPayout.count({ where: { status: { in: ["REQUESTED", "REVIEWING", "APPROVED", "PROCESSING"] } } }),
     ]);
     const recentOrders = await this.prisma.order.findMany({
       take: 8,
@@ -35,9 +45,62 @@ export class AdminService {
       include: { plan: true, user: { select: { id: true, displayName: true, email: true } }, wedding: { select: { id: true, title: true, slug: true, status: true, publishReviewStatus: true } }, payments: { orderBy: { createdAt: "desc" }, take: 1 } },
     });
     return {
-      metrics: { users, weddings, awaitingPayment, paymentReview, paidOrders, revenue: revenue._sum.totalAmount ?? 0, publishQueue },
+      metrics: {
+        users, weddings, awaitingPayment, paymentReview, paidOrders, revenue: revenue._sum.totalAmount ?? 0, publishQueue,
+        activeCoupons, openSupportTickets, pendingDomains, pilotBlockers, pendingPartners, pendingPayouts,
+      },
       recentOrders,
     };
+  }
+
+  async listCoupons() {
+    return this.prisma.coupon.findMany({ orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
+  }
+
+  private couponInput(dto: UpsertCouponDto, creating: boolean) {
+    const code = dto.code?.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+    const name = dto.name?.trim();
+    if (creating && (!code || code.length < 3)) throw new BadRequestException("Mã giảm giá phải có ít nhất 3 ký tự");
+    if (creating && !name) throw new BadRequestException("Vui lòng nhập tên chương trình ưu đãi");
+    if (creating && !dto.discountType) throw new BadRequestException("Vui lòng chọn loại giảm giá");
+    if (creating && !dto.discountValue) throw new BadRequestException("Vui lòng nhập giá trị giảm");
+    if (dto.discountType === "PERCENTAGE" && dto.discountValue !== undefined && dto.discountValue > 100) throw new BadRequestException("Giảm theo phần trăm không được vượt quá 100%");
+    const startsAt = dto.startsAt ? new Date(dto.startsAt) : dto.startsAt === null ? null : undefined;
+    const endsAt = dto.endsAt ? new Date(dto.endsAt) : dto.endsAt === null ? null : undefined;
+    if (startsAt && endsAt && endsAt <= startsAt) throw new BadRequestException("Thời gian kết thúc phải sau thời gian bắt đầu");
+    return {
+      code: code || undefined,
+      name: name || undefined,
+      discountType: dto.discountType as never,
+      discountValue: dto.discountValue,
+      startsAt,
+      endsAt,
+      usageLimit: dto.usageLimit === null ? null : dto.usageLimit ?? (creating ? null : undefined),
+      active: dto.active ?? (creating ? true : undefined),
+      planCodes: dto.planCodes as never,
+    };
+  }
+
+  async createCoupon(dto: UpsertCouponDto, admin: AuthenticatedUser) {
+    const data = this.couponInput(dto, true);
+    const existing = data.code ? await this.prisma.coupon.findUnique({ where: { code: data.code } }) : null;
+    if (existing) throw new BadRequestException("Mã giảm giá đã tồn tại");
+    const coupon = await this.prisma.coupon.create({ data: data as never });
+    await this.prisma.auditLog.create({ data: { userId: admin.id, action: "COUPON_CREATED", metadata: { couponId: coupon.id, code: coupon.code } } });
+    return coupon;
+  }
+
+  async updateCoupon(id: string, dto: UpsertCouponDto, admin: AuthenticatedUser) {
+    const current = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException("Không tìm thấy mã giảm giá");
+    const data = this.couponInput(dto, false);
+    if (data.code && data.code !== current.code) {
+      const duplicate = await this.prisma.coupon.findUnique({ where: { code: data.code } });
+      if (duplicate) throw new BadRequestException("Mã giảm giá đã tồn tại");
+    }
+    const coupon = await this.prisma.coupon.update({ where: { id }, data: data as never });
+    await this.prisma.auditLog.create({ data: { userId: admin.id, action: "COUPON_UPDATED", metadata: { couponId: coupon.id, code: coupon.code, active: coupon.active } } });
+    return coupon;
   }
 
   async listOrders(query: Record<string, string | undefined>) {
