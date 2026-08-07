@@ -273,7 +273,7 @@ function InvitationEditorContent() {
       const label = side === "GROOM" ? "Mừng cưới chú rể" : side === "BRIDE" ? "Mừng cưới cô dâu" : "Mừng cưới đôi mình";
       const account: GiftTransferAccount = {
         id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `gift-${Date.now()}`,
-        side, label, bankBin: "", bankCode: "", bankName: "", accountNumber: "", accountName: "", transferNote: "MUNG CUOI",
+        side, label, mode: "UPLOAD", qrAssetId: "", qrImageUrl: "", bankBin: "", bankCode: "", bankName: "", accountNumber: "", accountName: "", transferNote: "MUNG CUOI",
       };
       return { ...current, giftAccounts: [...current.giftAccounts, account], showGift: true };
     });
