@@ -1,6 +1,6 @@
 # Ngày Đôi repository instructions
 
-Current version: **v0.15.1 — Sprint 15.2 Navigation & Information Architecture**.
+Current version: **v0.15.15 — Sprint 15.16 Release Candidate & End-to-End Hardening**.
 
 ## Stack
 

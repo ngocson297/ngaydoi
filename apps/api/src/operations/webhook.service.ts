@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import type { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { appVersion } from "../common/config/app-version.js";
 import type { CreateWebhookDto } from "./dto/create-webhook.dto.js";
 
 interface WebhookEnvelope {
@@ -120,7 +121,7 @@ export class WebhookService implements OnModuleInit, OnModuleDestroy {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "user-agent": `NgayDoi-Webhooks/${process.env.APP_VERSION ?? "0.15.14"}`,
+            "user-agent": `NgayDoi-Webhooks/${appVersion()}`,
             "x-ngaydoi-event": row.eventType,
             "x-ngaydoi-delivery": row.id,
             "x-ngaydoi-timestamp": timestamp,

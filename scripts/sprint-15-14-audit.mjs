@@ -14,7 +14,7 @@ const requirePattern = (file, pattern, message) => {
 };
 
 const pkg = JSON.parse(read("package.json") || "{}");
-if (!["0.15.13", "0.15.14"].includes(pkg.version)) failures.push(`package.json: expected 0.15.13 or 0.15.14, found ${pkg.version}`);
+if (!["0.15.13", "0.15.14", "0.15.15"].includes(pkg.version)) failures.push(`package.json: expected Sprint 15.14+ compatible release, found ${pkg.version}`);
 requirePattern("apps/api/prisma/schema.prisma", /commentModerationRequired\s+Boolean\s+@default\(false\)/, "instant comments are not the default");
 requirePattern("apps/api/src/memories/memories.controller.ts", /comments\/:commentId/, "comment delete endpoint missing");
 requirePattern("apps/api/src/memories/memories.controller.ts", /memories\/.*archive|memories\/:token\/archive/, "archive endpoint missing");

@@ -469,6 +469,8 @@ export class MemoriesService {
     const metadata = this.verifyUploadTicket(body.uploadTicket);
     const album = await this.prisma.memoryAlbum.findUnique({ where: { token }, include: { wedding: { select: { ownerId: true } } } });
     if (!album || album.id !== metadata.albumId || album.weddingId !== metadata.weddingId || !album.publicEnabled) throw new NotFoundException("Album chưa được mở công khai");
+    if (!album.uploadEnabled) throw new ForbiddenException("Album đang tạm ngừng nhận nội dung mới");
+    if (album.closesAt && album.closesAt <= new Date()) throw new ForbiddenException("Thời gian nhận ảnh đã kết thúc");
     await this.assertCapacity(album.id, metadata.sizeBytes);
     let head;
     try { head = await this.storage.head(metadata.storageKey); }
@@ -827,7 +829,7 @@ export class MemoriesService {
 
   async media(assetId: string, token: string, download = false): Promise<StreamableFile> {
     const asset = await this.prisma.memoryAsset.findUnique({ where: { id: assetId }, include: { album: { select: { token: true, publicEnabled: true, downloadsEnabled: true } } } });
-    if (!asset || asset.album.token !== token || !asset.album.publicEnabled || !["APPROVED", "PENDING"].includes(asset.status)) throw new NotFoundException("Không tìm thấy nội dung");
+    if (!asset || asset.album.token !== token || !asset.album.publicEnabled || asset.status !== "APPROVED") throw new NotFoundException("Không tìm thấy nội dung");
     if (download && !asset.album.downloadsEnabled) throw new ForbiddenException("Album đang tắt tải file");
     try {
       const buffer = await this.storage.read(asset.storageKey);

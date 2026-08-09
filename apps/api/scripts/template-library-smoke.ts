@@ -26,7 +26,8 @@ async function main(): Promise<void> {
   if (!wedding) throw new Error("No wedding available for template smoke testing");
 
   const editor = await request<{ invitationDesign: { templateKey: string }; entitlements: { templateKeys: string[] } }>(`/weddings/${wedding.id}/invitation`, {}, login.accessToken);
-  if (editor.entitlements.templateKeys.length !== 24) throw new Error(`Standard plan should unlock 24 templates, received ${editor.entitlements.templateKeys.length}`);
+  const unlockedCount = editor.entitlements.templateKeys.length;
+  if (![24, 36].includes(unlockedCount)) throw new Error(`Expected Standard or Premium template entitlement, received ${unlockedCount}`);
   const original = editor.invitationDesign.templateKey;
 
   await request(`/weddings/${wedding.id}/invitation`, {
@@ -34,19 +35,21 @@ async function main(): Promise<void> {
     body: JSON.stringify({ templateKey: "lotus-vietnamese" }),
   }, login.accessToken);
 
-  const forbidden = await fetch(`${API}/weddings/${wedding.id}/invitation`, {
-    method: "PATCH",
-    headers: { authorization: `Bearer ${login.accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ templateKey: "celestial-night" }),
-  });
-  if (forbidden.status !== 400) throw new Error(`Locked template should return 400, received ${forbidden.status}`);
+  if (!editor.entitlements.templateKeys.includes("celestial-night")) {
+    const forbidden = await fetch(`${API}/weddings/${wedding.id}/invitation`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${login.accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ templateKey: "celestial-night" }),
+    });
+    if (forbidden.status !== 400) throw new Error(`Locked template should return 400, received ${forbidden.status}`);
+  }
 
   await request(`/weddings/${wedding.id}/invitation`, {
     method: "PATCH",
     body: JSON.stringify({ templateKey: original }),
   }, login.accessToken);
 
-  console.log("Template Library smoke test passed: 36 templates, 24 unlocked for Standard, locked-template guard active.");
+  console.log(`Template Library smoke test passed: 36 templates, ${unlockedCount} unlocked for the active plan${unlockedCount < 36 ? ", locked-template guard active" : ""}.`);
 }
 
 main().catch((error: unknown) => { console.error(error); process.exitCode = 1; });

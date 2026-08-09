@@ -1,10 +1,11 @@
 {
   "name": "@ngaydoi/web",
-  "version": "0.15.14",
+  "version": "0.15.15",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "typecheck": "tsc --noEmit",
     "start": "next start"
   },
   "dependencies": {

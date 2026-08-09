@@ -1,11 +1,12 @@
 {
   "name": "@ngaydoi/api",
-  "version": "0.15.14",
+  "version": "0.15.15",
   "private": true,
   "type": "module",
   "scripts": {
     "start:dev": "nest start --watch",
     "build": "nest build",
+    "typecheck": "tsc --noEmit",
     "start": "node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

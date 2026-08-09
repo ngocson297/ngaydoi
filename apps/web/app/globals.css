@@ -179,13 +179,13 @@ h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(48px, 6vw,
 }
 
 /* Identity & account */
-.auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 40px 20px; background: radial-gradient(circle at top, #fff9f2 0, #f4eee6 55%, #eee5da 100%); }
-.auth-card { width: min(100%, 470px); background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 28px; padding: 36px; box-shadow: var(--shadow); }
+.auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; background: radial-gradient(circle at top, #fff9f2 0, #f4eee6 55%, #eee5da 100%); }
+.auth-card { width: 100%; max-width: 470px; min-width: 0; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 28px; padding: 36px; box-shadow: var(--shadow); }
 .auth-brand { display: inline-block; margin-bottom: 34px; }
 .auth-card h1 { font-family: Georgia, serif; font-size: 43px; margin: 10px 0 12px; }
 .auth-card h2 { font-family: Georgia, serif; font-size: 30px; }
 .auth-lead { color: var(--muted); line-height: 1.65; }
-.auth-form { display: grid; gap: 16px; margin-top: 24px; }
+.auth-form { display: grid; min-width: 0; gap: 16px; margin-top: 24px; }
 .auth-form label { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 750; }
 .auth-form input, .auth-form select { width: 100%; border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px; background: white; color: var(--ink); font: inherit; outline: 0; }
 .auth-form input:focus { border-color: var(--wine); box-shadow: 0 0 0 3px rgba(124,45,59,.1); }

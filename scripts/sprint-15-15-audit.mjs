@@ -14,7 +14,7 @@ const requirePattern = (file, pattern, message) => {
 };
 
 const pkg = JSON.parse(read("package.json") || "{}");
-if (pkg.version !== "0.15.14") failures.push(`package.json: expected 0.15.14, found ${pkg.version}`);
+if (!["0.15.14", "0.15.15"].includes(pkg.version)) failures.push(`package.json: expected Sprint 15.15+ compatible release, found ${pkg.version}`);
 for (const script of ["production:config-check", "production:check", "production:report", "backup:drill", "performance:smoke", "sprint15.15:audit"]) {
   if (!pkg.scripts?.[script]) failures.push(`package.json: ${script} script missing`);
 }

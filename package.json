@@ -1,6 +1,6 @@
 {
   "name": "ngaydoi-mvp",
-  "version": "0.15.14",
+  "version": "0.15.15",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -46,7 +46,9 @@
     "a11y:audit": "node scripts/accessibility-audit.mjs",
     "ux:audit": "node scripts/ux-polish-audit.mjs",
     "regression:audit": "node scripts/regression-audit.mjs",
-    "quality:check": "npm run a11y:audit && npm run ux:audit && npm run regression:audit && npm run invitation-experience:audit && npm run guest-first-ux:audit && npm run sprint15.10:audit && npm run sprint15.11:audit && npm run sprint15.12:audit && npm run sprint15.13:audit && npm run sprint15.14:audit && npm run sprint15.15:audit",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "quality:check": "npm run a11y:audit && npm run ux:audit && npm run regression:audit && npm run invitation-experience:audit && npm run guest-first-ux:audit && npm run sprint15.10:audit && npm run sprint15.11:audit && npm run sprint15.12:audit && npm run sprint15.13:audit && npm run sprint15.14:audit && npm run sprint15.15:audit && npm run sprint15.16:audit",
     "release:check": "npm run quality:check && npm run db:validate && npm run build",
     "production:check": "npm run production:config-check && npm run release:check",
     "smoke:all": "npm run auth:smoke && npm run wedding:smoke && npm run invitation:smoke && npm run guest:smoke && npm run commercial:smoke && npm run operations:smoke && npm run pilot:smoke && npm run growth:smoke && npm run partner:smoke && npm run event-ops:smoke && npm run memories:smoke && npm run planning:smoke && npm run template:smoke",
@@ -57,7 +59,11 @@
     "sprint15.12:audit": "node scripts/sprint-15-12-audit.mjs",
     "sprint15.13:audit": "node scripts/sprint-15-13-audit.mjs",
     "sprint15.14:audit": "node scripts/sprint-15-14-audit.mjs",
-    "sprint15.15:audit": "node scripts/sprint-15-15-audit.mjs"
+    "sprint15.15:audit": "node scripts/sprint-15-15-audit.mjs",
+    "sprint15.16:audit": "node scripts/sprint-15-16-audit.mjs",
+    "rc:smoke": "npm run security:test && npm run sprint15.16:audit",
+    "rc:report": "node scripts/release-candidate-report.mjs",
+    "rc:check": "npm run lint && npm run typecheck && npm run quality:check && npm run db:validate && npm run build && npm run rc:smoke"
   },
   "engines": {
     "node": ">=20.9.0"

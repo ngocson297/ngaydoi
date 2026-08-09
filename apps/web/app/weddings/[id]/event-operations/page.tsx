@@ -106,7 +106,8 @@ function EventOperationsContent() {
   }
 
   async function printQrCards(): Promise<void> {
-    if (!qrGuests.length || printing) return;
+    const currentData = data;
+    if (!currentData || !qrGuests.length || printing) return;
     const printWindow = window.open("", "ngaydoi-qr-print", "width=1100,height=820");
     if (!printWindow) {
       setError("Trình duyệt đang chặn cửa sổ in. Hãy cho phép pop-up cho localhost rồi thử lại.");
@@ -121,9 +122,9 @@ function EventOperationsContent() {
       printWindow.document.close();
 
       const cards = qrGuests.map((guest) => {
-        const table = data.tables.find((item) => item.assignments.some((assignment) => assignment.guestId === guest.id));
+        const table = currentData.tables.find((item) => item.assignments.some((assignment) => assignment.guestId === guest.id));
         const tableLabel = table ? `${table.name}${table.zone ? ` · ${table.zone}` : ""}` : "Chưa phân bàn";
-        return `<article class="qr-card"><div class="qr-copy"><span>NGÀY ĐÔI · CHECK-IN</span><h2>${escapeHtml(guest.fullName)}</h2><p>${escapeHtml(eventLabel(data, eventId))}</p><strong>${escapeHtml(tableLabel)}</strong></div><div class="qr-image"><img src="${escapeHtml(guestQrUrl(guest))}" alt="QR check-in"><small>Mã dành riêng cho khách này</small></div></article>`;
+        return `<article class="qr-card"><div class="qr-copy"><span>NGÀY ĐÔI · CHECK-IN</span><h2>${escapeHtml(guest.fullName)}</h2><p>${escapeHtml(eventLabel(currentData, eventId))}</p><strong>${escapeHtml(tableLabel)}</strong></div><div class="qr-image"><img src="${escapeHtml(guestQrUrl(guest))}" alt="QR check-in"><small>Mã dành riêng cho khách này</small></div></article>`;
       }).join("");
 
       const documentHtml = `<!doctype html>

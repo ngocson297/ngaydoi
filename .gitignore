@@ -14,6 +14,7 @@ out/
 # Nest / TypeScript
 dist/
 build/
+*.tsbuildinfo
 
 # Tests
 coverage/
@@ -34,3 +35,6 @@ yarn-error.log*
 # Generated Next.js files
 .next/
 **/.next/
+
+# Generated Prisma Client
+apps/api/src/generated/

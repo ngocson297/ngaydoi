@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EnvironmentService } from "../common/config/environment.service.js";
 import { StorageService } from "../common/storage/storage.service.js";
 import { PrismaService } from "../prisma/prisma.service.js";
+import { appVersion } from "../common/config/app-version.js";
 import { MailService } from "./mail.service.js";
 import { WebhookService } from "./webhook.service.js";
 
@@ -19,7 +20,7 @@ export class SystemHealthService {
     return {
       status: "ok",
       service: "ngaydoi-api",
-      version: process.env.APP_VERSION ?? "0.15.14",
+      version: appVersion(),
       release: process.env.RELEASE_SHA ?? "development",
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),

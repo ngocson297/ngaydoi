@@ -1,20 +1,18 @@
-# Ngày Đôi v0.15.11
+# Ngày Đôi v0.15.15
 
-Current milestone: **Phase 15 Extension — Sprint 15.12 Wedding Social Experience & Album Scalability**.
+Current milestone: **Sprint 15.16 — Release Candidate & End-to-End Hardening**.
 
 ## Current product status
 
-Core product development and Sprint 15.8–15.11 are complete. Sprint 15.12 upgrades Shared Memories into a wedding-scoped social album with cursor pagination, Guestbook wishes, reactions, comments, moderation and a production-ready direct-upload path for S3/R2. Phase 16 and Phase 17 remain paused.
+The v0.15.15 release candidate freezes feature expansion and hardens the complete wedding journey for pilot. It includes backend tenant/RBAC release gates, approved-only public album media, direct-upload deadline revalidation, request tracing, production checks and repeatable RC commands.
 
-## Sprint 15.12 highlights
+## Sprint 15.16 release gate
 
-- Wedding album feed now uses cursor pagination and infinite scroll instead of loading every asset at once.
-- Guests can react with a heart, comment on approved media and browse approved Guestbook wishes within the same wedding space.
-- RSVP wishes are private by default and only enter the public Guestbook when the guest explicitly opts in; moderation can remain required.
-- Album owners can moderate comments and Guestbook entries and control reactions, comments, downloads and Guestbook visibility.
-- Upload quotas protect local self-test and future production usage.
-- LOCAL keeps the existing API upload path; S3/R2 can use presigned direct browser uploads so media bypasses the API process.
-- Sprint 15.12 includes an additive Prisma migration; existing wedding/media data is preserved.
+- Public album media is restricted to approved assets; pending/private assets require an authenticated wedding-scoped owner endpoint.
+- Direct-upload completion revalidates album availability and upload deadlines.
+- `sprint15.16:audit` checks tenant isolation, Admin RBAC, public/private album boundaries, tracing and public rate limits.
+- `rc:smoke`, `rc:report` and `rc:check` provide repeatable release-candidate gates.
+- Sprint 15.16 requires no Prisma migration and preserves existing data.
 
 ## Run local
 

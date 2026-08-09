@@ -7,7 +7,7 @@ const add = (name, ok, detail) => checks.push({ name, status: ok ? "PASS" : "ACT
 const exists = (file) => existsSync(resolve(root, file));
 const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 
-add("Release version", pkg.version === "0.15.14", `Current ${pkg.version}`);
+add("Release version", pkg.version === "0.15.15", `Current ${pkg.version}`);
 add("Production env template", exists("apps/api/.env.production.example"), "Use a private apps/api/.env.production with all placeholders replaced");
 add("Production env file", exists("apps/api/.env.production"), exists("apps/api/.env.production") ? "Private production configuration is present locally" : "Create only on the deployment machine/provider; never commit secrets");
 add("Security headers", exists("apps/web/next.config.ts"), "Web security header policy is configured");

@@ -1,3 +1,11 @@
+# v0.15.15 — Sprint 15.16 Release Candidate & End-to-End Hardening
+
+- Fixed a public album authorization defect that allowed pending media to be read when its asset ID and album token were known.
+- Direct-upload completion now revalidates upload-enabled and close-deadline state before creating asset metadata.
+- Added tenant-isolation, Admin RBAC, public/private album boundary, request tracing and rate-limit RC audits.
+- Added root lint/typecheck commands plus `rc:smoke`, `rc:report` and full `rc:check` release gates.
+- No Prisma migration is required for this sprint.
+
 # v0.15.14 — Sprint 15.15 Production Pilot Readiness & Hardening
 
 - Added strict production configuration checks, R2/S3 + CDN requirements, release SHA, HTTPS/cookie/email-verification and secret-isolation gates.

@@ -86,6 +86,26 @@ async function main(): Promise<void> {
   }, owner.accessToken);
   assert.equal(updatedEvent.dressCode, "Formal");
 
+  // Publication is a paid-plan capability. Activate the lowest self-review plan
+  // through the same sandbox order flow used by a real local customer.
+  const order = await request("/orders", {
+    method: "POST",
+    body: JSON.stringify({ weddingId, planCode: "STARTER", addOnCodes: [], customerNote: "Wedding Core smoke test" }),
+  }, owner.accessToken);
+  const orderId = String(order.id);
+  await request(`/orders/${orderId}/payment-reference`, {
+    method: "POST",
+    body: JSON.stringify({ reference: `WEDDING-SMOKE-${suffix}`, note: "Automated lifecycle prerequisite" }),
+  }, owner.accessToken);
+  const adminLogin = await request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: "admin@ngaydoi.vn", password: "Demo@12345" }),
+  });
+  await request(`/admin/orders/${orderId}/confirm-payment`, {
+    method: "POST",
+    body: JSON.stringify({ note: "Wedding Core smoke confirmed" }),
+  }, String(adminLogin.accessToken));
+
   await request(`/weddings/${weddingId}/lifecycle`, { method: "POST", body: JSON.stringify({ status: "READY_FOR_REVIEW" }) }, owner.accessToken);
   const published = await request(`/weddings/${weddingId}/lifecycle`, { method: "POST", body: JSON.stringify({ status: "PUBLISHED" }) }, owner.accessToken);
   assert.equal(published.status, "PUBLISHED");
