@@ -24,8 +24,9 @@ export default function LoginPage() {
     setError(null);
     const data = new FormData(event.currentTarget);
     try {
-      await login(String(data.get("email")), String(data.get("password")));
-      router.replace(nextPath || "/dashboard");
+      const loggedInUser = await login(String(data.get("email")), String(data.get("password")));
+      const defaultPath = loggedInUser && ["ADMIN", "STAFF"].includes(loggedInUser.role) ? "/admin" : "/dashboard";
+      router.replace(nextPath || defaultPath);
     } catch (cause) {
       setError(cause instanceof Error ? cause : new Error("Không thể đăng nhập"));
     } finally {

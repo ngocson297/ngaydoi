@@ -9,6 +9,15 @@ import { toUiError, type UiError } from "../../lib/api";
 import { formatDate, statusClasses, statusLabels } from "../../lib/weddings";
 import type { WeddingSummary } from "../../lib/weddings";
 
+const publishReviewLabels: Record<WeddingSummary["publishReviewStatus"], string> = {
+  NOT_REQUESTED: "Chưa gửi duyệt",
+  REQUESTED: "Đã gửi yêu cầu",
+  IN_REVIEW: "Đang được kiểm tra",
+  APPROVED: "Đã duyệt",
+  CHANGES_REQUESTED: "Cần cập nhật",
+  REJECTED: "Không được duyệt",
+};
+
 function DashboardContent() {
   const { authRequest } = useAuth();
   const [weddings, setWeddings] = useState<WeddingSummary[]>([]);
@@ -38,68 +47,70 @@ function DashboardContent() {
 
   return (
     <AppShell active="dashboard">
-      <div className="dash-top">
-        <div>
-          <div className="eyebrow">Wedding workspace</div>
-          <h1>Đám cưới của bạn</h1>
-          <p className="dash-user">Tạo, hoàn thiện và quản lý toàn bộ sự kiện trên một nơi.</p>
-        </div>
-        <div className="dash-head-actions"><a className="btn btn-secondary" href="/pricing">Xem bảng giá</a><a className="btn btn-primary" href="/weddings/new">+ Tạo đám cưới</a></div>
-      </div>
-
-      {loading ? <MetricSkeleton /> : (
-        <div className="metric-grid">
-          <article className="metric"><span>Tổng workspace</span><strong>{stats.total}</strong></article>
-          <article className="metric"><span>Đang chuẩn bị</span><strong>{stats.draft}</strong></article>
-          <article className="metric"><span>Đã xuất bản</span><strong>{stats.published}</strong></article>
-          <article className="metric"><span>Tổng sự kiện</span><strong>{stats.events}</strong></article>
-        </div>
-      )}
-
-      <section id="my-weddings" className="workspace-section state-section">
-        <div className="panel-head">
-          <div><h2>Danh sách đám cưới</h2><p className="muted-small">Workspace bạn sở hữu hoặc được mời cộng tác.</p></div>
-        </div>
-        {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
-        {loading ? (
-          <ListSkeleton rows={3} />
-        ) : !error && weddings.length === 0 ? (
-          <EmptyState
-            icon="✦"
-            title="Bắt đầu đám cưới đầu tiên"
-            description="Wizard chỉ yêu cầu thông tin cơ bản. Bạn có thể bổ sung sự kiện, khách mời và gia đình sau."
-            primaryAction={{ label: "Tạo workspace", href: "/weddings/new" }}
-            secondaryAction={{ label: "Xem mẫu thiệp", href: "/templates" }}
-            compact
-          />
-        ) : !error ? (
-          <div className="wedding-card-grid">
-            {weddings.map((wedding) => (
-              <article className="wedding-card" key={wedding.id}>
-                <a className="wedding-card-main" href={`/weddings/${wedding.id}`} aria-label={`Quản lý đám cưới ${wedding.groomName} và ${wedding.brideName}`}>
-                  <div className="wedding-card-top">
-                    <span className={`status-pill ${statusClasses[wedding.status]}`}>{statusLabels[wedding.status]}</span>
-                    <div className="wedding-card-chips"><span className="plan-chip">{wedding.activePlan?.name ?? "Khởi đầu"}</span><span className="access-chip">{wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Cộng tác chỉnh sửa" : "Chỉ xem"}</span></div>
-                  </div>
-                  <div className="couple-monogram" aria-hidden="true"><b>{wedding.groomName.trim().charAt(0).toUpperCase()}</b><span>&amp;</span><b>{wedding.brideName.trim().charAt(0).toUpperCase()}</b></div>
-                  <h3>{wedding.groomName} & {wedding.brideName}</h3>
-                  <p>{wedding.title}</p>
-                  <div className="wedding-card-meta">
-                    <span>Ngày chính<strong>{formatDate(wedding.mainDate)}</strong></span>
-                    <span>Sự kiện<strong>{wedding._count.events}</strong></span>
-                    <span>Khách<strong>{wedding._count.guests}</strong></span>
-                  </div>
-                  <div className="card-footer">ngaydoi.vn/thiep/{wedding.slug}</div>
-                </a>
-                <div className="wedding-card-actions">
-                  {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/thiep/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp</a>}
-                  <a className="btn btn-primary" href={`/weddings/${wedding.id}`}>{wedding.access === "OWNER" && !wedding.activePlan ? "Chọn gói" : "Quản lý"} →</a>
-                </div>
-              </article>
-            ))}
+      <div className="customer-dashboard-page">
+        <div className="dash-top">
+          <div>
+            <div className="eyebrow">Wedding workspace</div>
+            <h1>Đám cưới của bạn</h1>
+            <p className="dash-user">Tạo, hoàn thiện và quản lý ngày cưới của bạn tại một nơi.</p>
           </div>
-        ) : null}
-      </section>
+          <div className="dash-head-actions"><a className="btn btn-secondary" href="/pricing">Xem bảng giá</a><a className="btn btn-primary" href="/weddings/new">+ Tạo đám cưới</a></div>
+        </div>
+
+        {loading ? <MetricSkeleton /> : (
+          <div className="metric-grid">
+            <article className="metric"><span>Tổng đám cưới</span><strong>{stats.total}</strong></article>
+            <article className="metric"><span>Đang chuẩn bị</span><strong>{stats.draft}</strong></article>
+            <article className="metric"><span>Đã xuất bản</span><strong>{stats.published}</strong></article>
+            <article className="metric"><span>Tổng sự kiện</span><strong>{stats.events}</strong></article>
+          </div>
+        )}
+
+        <section id="my-weddings" className="workspace-section state-section">
+          <div className="panel-head">
+            <div><h2>Danh sách đám cưới</h2><p className="muted-small">Workspace bạn sở hữu hoặc được mời cộng tác.</p></div>
+          </div>
+          {error ? <InlineErrorState description={error.message} requestId={error.requestId} onRetry={() => void load()} /> : null}
+          {loading ? (
+            <ListSkeleton rows={3} />
+          ) : !error && weddings.length === 0 ? (
+            <EmptyState
+              icon="✦"
+              title="Bắt đầu đám cưới đầu tiên"
+              description="Wizard chỉ yêu cầu thông tin cơ bản. Bạn có thể bổ sung sự kiện, khách mời và gia đình sau."
+              primaryAction={{ label: "Tạo workspace", href: "/weddings/new" }}
+              secondaryAction={{ label: "Xem mẫu thiệp", href: "/templates" }}
+              compact
+            />
+          ) : !error ? (
+            <div className="wedding-card-grid">
+              {weddings.map((wedding) => (
+                <article className="wedding-card" key={wedding.id}>
+                  <a className="wedding-card-main" href={`/weddings/${wedding.id}`} aria-label={`Quản lý đám cưới ${wedding.groomName} và ${wedding.brideName}`}>
+                    <div className="wedding-card-top">
+                      <span className={`status-pill ${statusClasses[wedding.status]}`}>{statusLabels[wedding.status]}</span>
+                      <div className="wedding-card-chips"><span className="plan-chip">{wedding.activePlan?.name ?? "Khởi đầu"}</span><span className="access-chip">{wedding.access === "OWNER" ? "Chủ sở hữu" : wedding.access === "EDIT" ? "Cộng tác chỉnh sửa" : "Chỉ xem"}</span></div>
+                    </div>
+                    <div className="couple-monogram" aria-hidden="true"><b>{wedding.groomName.trim().charAt(0).toUpperCase()}</b><span>&amp;</span><b>{wedding.brideName.trim().charAt(0).toUpperCase()}</b></div>
+                    <h3>{wedding.groomName} & {wedding.brideName}</h3>
+                    <p>{wedding.title}</p>
+                    <div className="wedding-card-meta">
+                      <span>Ngày chính<strong>{formatDate(wedding.mainDate)}</strong></span>
+                      <span>Sự kiện<strong>{wedding._count.events}</strong></span>
+                      <span>Khách<strong>{wedding._count.guests}</strong></span>
+                    </div>
+                    <div className="card-footer"><span>Đăng duyệt: {publishReviewLabels[wedding.publishReviewStatus]}</span><span>ngaydoi.vn/thiep/{wedding.slug}</span></div>
+                  </a>
+                  <div className="wedding-card-actions">
+                    {wedding.status === "PUBLISHED" && <a className="btn btn-secondary wedding-view-button" href={`/thiep/${wedding.slug}`} target="_blank" rel="noreferrer"><span aria-hidden="true">◉</span> Xem thiệp</a>}
+                    <a className="btn btn-primary" href={`/weddings/${wedding.id}`}>{wedding.access === "OWNER" && !wedding.activePlan ? "Chọn gói" : "Quản lý đám cưới"} →</a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      </div>
     </AppShell>
   );
 }

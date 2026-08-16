@@ -2,6 +2,11 @@ import { API_URL } from "./api";
 import type { WeddingAccess, WeddingEvent, WeddingStatus } from "./weddings";
 
 export type TemplateKey = string;
+export const MOTION_TEMPLATE_CATEGORY = "Chuyển động" as const;
+export const MOTION_TEMPLATE_KEYS = ["blush-romance", "champagne-glow", "botanical-white"] as const;
+export function isMotionTemplate(key: string): boolean {
+  return (MOTION_TEMPLATE_KEYS as readonly string[]).includes(key);
+}
 export type InvitationSectionKey = "hero" | "family" | "story" | "gallery" | "countdown" | "events" | "gift" | "footer";
 export type EditorTab = "templates" | "content" | "style" | "media" | "gift" | "settings" | "history";
 

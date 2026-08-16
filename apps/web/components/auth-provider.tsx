@@ -18,7 +18,7 @@ interface SessionResponse {
 interface AuthContextValue {
   user: AuthUser | null;
   status: "loading" | "authenticated" | "unauthenticated";
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   refresh: () => Promise<string | null>;
@@ -77,12 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const login = useCallback(async (email: string, password: string): Promise<void> => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser | null> => {
     const session = await apiRequest<SessionResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
     applySession(session);
+    return session.user;
   }, [applySession]);
 
   const authRequest = useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {

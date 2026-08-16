@@ -1,10 +1,10 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { API_URL, apiRequest, ApiError } from "../lib/api";
 import { formatDate } from "../lib/weddings";
-import { giftAccountQrUrl, normalizeGiftAccounts, resolveMediaUrl, resolveTemplateExperience, withDefaultDesign } from "../lib/invitations";
+import { giftAccountQrUrl, isMotionTemplate, normalizeGiftAccounts, resolveMediaUrl, resolveTemplateExperience, withDefaultDesign } from "../lib/invitations";
 import type { GiftTransferAccount, InvitationPersonalization, InvitationSectionKey, PublicInvitationData } from "../lib/invitations";
 
 interface PublicInvitationProps {
@@ -12,6 +12,29 @@ interface PublicInvitationProps {
   preview?: boolean;
   embedded?: boolean;
   previewViewport?: "mobile" | "desktop";
+}
+
+const SLIDE_TEMPLATE_KEYS = new Set(["cinematic-veil", "polaroid-memories"]);
+
+function SlideInvitation({ slides, photoStory = false }: { slides: ReactNode[]; photoStory?: boolean }) {
+  const [active, setActive] = useState(0);
+  const touchStart = useRef<number | null>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") setActive((current) => Math.max(0, current - 1));
+      if (event.key === "ArrowRight") setActive((current) => Math.min(slides.length - 1, current + 1));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [slides.length]);
+  if (!slides.length) return null;
+  const go = (next: number) => setActive(Math.max(0, Math.min(slides.length - 1, next)));
+  return <section className={`inv-slide-deck ${photoStory ? "is-photo-story" : "is-elegant-slides"}`} aria-label="Các phần của thiệp cưới">
+    <div className="inv-slide-viewport" onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const start = touchStart.current; const end = event.changedTouches[0]?.clientX; touchStart.current = null; if (start == null || end == null || Math.abs(end - start) < 42) return; go(active + (end < start ? 1 : -1)); }}>
+      <div className="inv-slide-track" style={{ transform: `translate3d(-${active * 100}%, 0, 0)` }}>{slides.map((slide, index) => <article className={`inv-slide ${index === active ? "is-active" : ""}`} aria-hidden={index !== active} key={index}>{slide}</article>)}</div>
+    </div>
+    <div className="inv-slide-controls"><button type="button" aria-label="Trang trước" onClick={() => go(active - 1)} disabled={active === 0}>←</button><div className="inv-slide-dots" role="tablist" aria-label="Chọn trang thiệp">{slides.map((_, index) => <button type="button" role="tab" aria-label={`Trang ${index + 1}`} aria-selected={index === active} className={index === active ? "active" : ""} onClick={() => go(index)} key={index} />)}</div><button type="button" aria-label="Trang tiếp theo" onClick={() => go(active + 1)} disabled={active === slides.length - 1}>→</button></div>
+  </section>;
 }
 
 function WeddingFireworks({ invitationId }: { invitationId: string }) {
@@ -53,6 +76,12 @@ function WeddingFireworks({ invitationId }: { invitationId: string }) {
 }
 
 type RsvpStatus = "ATTENDING" | "DECLINED" | "MAYBE";
+
+const rsvpStatusLabels: Record<RsvpStatus, string> = {
+  ATTENDING: "Sẽ tham dự",
+  MAYBE: "Chưa chắc",
+  DECLINED: "Không thể dự",
+};
 
 function Countdown({ target, variant }: { target: string | null; variant: "cards" | "editorial" | "rings" | "minimal" }) {
   const [now, setNow] = useState(() => Date.now());
@@ -228,7 +257,7 @@ function PersonalizedRsvpSection({ personalization, events }: { personalization:
         <label className="inv5-message">Lời nhắn dành cho cô dâu chú rể<textarea rows={4} maxLength={1000} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Gửi một lời chúc thật ấm áp..." /></label>
         {message.trim() && <label className="inv5-wish-public"><input type="checkbox" checked={publishWish} onChange={(event) => setPublishWish(event.target.checked)} /><span><strong>Cho phép hiển thị lời chúc này trong Sổ lưu bút</strong><small>Chỉ lời chúc bạn đồng ý công khai mới có thể được khách khác nhìn thấy; chủ thiệp có thể duyệt trước khi hiển thị.</small></span></label>}
         {error && <div className="inv5-form-message error" role="alert">{error}</div>}
-        {notice && <div className="inv5-form-message success" role="status"><span aria-hidden="true">✓</span> {notice}</div>}
+        {notice && <div className="inv5-form-message success" role="status"><span aria-hidden="true">✓</span><div><strong>{hasResponded ? "Phản hồi của bạn" : "Đã lưu phản hồi"}</strong><p>{notice}</p><small>{rsvpStatusLabels[status]} · Bạn có thể quay lại bằng liên kết này để cập nhật.</small></div></div>}
         {missingAttendee && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một người tham dự.</div>}
         {missingEvent && <div className="inv5-form-message error" role="alert">Vui lòng chọn ít nhất một chương trình sẽ tham dự.</div>}
         <button className="inv5-submit" type="submit" disabled={busy || missingAttendee || missingEvent}>{busy ? "Đang gửi phản hồi..." : hasResponded ? "Cập nhật phản hồi" : "Gửi xác nhận"}</button>
@@ -284,6 +313,7 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
   const wedding = withDefaultDesign(data);
   const design = wedding.invitationDesign;
   const experience = resolveTemplateExperience(design.templateKey);
+  const motionTemplate = isMotionTemplate(design.templateKey);
   const [copied, setCopied] = useState(false);
   const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null);
   const [musicPlaying, setMusicPlaying] = useState(false);
@@ -422,14 +452,24 @@ export function PublicInvitation({ data, preview = false, embedded = false, prev
     footer: design.showFooter ? <footer className="inv4-footer"><div className="inv4-ornament small">ND</div><h2>{wedding.groomName} <span>&</span> {wedding.brideName}</h2><p>{design.footerMessage}</p><div className="inv4-footer-actions"><button type="button" onClick={shareInvitation}>{copied ? "Đã sao chép liên kết" : memoryMode ? "Chia sẻ kỷ niệm" : "Chia sẻ ngày vui"}</button>{wedding.memoryAlbum?.publicEnabled && <a href={`/memories/${wedding.memoryAlbum.token}${wedding.personalization ? `?guest=${encodeURIComponent(wedding.personalization.token)}` : ""}`}>{memoryMode ? "Xem album kỷ niệm" : "Góp ảnh vào album"}</a>}</div><div className="inv4-legal-links"><a href="/privacy">Chính sách bảo mật</a><a href="/terms">Điều khoản sử dụng</a></div></footer> : null,
   };
 
+  const slideMode = SLIDE_TEMPLATE_KEYS.has(design.templateKey) && !memoryMode;
+  const slideNodes = design.sectionOrder.flatMap((key) => {
+    if (key !== "footer") return sections[key] ? [sections[key]] : [];
+    const footerNodes: ReactNode[] = [];
+    if (wedding.personalization && !preview) footerNodes.push(<PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />);
+    if (wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length) footerNodes.push(<GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled ? wedding.memoryAlbum.token : undefined} />);
+    if (sections.footer) footerNodes.push(sections.footer);
+    return footerNodes;
+  });
+
   const Root = embedded ? "div" : "main";
 
   return (
-    <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${embedded ? "is-embedded" : ""} ${previewViewport ? `preview-${previewViewport}` : ""}`} style={style}>
+    <Root id={embedded ? undefined : "main-content"} tabIndex={embedded ? undefined : -1} className={`inv4 invitation-template-${design.templateKey} invitation-layout-${experience.layout} invitation-photo-${experience.photoTreatment} heading-${design.headingFont} body-${design.bodyFont} ${motionTemplate ? "inv-motion-template" : ""} ${embedded ? "is-embedded" : ""} ${previewViewport ? `preview-${previewViewport}` : ""}`} style={style}>
       {!embedded && !preview && !memoryMode && <WeddingFireworks invitationId={wedding.id} />}
       {preview && <div className="inv4-preview-banner">Bản xem trước bảo mật · Chưa phải link công khai</div>}
       {design.musicEnabled && design.musicUrl && <><audio ref={audioRef} src={design.musicUrl} loop preload="none" /><button className={`inv4-music ${musicPlaying ? "playing" : ""}`} type="button" onClick={toggleMusic} aria-label={musicPlaying ? "Tạm dừng nhạc nền" : "Phát nhạc nền"} aria-pressed={musicPlaying}>{musicPlaying ? "Ⅱ" : "♪"}</button></>}
-      {design.sectionOrder.map((key) => <div key={key}>{key === "footer" && memoryMode && <><PostWeddingRsvpClosedSection albumToken={memoryAlbum?.publicEnabled ? memoryAlbum.token : undefined} /><MemoryThankYouSection data={wedding} />{memoryAlbum && <FeaturedMemoriesSection album={memoryAlbum} />}</>}{key === "footer" && !memoryMode && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{key === "footer" && wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length ? <GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled ? wedding.memoryAlbum.token : undefined} /> : null}{sections[key]}</div>)}
+      {slideMode ? <SlideInvitation slides={slideNodes} photoStory={design.templateKey === "polaroid-memories"} /> : design.sectionOrder.map((key) => <div key={key}>{key === "footer" && memoryMode && <><PostWeddingRsvpClosedSection albumToken={memoryAlbum?.publicEnabled ? memoryAlbum.token : undefined} /><MemoryThankYouSection data={wedding} />{memoryAlbum && <FeaturedMemoriesSection album={memoryAlbum} />}</>}{key === "footer" && !memoryMode && wedding.personalization && !preview && <PersonalizedRsvpSection personalization={wedding.personalization} events={wedding.events} />}{key === "footer" && wedding.memoryAlbum?.guestbookEnabled !== false && wedding.guestbookEntries?.length ? <GuestbookPreviewSection entries={wedding.guestbookEntries} albumToken={wedding.memoryAlbum?.publicEnabled ? wedding.memoryAlbum.token : undefined} /> : null}{sections[key]}</div>)}
     </Root>
   );
 }

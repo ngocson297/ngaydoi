@@ -102,7 +102,7 @@ export function buildNavigation(role: NavigationRole | undefined, weddingId?: st
   const groups: NavigationGroup[] = [];
 
   const overviewItems: NavigationItem[] = [
-    item("dashboard", "/dashboard", "⌂", "Tình trạng chung và việc cần làm tiếp theo.", ["home", "dashboard", "tổng quan"]),
+    item("dashboard", adminRoles.has(currentRole) ? "/admin" : "/dashboard", "⌂", "Tình trạng chung và việc cần làm tiếp theo.", ["home", "dashboard", "tổng quan"]),
   ];
 
   if (customerWorkspaceRoles.has(currentRole)) {
@@ -125,7 +125,7 @@ export function buildNavigation(role: NavigationRole | undefined, weddingId?: st
           item("planning", `/weddings/${weddingId}/planning`, "✓", "Timeline, deadline và nhắc việc.", ["kế hoạch", "timeline", "task"], "Timeline"),
           item("invitation", `/weddings/${weddingId}/invitation`, "✉", "Thiết kế, xem trước và xuất bản thiệp.", ["thiệp", "studio", "invitation"], "Studio"),
           item("guests", `/weddings/${weddingId}/guests`, "◎", "Danh sách khách, thiệp cá nhân và RSVP.", ["khách", "rsvp", "guest"], "RSVP"),
-          item("eventOps", `/weddings/${weddingId}/event-operations`, "⌖", "Sơ đồ bàn, QR và check-in ngày cưới.", ["bàn", "checkin", "qr", "event"], "Event"),
+          item("eventOps", `/weddings/${weddingId}/event-operations`, "⌖", "Sơ đồ bàn, QR và check-in ngày cưới.", ["bàn", "checkin", "qr", "event"]),
           item("memories", `/weddings/${weddingId}/memories`, "▧", "Album chung và lời cảm ơn sau cưới.", ["album", "ảnh", "video", "memories"], "Album"),
         ]
       : [];
@@ -206,7 +206,7 @@ export function buildBreadcrumbs(active: ActiveNavKey, weddingId?: string): Brea
   const adminKeys = new Set<ActiveNavKey>(["admin", "couponsAdmin", "system", "pilot", "growthAdmin", "partnersAdmin"]);
   if (adminKeys.has(active)) {
     return [
-      { label: "Tổng quan", href: "/dashboard" },
+      { label: "Tổng quan", href: "/admin" },
       ...(active === "admin" ? [] : [{ label: "Quản trị", href: "/admin" }]),
       { label: current },
     ];

@@ -1,4 +1,8 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { HomeMotion } from "../components/home-motion";
+import { isMotionTemplate, MOTION_TEMPLATE_CATEGORY } from "../lib/invitations";
 
 const features = [
   ["✉", "Thiệp cá nhân hóa", "Mỗi khách nhận đúng tên và cách xưng hô qua một liên kết riêng."],
@@ -11,19 +15,24 @@ const features = [
 
 
 const invitationTemplates = [
-  { key: "lotus-vietnamese", name: "Sen Việt thanh nhã", style: "Á Đông", layout: "arch", colors: ["#315B4A", "#C8A35F", "#F8F1E4"], symbol: "❀" },
-  { key: "imperial-red", name: "Hỷ sắc cung đình", style: "Truyền thống", layout: "portrait", colors: ["#9E1F2F", "#D5AE58", "#FFF4E7"], symbol: "囍" },
-  { key: "garden-sage", name: "Vườn xanh dịu dàng", style: "Thiên nhiên", layout: "story", colors: ["#566B55", "#A58354", "#F4F5EF"], symbol: "❦" },
-  { key: "modern-noir", name: "Noir hiện đại", style: "Hiện đại", layout: "editorial", colors: ["#161616", "#C5A46D", "#EEECE8"], symbol: "ND" },
-  { key: "art-deco-emerald", name: "Emerald Art Deco", style: "Art Deco", layout: "split", colors: ["#0F5448", "#D2B46C", "#F1F5F0"], symbol: "◇" },
-  { key: "ocean-minimal", name: "Biển xanh tối giản", style: "Tối giản", layout: "minimal", colors: ["#315E6C", "#C59A65", "#F1F6F7"], symbol: "≈" },
-  { key: "celestial-night", name: "Thiên hà đêm cưới", style: "Fantasy", layout: "portrait", colors: ["#312A59", "#D6B6EA", "#F2EFFA"], symbol: "✦" },
-  { key: "heritage-indigo", name: "Chàm Việt di sản", style: "Di sản", layout: "arch", colors: ["#294A66", "#C9A45C", "#F2F0E8"], symbol: "ND" },
-  { key: "polaroid-memories", name: "Polaroid ngày mình", style: "Photo story", layout: "story", colors: ["#7B5B4B", "#D59C78", "#F8EEE2"], symbol: "FILM" },
-  { key: "saigon-sunrise", name: "Sài Gòn sớm mai", style: "Urban editorial", layout: "editorial", colors: ["#713E35", "#E1A366", "#FFF6EC"], symbol: "SG" },
-  { key: "cinematic-veil", name: "Voan cưới điện ảnh", style: "Cinematic", layout: "portrait", colors: ["#40363B", "#D0B08C", "#F5F0ED"], symbol: "CINE" },
-  { key: "dragon-phoenix", name: "Long phụng giao duyên", style: "Lễ Việt", layout: "arch", colors: ["#8B1728", "#D8B15F", "#FFF2DF"], symbol: "囍" },
+  { key: "lotus-vietnamese", name: "Sen Việt thanh nhã", style: "Á Đông", category: "Hoa lá", layout: "arch", colors: ["#315B4A", "#C8A35F", "#F8F1E4"], symbol: "❀" },
+  { key: "imperial-red", name: "Hỷ sắc cung đình", style: "Truyền thống", category: "Truyền thống", layout: "portrait", colors: ["#9E1F2F", "#D5AE58", "#FFF4E7"], symbol: "囍" },
+  { key: "garden-sage", name: "Vườn xanh dịu dàng", style: "Thiên nhiên", category: "Hoa lá", layout: "story", colors: ["#566B55", "#A58354", "#F4F5EF"], symbol: "❦" },
+  { key: "modern-noir", name: "Noir hiện đại", style: "Hiện đại", category: "Hiện đại", layout: "editorial", colors: ["#161616", "#C5A46D", "#EEECE8"], symbol: "ND" },
+  { key: "art-deco-emerald", name: "Emerald Art Deco", style: "Art Deco", category: "Sang trọng", layout: "split", colors: ["#0F5448", "#D2B46C", "#F1F5F0"], symbol: "◇" },
+  { key: "ocean-minimal", name: "Biển xanh tối giản", style: "Tối giản", category: "Tối giản", layout: "minimal", colors: ["#315E6C", "#C59A65", "#F1F6F7"], symbol: "≈" },
+  { key: "celestial-night", name: "Thiên hà đêm cưới", style: "Fantasy", category: "Lãng mạn", layout: "portrait", colors: ["#312A59", "#D6B6EA", "#F2EFFA"], symbol: "✦" },
+  { key: "heritage-indigo", name: "Chàm Việt di sản", style: "Di sản", category: "Thanh lịch", layout: "arch", colors: ["#294A66", "#C9A45C", "#F2F0E8"], symbol: "ND" },
+  { key: "polaroid-memories", name: "Polaroid ngày mình", style: "Photo story", category: "Ảnh cưới", layout: "story", colors: ["#7B5B4B", "#D59C78", "#F8EEE2"], symbol: "FILM" },
+  { key: "saigon-sunrise", name: "Sài Gòn sớm mai", style: "Urban editorial", category: "Hiện đại", layout: "editorial", colors: ["#713E35", "#E1A366", "#FFF6EC"], symbol: "SG" },
+  { key: "cinematic-veil", name: "Voan cưới điện ảnh", style: "Cinematic", category: "Thanh lịch", layout: "portrait", colors: ["#40363B", "#D0B08C", "#F5F0ED"], symbol: "CINE" },
+  { key: "dragon-phoenix", name: "Long phụng giao duyên", style: "Lễ Việt", category: "Truyền thống", layout: "arch", colors: ["#8B1728", "#D8B15F", "#FFF2DF"], symbol: "囍" },
+  { key: "blush-romance", name: "Hồng phấn lãng mạn", style: "Lãng mạn", category: MOTION_TEMPLATE_CATEGORY, layout: "split", colors: ["#A75D69", "#C39978", "#FFF5F3"], symbol: "♡" },
+  { key: "champagne-glow", name: "Champagne rạng rỡ", style: "Sang trọng", category: MOTION_TEMPLATE_CATEGORY, layout: "portrait", colors: ["#806A53", "#D8B884", "#FBF5E9"], symbol: "✦" },
+  { key: "botanical-white", name: "Botanical trắng xanh", style: "Hoa lá", category: MOTION_TEMPLATE_CATEGORY, layout: "minimal", colors: ["#4D6757", "#A9A37E", "#F8FAF7"], symbol: "❦" },
 ];
+
+const templateCategories = ["Tất cả", "Thanh lịch", "Hiện đại", "Tối giản", "Lãng mạn", "Hoa lá", "Sang trọng", "Truyền thống", "Ảnh cưới", MOTION_TEMPLATE_CATEGORY];
 
 const plans = [
   { name: "Cơ bản", price: "199.000đ", items: ["Thiệp responsive", "Album và nhạc nền", "Bản đồ, countdown"], featured: false },
@@ -32,12 +41,30 @@ const plans = [
 ];
 
 export default function HomePage() {
+  const [templateCategory, setTemplateCategory] = useState("Tất cả");
+  const visibleTemplates = useMemo(() => templateCategory === "Tất cả" ? invitationTemplates : invitationTemplates.filter((template) => template.category === templateCategory), [templateCategory]);
+
   return (
     <main id="main-content" tabIndex={-1} className="home-page">
       <HomeMotion />
       <nav className="nav">
         <div className="container nav-inner">
           <a className="brand" href="#">Ngày <span>Đôi</span></a>
+          <div className="home-mobile-controls">
+            <a className="btn btn-primary home-mobile-cta" href="/create">T&#7841;o thi&#7879;p</a>
+            <details className="home-mobile-menu">
+              <summary aria-label="M&#7903; menu"><span className="home-menu-label">M&#7903; menu</span><i /><i /><i /></summary>
+              <div className="home-mobile-menu-panel">
+                <a href="#features">T&#237;nh n&#259;ng</a>
+                <a href="/templates">Kho m&#7851;u thi&#7879;p</a>
+                <a href="#pricing">B&#7843;ng gi&#225;</a>
+                <a href="/thiep/minh-anh">Xem thi&#7879;p m&#7851;u</a>
+                <a href="/contact">Li&#234;n h&#7879;</a>
+                <a href="/login">&#272;&#259;ng nh&#7853;p</a>
+                <a className="btn btn-primary" href="/create">B&#7855;t &#273;&#7847;u t&#7841;o thi&#7879;p</a>
+              </div>
+            </details>
+          </div>
           <div className="nav-links">
             <a href="#features">Tính năng</a>
             <a href="/templates">Kho mẫu thiệp</a>
@@ -134,8 +161,11 @@ export default function HomePage() {
             </div>
             <a className="btn btn-secondary home-template-cta" href="/templates">Khám phá 36 mẫu →</a>
           </div>
+          <div className="home-template-filters" aria-label="Lọc mẫu thiệp">
+            {templateCategories.map((category) => <button type="button" className={templateCategory === category ? "active" : ""} key={category} onClick={() => setTemplateCategory(category)}>{category}</button>)}
+          </div>
           <div className="landing-template-grid">
-            {invitationTemplates.map((template, index) => (
+            {visibleTemplates.map((template, index) => (
               <article data-reveal className={`landing-template-card reveal-up template-card-${index + 1}`} key={template.key}>
                 <div className={`landing-template-preview layout-${template.layout}`} style={{ background: template.colors[2], color: template.colors[0] }}>
                   <div className="landing-template-photo" aria-hidden="true"><span>♥</span><i /><i /></div>
@@ -147,10 +177,13 @@ export default function HomePage() {
                     <small>18 · 10 · 2026</small>
                   </div>
                   <em className="landing-layout-name">{template.layout === "split" ? "Ảnh chia đôi" : template.layout === "editorial" ? "Editorial" : template.layout === "arch" ? "Khung vòm" : template.layout === "story" ? "Photo story" : template.layout === "minimal" ? "Tối giản" : "Ảnh chân dung"}</em>
+                  {(template.key === "cinematic-veil" || template.key === "polaroid-memories") && <b className="landing-slide-badge">Slide</b>}
+                  {isMotionTemplate(template.key) && <b className="landing-motion-badge">Motion</b>}
                 </div>
                 <div className="landing-template-info">
-                  <div><small>{template.style}</small><h3>{template.name}</h3></div>
+                  <div><small>{template.category} · {template.style}</small><h3>{template.name}</h3></div>
                   <div className="landing-palette" aria-label={`Bảng màu ${template.name}`}>{template.colors.map((color) => <i key={color} style={{ background: color }} />)}</div>
+                  <div className="landing-template-actions"><a href="/thiep/minh-anh">Xem thiệp mẫu</a><a href={`/create?template=${encodeURIComponent(template.key)}`}>Dùng mẫu</a></div>
                 </div>
               </article>
             ))}
@@ -208,7 +241,7 @@ export default function HomePage() {
         <div className="container footer-inner">
           <div className="brand">Ngày <span>Đôi</span></div>
           <nav className="home-footer-links" aria-label="Liên kết cuối trang"><a href="/templates">Kho mẫu</a><a href="/privacy">Bảo mật</a><a href="/terms">Điều khoản</a><a href="/contact">Liên hệ</a><a href="/login">Đăng nhập</a></nav>
-          <div>Working brand — cần kiểm tra tên miền và nhãn hiệu trước khi ra mắt.</div>
+          <div>Thiệp cưới trực tuyến, nhẹ nhàng cho ngày trọng đại.</div>
         </div>
       </footer>
     </main>

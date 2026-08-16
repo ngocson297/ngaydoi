@@ -10,7 +10,7 @@ import { useAuth } from "../../../../components/auth-provider";
 import { Alert, DetailPageSkeleton, ErrorState, FileUploadField, useConfirm, useToast } from "../../../../components/ui";
 import { ApiError, toUiError, type UiError } from "../../../../lib/api";
 import { compressWeddingImage } from "../../../../lib/image";
-import { giftAccountQrUrl, resolveMediaUrl } from "../../../../lib/invitations";
+import { giftAccountQrUrl, isMotionTemplate, MOTION_TEMPLATE_CATEGORY, resolveMediaUrl } from "../../../../lib/invitations";
 import type {
   EditorTab,
   GiftTransferAccount,
@@ -242,12 +242,12 @@ function InvitationEditorContent() {
 
   const canEdit = data?.access === "OWNER" || data?.access === "EDIT";
   const previewData = useMemo<PublicInvitationData | null>(() => data && design ? { ...data, invitationDesign: design } : null, [data, design]);
-  const templateStyles = useMemo(() => ["ALL", ...Array.from(new Set(templates.map((template) => template.style))).sort((a, b) => a.localeCompare(b, "vi"))], [templates]);
+  const templateStyles = useMemo(() => ["ALL", ...Array.from(new Set(templates.map((template) => isMotionTemplate(template.key) ? MOTION_TEMPLATE_CATEGORY : template.style))).sort((a, b) => a.localeCompare(b, "vi"))], [templates]);
   const filteredTemplates = useMemo(() => {
     const needle = templateQuery.trim().toLocaleLowerCase("vi-VN");
     return templates.filter((template) => {
       const unlocked = Boolean(data?.entitlements.templateKeys.includes(template.key));
-      if (templateStyle !== "ALL" && template.style !== templateStyle) return false;
+      if (templateStyle !== "ALL" && (isMotionTemplate(template.key) ? MOTION_TEMPLATE_CATEGORY : template.style) !== templateStyle) return false;
       if (templateAccess === "OPEN" && !unlocked) return false;
       if (templateAccess === "LOCKED" && unlocked) return false;
       if (templateAccess === "FAVORITE" && !favoriteTemplates.includes(template.key)) return false;
@@ -445,9 +445,9 @@ function InvitationEditorContent() {
     <AppShell active="invitation" weddingId={weddingId}>
       <div className="editor-page">
         <header className="editor-topbar">
-          <div className="editor-title-row">
+            <div className="editor-title-row">
             <a className="editor-back" href={`/weddings/${weddingId}`} aria-label="Quay lại wedding workspace">←</a>
-            <div><span className="editor-overline">Invitation Studio</span><h1>{data.groomName} & {data.brideName}</h1></div>
+            <div><span className="editor-overline">Trình tạo thiệp</span><h1>{data.groomName} & {data.brideName}</h1></div>
           </div>
           <div className="editor-toolbar">
             <div className={`save-indicator ${saveStatus}`}><i />{saveStatus === "saving" ? "Đang lưu..." : saveStatus === "dirty" ? "Chờ tự động lưu" : saveStatus === "error" ? "Lưu thất bại" : "Đã lưu"}</div>
@@ -467,14 +467,14 @@ function InvitationEditorContent() {
           </nav>
 
           <aside className="editor-controls">
-            <div className="editor-controls-head"><div><span>{statusLabels[data.status]}</span><h2>{editorTabs.find((item) => item.key === activeTab)?.label}</h2></div><small>Revision {design.revision}</small></div>
+            <div className="editor-controls-head"><div><span>{statusLabels[data.status]}</span><h2>{editorTabs.find((item) => item.key === activeTab)?.label}</h2></div><small>Phiên bản {design.revision}</small></div>
             {activeTab === "templates" && <div className="template-explorer">
               <div className="editor-entitlement-note">
                 <div>
                   <strong>Gói {data.entitlements.plan.name}</strong>
                   <span>{data.entitlements.templateKeys.length}/{templates.length} mẫu được mở · {data.entitlements.remainingMedia}/{data.entitlements.mediaLimit} ảnh còn lại</span>
                 </div>
-                <a href={`/pricing?weddingId=${weddingId}`}>Mở thêm template →</a>
+                <a href={`/pricing?weddingId=${weddingId}`}>Mở thêm mẫu →</a>
               </div>
 
               <div className="template-toolbar">
@@ -490,7 +490,7 @@ function InvitationEditorContent() {
                 </label>
               </div>
 
-              <div className="template-filter-pills" aria-label="Lọc template">
+              <div className="template-filter-pills" aria-label="Lọc mẫu">
                 {([
                   ["ALL", "Tất cả"],
                   ["OPEN", "Đã mở"],
@@ -515,10 +515,12 @@ function InvitationEditorContent() {
                         <div className="template-mini-copy"><small>Save the date</small><strong>A <span>&</span> B</strong><time>18 · 10 · 2026</time></div>
                         {template.layout === "story" && <div className="template-mini-collage" aria-hidden="true"><i /><i /><i /></div>}
                         <b className="template-layout-chip">{template.layout === "split" ? "Chia đôi" : template.layout === "editorial" ? "Editorial" : template.layout === "arch" ? "Vòm" : template.layout === "story" ? "Photo story" : template.layout === "minimal" ? "Tối giản" : "Chân dung"}</b>
+                        {(template.key === "cinematic-veil" || template.key === "polaroid-memories") && <em className="template-slide-badge">Slide</em>}
+                        {isMotionTemplate(template.key) && <em className="template-motion-badge">Motion</em>}
                         {!unlocked && <em>🔒</em>}
                       </div>
                       <div>
-                        <span>{template.style} · {templatePlanLabels[template.plan]}</span>
+                        <span>{isMotionTemplate(template.key) ? MOTION_TEMPLATE_CATEGORY : template.style} · {templatePlanLabels[template.plan]}</span>
                         <h3>{template.name}</h3>
                         <p>{unlocked ? template.description : `Mẫu thuộc gói ${templatePlanLabels[template.plan]}. Nâng cấp để áp dụng.`}</p>
                         <small>{template.tags.slice(0, 3).join(" · ")}</small>
@@ -576,12 +578,13 @@ function InvitationEditorContent() {
               <Alert tone="info" title="Cách đơn giản nhất">Mở ứng dụng ngân hàng, tải hoặc chụp QR cá nhân rồi upload. BIN chỉ được yêu cầu khi bạn chọn tạo QR tự động.</Alert>
               {giftBanksUnavailable && design.giftAccounts.some((account) => account.mode === "VIETQR") && <Alert tone="warning" title="Chưa tải được danh sách ngân hàng">Bạn vẫn có thể nhập BIN 6 số và tên ngân hàng thủ công cho chế độ VietQR.</Alert>}
 
+              {design.giftAccounts.length === 0 && <div className="gift-editor-empty"><span aria-hidden="true">QR</span><div><h3>Chưa có thông tin mừng cưới</h3><p>Thêm tài khoản ngân hàng hoặc mã QR để khách có thể gửi lời chúc và mừng cưới.</p></div></div>}
               <div className="gift-editor-list">
                 {design.giftAccounts.map((account, index) => {
                   const ready = giftAccountReady(account);
                   const uploadingQr = giftQrUploadingId === account.id;
                   return <article className="gift-editor-card" key={account.id}>
-                    <header><div><span>Tài khoản {index + 1}</span><h3>{account.label || "Tài khoản mừng cưới"}</h3></div><button className="gift-editor-remove" type="button" disabled={!canEdit || uploadingQr} onClick={() => removeGiftAccount(account.id)} aria-label={`Xóa tài khoản ${index + 1}`}>Xóa</button></header>
+                    <header><div><span>{account.side === "BRIDE" ? "Nhà gái" : account.side === "GROOM" ? "Nhà trai" : "Cô dâu & chú rể"} · Tài khoản {index + 1}</span><h3>{account.label || "Tài khoản mừng cưới"}</h3></div><button className="gift-editor-remove" type="button" disabled={!canEdit || uploadingQr} onClick={() => removeGiftAccount(account.id)} aria-label={`Xóa tài khoản ${index + 1}`}>Xóa</button></header>
                     <div className="gift-mode-switch" role="radiogroup" aria-label={`Cách tạo QR cho tài khoản ${index + 1}`}>
                       <button type="button" role="radio" aria-checked={account.mode === "UPLOAD"} className={account.mode === "UPLOAD" ? "active" : ""} disabled={!canEdit} onClick={() => updateGiftAccount(account.id, { mode: "UPLOAD" })}><span>↑</span><b>Tải QR ngân hàng</b><small>Nhanh nhất, không cần BIN</small></button>
                       <button type="button" role="radio" aria-checked={account.mode === "VIETQR"} className={account.mode === "VIETQR" ? "active" : ""} disabled={!canEdit} onClick={() => updateGiftAccount(account.id, { mode: "VIETQR" })}><span>QR</span><b>Tạo QR tự động</b><small>Nhập ngân hàng và tài khoản</small></button>

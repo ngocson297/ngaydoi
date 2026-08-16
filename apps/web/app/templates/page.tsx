@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { HomeMotion } from "../../components/home-motion";
 import { CardSkeleton, EmptyState, InlineErrorState } from "../../components/ui";
 import { apiRequest, toUiError, type UiError } from "../../lib/api";
+import { isMotionTemplate } from "../../lib/invitations";
 import type { InvitationTemplate } from "../../lib/invitations";
 
 const categoryLabels: Record<string, string> = {
@@ -16,6 +17,7 @@ const categoryLabels: Record<string, string> = {
   MODERN: "Hiện đại",
   LUXURY: "Sang trọng",
   DESTINATION: "Destination",
+  MOTION: "Chuyển động",
 };
 
 const planLabels: Record<string, string> = {
@@ -80,11 +82,11 @@ export default function TemplateCatalogPage() {
     void load();
   }, [load]);
 
-  const categories = useMemo(() => ["ALL", ...Array.from(new Set(templates.map((item) => item.category)))], [templates]);
+  const categories = useMemo(() => ["ALL", ...Array.from(new Set(templates.map((item) => isMotionTemplate(item.key) ? "MOTION" : item.category)))], [templates]);
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("vi-VN");
     return templates.filter((template) => {
-      if (category !== "ALL" && template.category !== category) return false;
+      if (category !== "ALL" && (isMotionTemplate(template.key) ? "MOTION" : template.category) !== category) return false;
       if (plan !== "ALL" && template.plan !== plan) return false;
       if (onlyNew && !template.isNew) return false;
       if (onlyFavorites && !favorites.includes(template.key)) return false;
@@ -153,6 +155,8 @@ export default function TemplateCatalogPage() {
                 <div className="catalog-template-actions"><a className="btn btn-primary compact" href={`/create?template=${encodeURIComponent(template.key)}`}>Dùng mẫu này</a><button className={`catalog-favorite ${favorite ? "active" : ""}`} type="button" onClick={() => toggleFavorite(template.key)} aria-label={favorite ? "Bỏ khỏi yêu thích" : "Thêm vào yêu thích"}>{favorite ? "♥" : "♡"}</button></div>
               </div>
               {(template.isNew || template.badge) && <b className="catalog-card-badge">{template.isNew ? "Mới" : template.badge}</b>}
+              {(template.key === "cinematic-veil" || template.key === "polaroid-memories") && <b className="catalog-slide-badge">Slide</b>}
+              {isMotionTemplate(template.key) && <b className="catalog-motion-badge">Motion</b>}
             </article>;
           })}
         </div> : null}
